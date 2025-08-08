@@ -63,10 +63,10 @@ export default function LoginPage() {
       console.log('API Response:', data);
       
       if (data.success) {
-        // For demo numbers, store the OTP returned from server
+        // For demo numbers, update the stored OTP with the demo OTP
         if (data.otp) {
           sessionStorage.setItem('otp', data.otp);
-          console.log('Demo OTP stored:', data.otp);
+          console.log('Demo OTP updated:', data.otp);
           
           // Show OTP in alert for demo numbers only
           alert(`🔐 Your Demo OTP is: ${data.otp}\n\nThis is a demo OTP. For real numbers, check your SMS.`);
@@ -106,16 +106,7 @@ export default function LoginPage() {
       // Generate OTP
       const otpValue = generateOTP();
       
-      // Store OTP in sessionStorage for verification
-      // For demo numbers, use the specific demo OTP
-      let otpToStore = otpValue;
-      if (mobileNumber === '7506873720') {
-        otpToStore = '7506';
-      } else if (mobileNumber === '9999999999') {
-        otpToStore = '9999';
-      }
-      
-      sessionStorage.setItem('otp', otpToStore);
+      // Store mobile number first
       sessionStorage.setItem('mobile', mobileNumber);
 
       // Send OTP via Fast2SMS API
@@ -145,6 +136,12 @@ export default function LoginPage() {
       const storedOtp = sessionStorage.getItem('otp');
       const storedMobile = sessionStorage.getItem('mobile');
 
+      console.log('OTP Verification Debug:', {
+        enteredOtp: otp,
+        storedOtp: storedOtp,
+        storedMobile: storedMobile
+      });
+
       if (!storedOtp || !storedMobile) {
         setError('OTP session expired. Please request a new OTP.');
         setStep('mobile');
@@ -158,11 +155,20 @@ export default function LoginPage() {
       // Check if it's a demo number with specific OTP
       if (storedMobile === '7506873720' && otp === '7506') {
         isValidOtp = true;
+        console.log('Demo OTP 7506 verified successfully');
       } else if (storedMobile === '9999999999' && otp === '9999') {
         isValidOtp = true;
+        console.log('Demo OTP 9999 verified successfully');
       } else if (otp === storedOtp) {
         // For real numbers, check against stored OTP
         isValidOtp = true;
+        console.log('Real OTP verified successfully');
+      } else {
+        console.log('OTP verification failed:', {
+          enteredOtp: otp,
+          storedOtp: storedOtp,
+          storedMobile: storedMobile
+        });
       }
 
       if (isValidOtp) {
@@ -289,6 +295,19 @@ export default function LoginPage() {
                 <p className="text-xs text-blue-600 mt-2">
                   💡 Demo OTP shown in alert. Real numbers receive SMS on Vercel deployment.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('Session Storage Debug:', {
+                      otp: sessionStorage.getItem('otp'),
+                      mobile: sessionStorage.getItem('mobile')
+                    });
+                  }}
+                  className="mt-2 text-xs text-blue-600 hover:text-blue-700"
+                  suppressHydrationWarning
+                >
+                  Debug Session Storage
+                </button>
               </div>
             </div>
           </form>
