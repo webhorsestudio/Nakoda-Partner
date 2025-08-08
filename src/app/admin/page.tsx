@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react";
 import { 
   UsersIcon, 
-  ArrowTrendingUpIcon,
   UserGroupIcon,
   CurrencyDollarIcon,
   StarIcon,
   CalendarIcon,
-  MapPinIcon,
   CheckCircleIcon,
   ClockIcon,
   ExclamationTriangleIcon
@@ -226,7 +224,7 @@ export default function AdminDashboard() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Platform Dashboard</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Welcome back! Here's what's happening across the Nakoda platform today.
+          Welcome back! Here&apos;s what&apos;s happening across the Nakoda platform today.
         </p>
       </div>
 
