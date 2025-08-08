@@ -26,9 +26,9 @@ export async function POST(request: NextRequest) {
     // Generate OTP if not provided
     const otpToSend = otp || Math.floor(1000 + Math.random() * 9000).toString();
     
-    console.log('Making real API call to Fast2SMS for:', mobile, 'OTP:', otpToSend);
+    console.log('Making API call to Fast2SMS for:', mobile, 'OTP:', otpToSend);
 
-    // Real API call to Fast2SMS for ALL numbers
+    // API call to Fast2SMS
     const apiBody = {
       route: "dlt",
       sender_id: FAST2SMS_SENDER_ID,
@@ -51,60 +51,29 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('API Response Status:', response.status);
-    console.log('API Response Headers:', Object.fromEntries(response.headers.entries()));
-
     const data = await response.json();
     console.log('API Response Data:', data);
     
     if (data.return === true) {
       console.log('API call successful');
-      
-      // For demo numbers, also return OTP in response for alert backup
-      if (mobile === '7506873720' || mobile === '9999999999') {
-        return NextResponse.json({
-          success: true,
-          message: "OTP sent successfully via SMS (Demo backup available)",
-          otp: mobile === '7506873720' ? '7506' : '9999'
-        });
-      } else {
-        return NextResponse.json({
-          success: true,
-          message: "OTP sent successfully via SMS"
-        });
-      }
+      return NextResponse.json({
+        success: true,
+        message: "OTP sent successfully via SMS",
+        otp: otpToSend
+      });
     } else {
       console.log('API call failed:', data);
-      
-      // For demo numbers, still return success with alert backup
-      if (mobile === '7506873720' || mobile === '9999999999') {
-        return NextResponse.json({
-          success: true,
-          message: "Demo OTP available (SMS may be delayed)",
-          otp: mobile === '7506873720' ? '7506' : '9999'
-        });
-      } else {
-        return NextResponse.json({
-          success: false,
-          message: data.message?.[0] || data.message || "Failed to send OTP"
-        }, { status: 400 });
-      }
+      return NextResponse.json({
+        success: false,
+        message: data.message?.[0] || data.message || "Failed to send OTP"
+      }, { status: 400 });
     }
 
   } catch (error) {
     console.error('Error sending OTP:', error);
-    
-    // For demo numbers, still return success with alert backup
-    if (mobile === '7506873720' || mobile === '9999999999') {
-      return NextResponse.json({
-        success: true,
-        message: "Demo OTP available (Network error)",
-        otp: mobile === '7506873720' ? '7506' : '9999'
-      });
-    } else {
-      return NextResponse.json({
-        success: false,
-        message: "Server error. Please try again."
-      }, { status: 500 });
-    }
+    return NextResponse.json({
+      success: false,
+      message: "Server error. Please try again."
+    }, { status: 500 });
   }
 }
