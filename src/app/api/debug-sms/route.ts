@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     console.error('Debug SMS error:', error);
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
       message: "Debug failed"
     }, { status: 500 });
   }

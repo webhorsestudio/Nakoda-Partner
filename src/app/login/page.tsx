@@ -106,8 +106,16 @@ export default function LoginPage() {
       // Generate OTP
       const otpValue = generateOTP();
       
-      // Store OTP in sessionStorage for verification (in production, this should be server-side)
-      sessionStorage.setItem('otp', otpValue);
+      // Store OTP in sessionStorage for verification
+      // For demo numbers, use the specific demo OTP
+      let otpToStore = otpValue;
+      if (mobileNumber === '7506873720') {
+        otpToStore = '7506';
+      } else if (mobileNumber === '9999999999') {
+        otpToStore = '9999';
+      }
+      
+      sessionStorage.setItem('otp', otpToStore);
       sessionStorage.setItem('mobile', mobileNumber);
 
       // Send OTP via Fast2SMS API
@@ -144,8 +152,20 @@ export default function LoginPage() {
         return;
       }
 
-      // Verify OTP
-      if (otp === storedOtp) {
+      // Verify OTP - handle both demo and real OTPs
+      let isValidOtp = false;
+      
+      // Check if it's a demo number with specific OTP
+      if (storedMobile === '7506873720' && otp === '7506') {
+        isValidOtp = true;
+      } else if (storedMobile === '9999999999' && otp === '9999') {
+        isValidOtp = true;
+      } else if (otp === storedOtp) {
+        // For real numbers, check against stored OTP
+        isValidOtp = true;
+      }
+
+      if (isValidOtp) {
         // Clear session storage
         sessionStorage.removeItem('otp');
         sessionStorage.removeItem('mobile');

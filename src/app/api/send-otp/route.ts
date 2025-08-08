@@ -6,14 +6,17 @@ const FAST2SMS_SENDER_ID = "NuServ";
 const FAST2SMS_MESSAGE_ID = "160562";
 
 export async function POST(request: NextRequest) {
+  let mobile: string | undefined;
+  
   try {
-    const { mobile, otp } = await request.json();
+    const { mobile: mobileNumber, otp } = await request.json();
+    mobile = mobileNumber;
 
     console.log('OTP Request:', { mobile, otp });
 
     // Validate mobile number
     const mobileRegex = /^[6-9]\d{9}$/;
-    if (!mobileRegex.test(mobile)) {
+    if (!mobile || !mobileRegex.test(mobile)) {
       return NextResponse.json(
         { success: false, message: "Invalid mobile number format" },
         { status: 400 }
