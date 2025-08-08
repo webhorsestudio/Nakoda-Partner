@@ -7,10 +7,10 @@ const FAST2SMS_MESSAGE_ID = "160562";
 
 export async function POST(request: NextRequest) {
   try {
-    const { mobile, otp } = await request.json();
-
-    console.log('OTP Request:', { mobile, otp });
-
+    const { mobile } = await request.json();
+    
+    console.log('Test SMS request for:', mobile);
+    
     // Validate mobile number
     const mobileRegex = /^[6-9]\d{9}$/;
     if (!mobileRegex.test(mobile)) {
@@ -20,27 +20,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For demo purposes, simulate success for specific numbers
-    if (mobile === '7506873720' || mobile === '9999999999') {
-      console.log('Demo number detected:', mobile);
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      return NextResponse.json({
-        success: true,
-        message: "OTP sent successfully (Demo)",
-        otp: mobile === '7506873720' ? '7506' : '9999'
-      });
-    }
-
-    console.log('Making real API call to Fast2SMS for:', mobile);
-
+    // Generate a test OTP
+    const testOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    
+    console.log('Test OTP generated:', testOtp);
+    
     // Real API call to Fast2SMS
     const apiBody = {
       route: "dlt",
       sender_id: FAST2SMS_SENDER_ID,
       message: FAST2SMS_MESSAGE_ID,
-      variables_values: otp,
+      variables_values: testOtp,
       schedule_time: "",
       flash: 0,
       numbers: mobile
@@ -57,31 +47,28 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(apiBody)
     });
 
-    console.log('API Response Status:', response.status);
-    console.log('API Response Headers:', Object.fromEntries(response.headers.entries()));
-
     const data = await response.json();
-    console.log('API Response Data:', data);
+    console.log('API Response:', data);
     
     if (data.return === true) {
-      console.log('API call successful');
       return NextResponse.json({
         success: true,
-        message: "OTP sent successfully via SMS"
+        message: `Test SMS sent successfully to ${mobile}`,
+        otp: testOtp,
+        note: "This is a test SMS. Check your mobile for the OTP."
       });
     } else {
-      console.log('API call failed:', data);
       return NextResponse.json({
         success: false,
-        message: data.message?.[0] || data.message || "Failed to send OTP"
+        message: data.message?.[0] || data.message || "Failed to send test SMS"
       }, { status: 400 });
     }
-
+    
   } catch (error) {
-    console.error('Error sending OTP:', error);
+    console.error('Test SMS error:', error);
     return NextResponse.json({
       success: false,
-      message: "Server error. Please try again."
+      message: "Test failed"
     }, { status: 500 });
   }
 }

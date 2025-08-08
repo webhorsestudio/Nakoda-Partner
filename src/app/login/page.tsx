@@ -47,14 +47,15 @@ export default function LoginPage() {
     try {
       console.log('Sending OTP to:', mobile);
       
-      // For development/demo purposes, always use test endpoint
-      const response = await fetch('/api/test-otp', {
+      // Call our server-side API route for real SMS delivery
+      const response = await fetch('/api/send-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          mobile: mobile
+          mobile: mobile,
+          otp: otpValue
         })
       });
 
@@ -62,13 +63,16 @@ export default function LoginPage() {
       console.log('API Response:', data);
       
       if (data.success) {
-        // Store the OTP returned from server
+        // For demo numbers, store the OTP returned from server
         if (data.otp) {
           sessionStorage.setItem('otp', data.otp);
-          console.log('OTP stored:', data.otp);
+          console.log('Demo OTP stored:', data.otp);
           
-          // Show OTP in alert for easy access
-          alert(`🔐 Your OTP is: ${data.otp}\n\nThis is a demo OTP. In production, this would be sent via SMS.`);
+          // Show OTP in alert for demo numbers only
+          alert(`🔐 Your Demo OTP is: ${data.otp}\n\nThis is a demo OTP. For real numbers, check your SMS.`);
+        } else {
+          // For real numbers, don't show alert - user should check SMS
+          console.log('Real SMS sent successfully');
         }
         return { success: true, message: data.message };
       } else {
@@ -110,7 +114,7 @@ export default function LoginPage() {
       const result = await sendOTP(mobileNumber, otpValue);
       
       if (result.success) {
-        setSuccess('OTP sent successfully to your mobile number');
+        setSuccess('OTP sent successfully! Check your mobile for SMS.');
         setStep('otp');
       } else {
         setError(result.message);
@@ -263,7 +267,7 @@ export default function LoginPage() {
                   OTP: <span className="font-mono bg-blue-100 px-1 rounded">7506</span>
                 </p>
                 <p className="text-xs text-blue-600 mt-2">
-                  💡 Demo OTP will be shown in alert popup. Real SMS requires production deployment.
+                  💡 Demo OTP shown in alert. Real numbers receive SMS on Vercel deployment.
                 </p>
               </div>
             </div>
