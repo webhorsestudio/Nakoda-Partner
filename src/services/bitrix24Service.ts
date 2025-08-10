@@ -10,11 +10,6 @@ class Bitrix24Service {
   constructor() {
     this.baseUrl = BITRIX24_BASE_URL;
     this.restUrl = BITRIX24_REST_URL;
-    
-    // Debug environment variables
-    console.log("Bitrix24 Environment Check:");
-    console.log("BASE_URL:", this.baseUrl);
-    console.log("REST_URL:", this.restUrl);
   }
 
   /**
@@ -54,8 +49,6 @@ class Bitrix24Service {
         limit: limit
       };
 
-      console.log(`Making POST request to Bitrix24 API with body:`, JSON.stringify(requestBody, null, 2));
-
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -67,7 +60,6 @@ class Bitrix24Service {
       if (response.status === 429) {
         // Rate limited - wait and retry
         const delay = baseDelay * Math.pow(2, retryCount); // Exponential backoff
-        console.log(`Rate limited (429). Waiting ${delay}ms before retry ${retryCount + 1}/${maxRetries}...`);
         await this.sleep(delay);
         
         if (retryCount < maxRetries) {
@@ -84,7 +76,6 @@ class Bitrix24Service {
       }
 
       const data: Bitrix24Response = await response.json();
-      console.log(`Successfully fetched ${data.result?.length || 0} deals from Bitrix24`);
       return data;
     } catch (error) {
       console.error("Error fetching Bitrix24 deals:", error);
@@ -97,7 +88,6 @@ class Bitrix24Service {
    */
   async testConnection(): Promise<boolean> {
     try {
-      console.log("Testing Bitrix24 API connection...");
       const url = `${this.baseUrl}${this.restUrl}/crm.deal.list.json`;
       
       const requestBody = {
@@ -122,11 +112,8 @@ class Bitrix24Service {
       
       if (response.ok) {
         const data = await response.json();
-        console.log("Bitrix24 API connection successful");
-        console.log("Total deals available:", data.total || "Unknown");
         return true;
       } else {
-        console.error("Bitrix24 API connection failed:", response.status, response.statusText);
         return false;
       }
     } catch (error) {
@@ -140,8 +127,6 @@ class Bitrix24Service {
    */
   async fetchRecentDealsWithFallback(): Promise<Bitrix24Deal[]> {
     try {
-      console.log("Fetching recent deals from Bitrix24 with proper stage filters...");
-      
       const recentDeals: Bitrix24Deal[] = [];
       let start = 0;
       const limit = 50;
@@ -151,13 +136,10 @@ class Bitrix24Service {
       
       // Fetch deals in smaller batches with delays
       while (totalFetched < 1000 && consecutiveEmptyBatches < 5) {
-        console.log(`Fetching batch starting at ${start}...`);
-        
         const response = await this.fetchDeals(start, limit);
         const deals = response.result;
         
         if (deals.length === 0) {
-          console.log("No more deals to fetch");
           consecutiveEmptyBatches++;
         } else {
           consecutiveEmptyBatches = 0;
@@ -166,11 +148,8 @@ class Bitrix24Service {
         totalFetched += deals.length;
         recentDeals.push(...deals);
         
-        console.log(`Batch ${Math.floor(start/limit) + 1}: ${deals.length} deals`);
-        
         // Stop if we've had 5 consecutive empty batches
         if (consecutiveEmptyBatches >= 5) {
-          console.log(`Stopping: Found ${recentDeals.length} deals, but ${consecutiveEmptyBatches} consecutive empty batches.`);
           break;
         }
         
@@ -179,8 +158,6 @@ class Bitrix24Service {
         
         start += limit;
       }
-      
-      console.log(`Successfully fetched ${recentDeals.length} deals from ${totalFetched} total requests`);
       
       return recentDeals;
     } catch (error) {
@@ -197,9 +174,13 @@ class Bitrix24Service {
 
     // Extract all fields using regex patterns that match the actual format
     // Format: "Mode : Cod,Package :AC Service Repair Power Jet AC Service (1 AC) By : OM Cooling Centre,Order : Nu..."
+    
+    // Improved order number extraction - look for patterns like "Nus87419", "ABC123", etc.
+    // This should capture business order numbers and avoid numeric IDs
+    const orderMatch = title.match(/Order\s*:\s*([A-Za-z0-9]+)(?=,|$)/);
+    
     const modeMatch = title.match(/Mode\s*:\s*([^,]+?)(?=,|$)/);
     const packageMatch = title.match(/Package\s*:\s*([^,]+?)(?=,|$)/);
-    const orderMatch = title.match(/Order\s*:\s*([^,]+?)(?=,|$)/);
     const mobileMatch = title.match(/Mb\s*:\s*(\d+)/);
     const dateMatch = title.match(/Date\s*:\s*([^,]+?)(?=Time|,|$)/);
     const timeMatch = title.match(/Time\s*:\s*([^,]+?)(?=,|$)/);
@@ -222,20 +203,7 @@ class Bitrix24Service {
     const city = cityMatch ? cityMatch[1].trim() : undefined;
     const pin_code = pinMatch ? pinMatch[1].trim() : undefined;
 
-    console.log(`Original title for order ${deal.ID}:`, title);
-    console.log(`Parsed fields for order ${deal.ID}:`, {
-      mode,
-      package: packageName,
-      order_number,
-      mobile_number,
-      order_date,
-      order_time,
-      orderTotal,
-      customer_name,
-      address,
-      city,
-      pin_code
-    });
+
 
     // Map stage to status
     const status = this.mapStageToStatus(deal.STAGE_ID);

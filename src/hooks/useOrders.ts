@@ -66,7 +66,7 @@ export function useOrders(): UseOrdersReturn {
   const fetchStats = useCallback(async () => {
     try {
       // Don't set loading for stats to avoid UI blocking
-      const response = await fetch("/api/orders", {
+      const response = await fetch("/api/orders/stats", {
         method: "GET",
       });
       const data = await response.json();
@@ -75,23 +75,11 @@ export function useOrders(): UseOrdersReturn {
         throw new Error(data.error || "Failed to fetch stats");
       }
 
-      // Calculate stats from orders data
-      const ordersData = data.data || [];
-      const totalOrders = ordersData.length;
-      const completedOrders = ordersData.filter((order: Order) => order.status === "completed").length;
-      const inProgressOrders = ordersData.filter((order: Order) => order.status === "in_progress").length;
-      const newOrders = ordersData.filter((order: Order) => order.status === "new").length;
-      const totalRevenue = ordersData.reduce((sum: number, order: Order) => sum + (Number(order.amount) || 0), 0);
-      const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-      setStats({
-        total_orders: totalOrders,
-        completed_orders: completedOrders,
-        in_progress_orders: inProgressOrders,
-        new_orders: newOrders,
-        total_revenue: totalRevenue,
-        average_order_value: averageOrderValue,
-      });
+      if (data.success && data.data) {
+        setStats(data.data);
+      } else {
+        throw new Error("Invalid stats data received");
+      }
     } catch (err) {
       console.error("Error fetching stats:", err);
       // Don't set error for stats to avoid blocking the UI

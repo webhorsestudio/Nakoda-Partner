@@ -3,8 +3,6 @@ import { orderService } from "@/services/orderService";
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("Starting Bitrix24 sync for recent orders...");
-    
     // Test database connection first
     try {
       const { supabase } = await import("@/lib/supabase");
@@ -21,7 +19,6 @@ export async function POST(request: NextRequest) {
         
         throw new Error(`Database connection failed: ${connectionError.message}`);
       }
-      console.log("Database connection successful");
       
       // Test table structure
       const { data: tableInfo, error: tableError } = await supabase
@@ -34,23 +31,12 @@ export async function POST(request: NextRequest) {
         throw new Error(`Orders table structure issue: ${tableError.message}`);
       }
       
-      console.log("Orders table structure check passed");
-      console.log("Sample table data:", tableInfo);
-      
     } catch (dbError) {
       console.error("Database test failed:", dbError);
       throw new Error("Database connection failed - please check if orders table exists");
     }
     
-    // Debug environment variables
-    console.log("Environment check:");
-    console.log("SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL ? "SET" : "NOT SET");
-    console.log("BITRIX24_BASE_URL:", process.env.NEXT_PUBLIC_BITRIX24_BASE_URL ? "SET" : "NOT SET");
-    console.log("BITRIX24_REST_URL:", process.env.NEXT_PUBLIC_BITRIX24_REST_URL ? "SET" : "NOT SET");
-    
     const result = await orderService.syncRecentOrdersFromBitrix24();
-    
-    console.log("Recent orders sync completed:", result);
     
     // Determine the message based on the result
     let message = "Recent orders synced successfully from Bitrix24";

@@ -1,4 +1,4 @@
-import { ArrowPathIcon } from "@heroicons/react/24/outline";
+
 
 interface OrdersHeaderProps {
   loading: boolean;
@@ -11,6 +11,9 @@ export function OrdersHeader({ loading }: OrdersHeaderProps) {
         <h1 className="text-2xl font-bold text-gray-900">Platform Orders</h1>
         <p className="mt-2 text-sm text-gray-700">
           Monitor and manage recent service orders from Bitrix24 (using stage filters)
+        </p>
+        <p className="mt-1 text-xs text-gray-500">
+          Only orders with valid business order numbers (like Nus87419) are displayed
         </p>
       </div>
       <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none space-x-3">
