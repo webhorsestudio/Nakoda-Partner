@@ -1,143 +1,209 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
-import { generateOTP, sendOTP, validateMobileNumber, verifyOTP } from "@/services/otpService";
-import MobileForm from "@/components/auth/MobileForm";
-import OtpForm from "@/components/auth/OtpForm";
-import AuthAlert from "@/components/auth/AuthAlert";
-import LoadingSkeleton from "@/components/auth/LoadingSkeleton";
+import { useState, useEffect } from "react";
+import { MobileForm, OtpForm, AuthAlert, LoadingSkeleton } from "@/components/auth";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const { isClient } = useAuth();
-  const [step, setStep] = useState<'mobile' | 'otp'>('mobile');
-  const [mobileNumber, setMobileNumber] = useState('');
-  const [otp, setOtp] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [isClient, setIsClient] = useState(false);
+  const [step, setStep] = useState<"mobile" | "otp">("mobile");
+  const [mobile, setMobile] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const handleMobileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    setIsLoading(true);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
-    // Validate mobile number format
-    if (!validateMobileNumber(mobileNumber)) {
-      setError('Please enter a valid 10-digit mobile number');
-      setIsLoading(false);
-      return;
-    }
-
+  const validateAdminUser = async (mobileNumber: string) => {
     try {
-      // Generate OTP
-      const otpValue = generateOTP();
-      
-      // Store mobile number first
-      sessionStorage.setItem('mobile', mobileNumber);
+      const response = await fetch("/api/validate-admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ mobile: mobileNumber }),
+      });
 
-      // Send OTP via Fast2SMS API
-      const result = await sendOTP(mobileNumber, otpValue);
-      
-      if (result.success) {
-        setSuccess('OTP sent successfully! Check your mobile for SMS.');
-        setStep('otp');
-      } else {
-        setError(result.message);
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("Mobile number not registered. Please check and try again.");
+        } else if (response.status === 403) {
+          throw new Error("Access denied. This mobile number is not registered as an admin user. Please contact your system administrator.");
+        } else {
+          throw new Error(data.error || "Failed to validate admin user");
+        }
       }
+
+      return data.user;
     } catch (error) {
-      setError('Failed to send OTP. Please try again.');
-    } finally {
-      setIsLoading(false);
+      throw error;
     }
   };
 
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    setIsLoading(true);
-
+  const sendOTP = async (mobileNumber: string) => {
     try {
-      // Get stored OTP and mobile number
-      const storedOtp = sessionStorage.getItem('otp');
-      const storedMobile = sessionStorage.getItem('mobile');
+      setLoading(true);
+      setError("");
 
-      if (!storedOtp || !storedMobile) {
-        setError('OTP session expired. Please request a new OTP.');
-        setStep('mobile');
-        setIsLoading(false);
-        return;
+      // First validate if the user is an admin
+      const adminUser = await validateAdminUser(mobileNumber);
+
+      // If validation passes, send OTP
+      const response = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ mobile: mobileNumber }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send OTP");
       }
 
-      // Verify OTP
-      if (verifyOTP(otp, storedOtp)) {
-        // Clear session storage
-        sessionStorage.removeItem('otp');
-        sessionStorage.removeItem('mobile');
+      // Store OTP in session storage
+      sessionStorage.setItem("otp", data.otp);
+      sessionStorage.setItem("adminUser", JSON.stringify(adminUser));
+      
+      setSuccess("OTP sent successfully to your mobile number");
+      setStep("otp");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMobileSubmit = async (mobileNumber: string) => {
+    setMobile(mobileNumber);
+    await sendOTP(mobileNumber);
+  };
+
+  const handleOtpSubmit = async (otpValue: string) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const storedOtp = sessionStorage.getItem("otp");
+      const storedAdminUser = sessionStorage.getItem("adminUser");
+
+      if (!storedOtp || !storedAdminUser) {
+        throw new Error("Session expired. Please try again.");
+      }
+
+      if (otpValue === storedOtp) {
+        // OTP is valid, set authentication
+        const adminUser = JSON.parse(storedAdminUser);
         
         // Set authentication cookie
-        document.cookie = 'auth-token=authenticated; path=/; max-age=86400'; // 24 hours
-        router.push('/admin');
+        document.cookie = `auth-token=${adminUser.id}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
+        
+        // Clear session storage
+        sessionStorage.removeItem("otp");
+        sessionStorage.removeItem("adminUser");
+        
+        setSuccess("Login successful! Redirecting...");
+        
+        // Redirect to admin dashboard
+        setTimeout(() => {
+          window.location.href = "/admin";
+        }, 1000);
       } else {
-        setError('Invalid OTP. Please check and try again.');
+        throw new Error("Invalid OTP. Please check and try again.");
       }
     } catch (error) {
-      setError('Verification failed. Please try again.');
+      setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const handleBackToMobile = () => {
-    setStep('mobile');
-    setError('');
-    setSuccess('');
+    setStep("mobile");
+    setError("");
+    setSuccess("");
   };
 
-  // Show loading state during hydration
   if (!isClient) {
     return <LoadingSkeleton />;
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            {step === 'mobile' ? 'Sign in to your account' : 'Enter OTP'}
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {step === 'mobile' 
-              ? 'Enter your mobile number to receive OTP' 
-              : 'Enter the 4-digit OTP sent to your mobile'
-            }
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-slow"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          {/* Logo and Brand Section */}
+          <div className="text-center mb-10 animate-fade-in-up">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-3">
+              Nakoda Partner
+            </h1>
+            <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 mx-auto mt-4 rounded-full"></div>
+          </div>
+
+          {/* Login Card */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            {/* Card Header */}
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">
+                {step === "mobile" ? "Welcome Back" : "Verify OTP"}
+              </h2>
+              <p className="text-slate-600 leading-relaxed">
+                {step === "mobile" 
+                  ? "Enter your mobile number to login" 
+                  : `We've sent a verification code to ${mobile}`
+                }
+              </p>
+            </div>
+
+            {/* Error/Success Messages */}
+            <div className="mb-6 space-y-3">
+              {error && <AuthAlert type="error" message={error} />}
+              {success && <AuthAlert type="success" message={success} />}
+            </div>
+
+            {/* Forms */}
+            <div className="animate-slide-in-right">
+              {step === "mobile" ? (
+                <MobileForm
+                  onSubmit={handleMobileSubmit}
+                  loading={loading}
+                />
+              ) : (
+                <OtpForm
+                  mobile={mobile}
+                  onSubmit={handleOtpSubmit}
+                  onBack={handleBackToMobile}
+                  loading={loading}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="text-center mt-8 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+            <p className="text-slate-500 text-sm font-medium">
+              © 2025 Nakoda Urban Services. All rights reserved.
+            </p>
+            <div className="flex items-center justify-center space-x-2 mt-2">
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+          </div>
         </div>
-
-        <AuthAlert error={error} success={success} />
-
-        {step === 'mobile' ? (
-          <MobileForm
-            mobileNumber={mobileNumber}
-            setMobileNumber={setMobileNumber}
-            onSubmit={handleMobileSubmit}
-            isLoading={isLoading}
-            error={error}
-            success={success}
-          />
-        ) : (
-          <OtpForm
-            otp={otp}
-            setOtp={setOtp}
-            onSubmit={handleOtpSubmit}
-            onBack={handleBackToMobile}
-            isLoading={isLoading}
-          />
-        )}
       </div>
     </div>
   );

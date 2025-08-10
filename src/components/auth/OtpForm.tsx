@@ -1,89 +1,119 @@
 "use client";
 
 import { useState } from "react";
-import { LockClosedIcon, EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { LockClosedIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 interface OtpFormProps {
-  otp: string;
-  setOtp: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => Promise<void>;
+  mobile: string;
+  onSubmit: (otp: string) => Promise<void>;
   onBack: () => void;
-  isLoading: boolean;
+  loading: boolean;
 }
 
-export default function OtpForm({
-  otp,
-  setOtp,
-  onSubmit,
-  onBack,
-  isLoading
-}: OtpFormProps) {
+export default function OtpForm({ mobile, onSubmit, onBack, loading }: OtpFormProps) {
+  const [otp, setOtp] = useState("");
   const [showOtp, setShowOtp] = useState(false);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!otp.trim()) {
+      return;
+    }
+
+    await onSubmit(otp.trim());
+  };
+
   return (
-    <form className="mt-8 space-y-6" onSubmit={onSubmit}>
-      <div>
-        <label htmlFor="otp" className="sr-only">
-          OTP
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Mobile number display */}
+      <div className="text-center p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
+        <p className="text-sm text-slate-600 mb-1">OTP sent to</p>
+        <p className="text-lg font-semibold text-slate-800">{mobile}</p>
+      </div>
+
+      <div className="space-y-3">
+        <label htmlFor="otp" className="block text-sm font-semibold text-slate-700 mb-2">
+          Verification Code <span className="text-red-500 font-bold">*</span>
         </label>
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <LockClosedIcon className="h-5 w-5 text-gray-400" />
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <LockClosedIcon className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-600 transition-colors duration-200" />
           </div>
           <input
             id="otp"
-            name="otp"
             type={showOtp ? "text" : "password"}
             required
-            className="appearance-none rounded-md relative block w-full px-3 py-2 pl-10 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-            placeholder="Enter 4-digit OTP"
             value={otp}
             onChange={(e) => setOtp(e.target.value)}
+            className="block w-full pl-12 pr-16 py-4 rounded-2xl border-2 border-slate-200 bg-white/50 backdrop-blur-sm shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 focus:bg-white transition-all duration-300 text-center text-xl font-mono tracking-widest text-slate-700 placeholder-slate-400"
+            placeholder="Enter 4-digit OTP"
             maxLength={4}
-            suppressHydrationWarning
+            disabled={loading}
           />
-          <button
-            type="button"
-            className="absolute inset-y-0 right-0 pr-3 flex items-center"
-            onClick={() => setShowOtp(!showOtp)}
-            suppressHydrationWarning
-          >
-            {showOtp ? (
-              <EyeSlashIcon className="h-5 w-5 text-gray-400" />
-            ) : (
-              <EyeIcon className="h-5 w-5 text-gray-400" />
-            )}
-          </button>
+          {/* Input focus indicator */}
+          <div className="absolute inset-0 rounded-2xl border-2 border-transparent pointer-events-none transition-all duration-300 group-focus-within:border-indigo-500/50"></div>
+          
+          {/* Toggle password visibility */}
+          <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+            <button
+              type="button"
+              onClick={() => setShowOtp(!showOtp)}
+              className="p-2 text-slate-400 hover:text-slate-600 transition-colors duration-200 rounded-lg hover:bg-slate-100"
+            >
+              {showOtp ? (
+                <EyeSlashIcon className="h-5 w-5" />
+              ) : (
+                <EyeIcon className="h-5 w-5" />
+              )}
+            </button>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-2 text-xs text-slate-500">
+          <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></div>
+          <span>Enter the 4-digit verification code sent to your mobile</span>
         </div>
       </div>
 
-      <div className="text-center">
+      {/* Action buttons */}
+      <div className="flex space-x-4 pt-2">
         <button
           type="button"
           onClick={onBack}
-          className="text-sm text-blue-600 hover:text-blue-500"
-          suppressHydrationWarning
+          disabled={loading}
+          className="flex-1 flex items-center justify-center px-6 py-4 border-2 border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-4 focus:ring-slate-500/20 disabled:opacity-50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-md"
         >
-          ← Back to mobile number
+          <ArrowLeftIcon className="h-5 w-5 mr-2" />
+          Back
+        </button>
+        <button
+          type="submit"
+          disabled={loading || !otp.trim()}
+          className="flex-1 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 disabled:from-slate-400 disabled:via-slate-400 disabled:to-slate-400 py-4 px-6 rounded-2xl text-white font-semibold text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/30"
+        >
+          {loading ? (
+            <div className="flex items-center justify-center space-x-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+              <span>Verifying...</span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center space-x-2">
+              <span>Verify OTP</span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          )}
         </button>
       </div>
 
-      <div>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          suppressHydrationWarning
-        >
-          {isLoading ? (
-            <div className="flex items-center">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Verifying...
-            </div>
-          ) : (
-            'Verify OTP'
-          )}
-        </button>
+      {/* Additional info */}
+      <div className="text-center pt-4">
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Didn&apos;t receive the code?{" "}
+          <span className="text-indigo-600 hover:text-indigo-700 cursor-pointer font-medium">Resend OTP</span>
+        </p>
       </div>
     </form>
   );

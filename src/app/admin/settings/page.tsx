@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { 
   CogIcon,
-  KeyIcon,
   EnvelopeIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  ShieldCheckIcon
 } from "@heroicons/react/24/outline";
 
 export default function SettingsPage() {
@@ -19,9 +19,9 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: "general", name: "General", icon: CogIcon },
+    { id: "login", name: "Login Settings", icon: ShieldCheckIcon },
     { id: "email", name: "Email Settings", icon: EnvelopeIcon },
     { id: "sms", name: "SMS Settings", icon: ChatBubbleLeftRightIcon },
-    { id: "api", name: "API & Integrations", icon: KeyIcon },
   ];
 
   // Show loading state during hydration
@@ -163,6 +163,92 @@ export default function SettingsPage() {
                       Online
                     </span>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "login" && (
+            <div className="space-y-6">
+              <div className="bg-white shadow rounded-lg p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Login Settings</h3>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Minimum Password Length</label>
+                    <input
+                      type="number"
+                      defaultValue="8"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      suppressHydrationWarning
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Password Expiry (days)</label>
+                    <input
+                      type="number"
+                      defaultValue="90"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      suppressHydrationWarning
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Lockout After (attempts)</label>
+                    <input
+                      type="number"
+                      defaultValue="5"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      suppressHydrationWarning
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Lockout Duration (minutes)</label>
+                    <input
+                      type="number"
+                      defaultValue="15"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      suppressHydrationWarning
+                    />
+                  </div>
+                </div>
+                <div className="mt-6">
+                  <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" suppressHydrationWarning>
+                    Save Login Settings
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white shadow rounded-lg p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Session Management</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900">Remember Me</h4>
+                      <p className="text-sm text-gray-500">Enable/disable remember me functionality</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      suppressHydrationWarning
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900">Session Timeout (minutes)</h4>
+                      <p className="text-sm text-gray-500">Set session timeout for inactive users</p>
+                    </div>
+                    <input
+                      type="number"
+                      defaultValue="30"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                      suppressHydrationWarning
+                    />
+                  </div>
+                </div>
+                <div className="mt-6">
+                  <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" suppressHydrationWarning>
+                    Save Session Settings
+                  </button>
                 </div>
               </div>
             </div>
@@ -403,121 +489,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {activeTab === "api" && (
-            <div className="space-y-6">
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">API Credentials</h3>
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">API Key</label>
-                    <input
-                      type="text"
-                      defaultValue="nak_platform_••••••••••••••••••••••••••••••••"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      suppressHydrationWarning
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">API Secret</label>
-                    <input
-                      type="password"
-                      defaultValue="••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      suppressHydrationWarning
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Webhook URL</label>
-                    <input
-                      type="url"
-                      defaultValue="https://api.nakoda.com/webhooks"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      suppressHydrationWarning
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Rate Limit</label>
-                    <input
-                      type="number"
-                      defaultValue="1000"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      suppressHydrationWarning
-                    />
-                  </div>
-                </div>
-                <div className="mt-6">
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" suppressHydrationWarning>
-                    Regenerate Keys
-                  </button>
-                  <button className="ml-3 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700" suppressHydrationWarning>
-                    Save Credentials
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Webhook Configuration</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Order Created</h4>
-                      <p className="text-sm text-gray-500">Notify when new orders are placed</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      defaultChecked
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      suppressHydrationWarning
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Order Completed</h4>
-                      <p className="text-sm text-gray-500">Notify when orders are finished</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      defaultChecked
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      suppressHydrationWarning
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Partner Registered</h4>
-                      <p className="text-sm text-gray-500">Notify when new partners join</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      defaultChecked
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      suppressHydrationWarning
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">Payment Processed</h4>
-                      <p className="text-sm text-gray-500">Notify when payments are completed</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      defaultChecked
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      suppressHydrationWarning
-                    />
-                  </div>
-                </div>
-                <div className="mt-6">
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" suppressHydrationWarning>
-                    Test Webhooks
-                  </button>
-                  <button className="ml-3 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700" suppressHydrationWarning>
-                    Save Configuration
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
