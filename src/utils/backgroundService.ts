@@ -18,7 +18,6 @@ export function initializeBackgroundServices() {
       const wasEnabled = localStorage.getItem('backgroundAutoFetchEnabled') === 'true';
       
       if (wasEnabled) {
-        console.log('Background AutoFetch: Resuming previous session...');
         // The service will automatically start if it was previously enabled
       }
       
@@ -31,9 +30,9 @@ export function initializeBackgroundServices() {
             regWithPeriodicSync.periodicSync.register('orders-sync', {
               minInterval: 5 * 60 * 1000, // 5 minutes minimum
             }).then(() => {
-              console.log('Periodic background sync registered');
+              // Periodic background sync registered successfully
             }).catch((error) => {
-              console.log('Periodic background sync not supported:', error);
+              console.error('Periodic background sync not supported:', error);
             });
           }
         });
@@ -110,7 +109,6 @@ export function cleanupBackgroundServices() {
       // Clear background service
       destroyBackgroundAutoFetchService();
       
-      console.log('Background services cleaned up');
     } catch (error) {
       console.error('Error cleaning up background services:', error);
     }

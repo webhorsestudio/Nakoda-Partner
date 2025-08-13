@@ -7,9 +7,12 @@ import {
 } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import { Order } from "@/types/orders";
-import { getStatusIcon, getStatusColor, formatDate } from "@/utils/orders";
+import { getStatusIcon, getStatusColor, formatDate, formatDateOnly } from "@/utils/orders";
+import { getTimeSlotDisplay } from "@/utils/timeSlots";
 import { OrdersPagination } from "./OrdersPagination";
 import { OrderDetailsModal } from "./OrderDetailsModal";
+import { OrderEditModal } from "./OrderEditModal";
+import { toast } from 'react-hot-toast';
 
 interface OrdersTableProps {
   orders: Order[];
@@ -21,6 +24,8 @@ interface OrdersTableProps {
   onPageChange: (page: number) => void;
   onNextPage: () => void;
   onPrevPage: () => void;
+  onOrderUpdated?: () => void;
+  isRefreshing?: boolean; // New prop for background service refresh
 }
 
 export function OrdersTable({ 
@@ -32,19 +37,110 @@ export function OrdersTable({
   pageSize,
   onPageChange,
   onNextPage,
-  onPrevPage
+  onPrevPage,
+  onOrderUpdated,
+  isRefreshing = false
 }: OrdersTableProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
     setIsModalOpen(true);
   };
 
+  const handleEditOrder = (order: Order) => {
+    setEditingOrder(order);
+    setIsEditModalOpen(true);
+  };
+
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedOrder(null);
+  };
+
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingOrder(null);
+  };
+
+  const handleSaveOrder = async (updatedOrder: Partial<Order>) => {
+    if (!editingOrder?.id) {
+      console.error('No order ID for editing');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/orders/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: editingOrder.id,
+          updates: updatedOrder
+        }),
+      });
+
+      // Check if response is OK first
+      if (!response.ok) {
+        // Try to get JSON error data, but handle non-JSON responses gracefully
+        let errorMessage = 'Failed to update order';
+        let errorDetails = '';
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+          errorDetails = errorData.details || '';
+        } catch {
+          // If response is not JSON (e.g., HTML error page), get text content
+          try {
+            const textContent = await response.text();
+            console.error('Non-JSON response received:', textContent.substring(0, 200));
+            
+            // Provide user-friendly error based on status code
+            if (response.status === 404) {
+              errorMessage = 'Order not found or API endpoint not available';
+            } else if (response.status === 500) {
+              errorMessage = 'Server error occurred while updating order';
+            } else if (response.status === 400) {
+              errorMessage = 'Invalid request data';
+            } else {
+              errorMessage = `Update failed (Status: ${response.status})`;
+            }
+          } catch {
+            errorMessage = `Update failed (Status: ${response.status})`;
+          }
+        }
+        
+        const fullError = errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage;
+        throw new Error(fullError);
+      }
+
+      // Response is OK, proceed with success flow
+      // Close the modal
+      handleCloseEditModal();
+      
+      // Refresh the orders list
+      if (onOrderUpdated) {
+        onOrderUpdated();
+      }
+      
+      // Show success toast
+      toast.success('Order updated successfully');
+      
+    } catch (error) {
+      console.error('Failed to save order:', error);
+      
+      // Show user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update order';
+      toast.error(errorMessage);
+      
+      // Re-throw to let the modal handle the error
+      throw error;
+    }
   };
 
   if (loading) {
@@ -85,6 +181,18 @@ export function OrdersTable({
         <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
             <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+              {/* Background Service Refresh Indicator */}
+              {isRefreshing && (
+                <div className="bg-blue-50 border-b border-blue-200 px-4 py-3">
+                  <div className="flex items-center">
+                    <ArrowPathIcon className="h-4 w-4 animate-spin text-blue-600 mr-2" />
+                    <span className="text-sm text-blue-800 font-medium">
+                      Auto-refreshing orders from background service...
+                    </span>
+                  </div>
+                </div>
+              )}
+              
               <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
                   <tr>
@@ -159,10 +267,13 @@ export function OrdersTable({
                           {order.package || order.service_type || 'N/A'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {order.order_date || 'N/A'}
+                          {order.service_date ? formatDateOnly(order.service_date) : 'N/A'}
                         </div>
                         <div className="text-xs text-gray-400">
-                          {order.order_time || 'N/A'}
+                          {order.time_slot ? 
+                            getTimeSlotDisplay(order.time_slot)
+                            : 'N/A'
+                          }
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-6 py-4">
@@ -191,7 +302,11 @@ export function OrdersTable({
                           >
                             <EyeIcon className="h-4 w-4" />
                           </button>
-                          <button className="text-indigo-600 hover:text-indigo-900">
+                          <button 
+                            className="text-indigo-600 hover:text-indigo-900"
+                            onClick={() => handleEditOrder(order)}
+                            title="Edit Order"
+                          >
                             <PencilIcon className="h-4 w-4" />
                           </button>
                         </div>
@@ -221,6 +336,14 @@ export function OrdersTable({
         order={selectedOrder}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
+      />
+
+      {/* Order Edit Modal */}
+      <OrderEditModal
+        order={editingOrder}
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        onSave={handleSaveOrder}
       />
     </>
   );

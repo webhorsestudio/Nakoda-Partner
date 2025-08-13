@@ -57,6 +57,7 @@ export interface Bitrix24Deal {
   UF_CRM_1681648220910?: string; // Additional info: "1"
   UF_CRM_1681648284105?: string; // Advance Amount: "1000"
   UF_CRM_1723904458952?: string; // Taxes and Fee: "150"
+  UF_CRM_1681747291577?: string; // Service Slot Time: "4972", "4974", "4976", etc.
 }
 
 export interface Bitrix24Response {

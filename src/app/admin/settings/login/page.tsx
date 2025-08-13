@@ -6,14 +6,11 @@ import {
   LockClosedIcon,
   ClockIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon,
-  EyeIcon,
-  EyeSlashIcon
+  CheckCircleIcon
 } from "@heroicons/react/24/outline";
 
 export default function LoginSettingsPage() {
   const [isClient, setIsClient] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   // Handle hydration mismatch
   useEffect(() => {

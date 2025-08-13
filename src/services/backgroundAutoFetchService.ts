@@ -25,31 +25,30 @@ class BackgroundAutoFetchService {
     document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
   }
 
-  private loadState() {
+  private loadState(): void {
     try {
-      const savedEnabled = localStorage.getItem('backgroundAutoFetchEnabled');
-      const savedLastFetch = localStorage.getItem('backgroundLastFetchTime');
-      
-      this.isEnabled = savedEnabled ? JSON.parse(savedEnabled) : false;
-      this.lastFetchTime = savedLastFetch ? new Date(savedLastFetch) : null;
-      
-      console.log('Background AutoFetch Service: State loaded', {
-        isEnabled: this.isEnabled,
-        lastFetchTime: this.lastFetchTime
-      });
+      const savedState = localStorage.getItem('backgroundAutoFetchState');
+      if (savedState) {
+        const state = JSON.parse(savedState);
+        this.isEnabled = state.isEnabled || false;
+        this.countdown = state.countdown || this.countdown;
+        this.lastFetchTime = state.lastFetchTime ? new Date(state.lastFetchTime) : null;
+      }
     } catch (error) {
-      console.error('Background AutoFetch Service: Error loading state:', error);
+      console.error('Error loading background auto-fetch state:', error);
     }
   }
 
-  private saveState() {
+  private saveState(): void {
     try {
-      localStorage.setItem('backgroundAutoFetchEnabled', JSON.stringify(this.isEnabled));
-      if (this.lastFetchTime) {
-        localStorage.setItem('backgroundLastFetchTime', this.lastFetchTime.toISOString());
-      }
+      const state = {
+        isEnabled: this.isEnabled,
+        countdown: this.countdown,
+        lastFetchTime: this.lastFetchTime?.toISOString()
+      };
+      localStorage.setItem('backgroundAutoFetchState', JSON.stringify(state));
     } catch (error) {
-      console.error('Background AutoFetch Service: Error saving state:', error);
+      console.error('Error saving background auto-fetch state:', error);
     }
   }
 
@@ -70,10 +69,8 @@ class BackgroundAutoFetchService {
   private handleVisibilityChange() {
     if (document.hidden) {
       // Page is hidden, pause countdown but keep interval running
-      console.log('Background AutoFetch Service: Page hidden, pausing countdown');
     } else {
       // Page is visible again, resume countdown
-      console.log('Background AutoFetch Service: Page visible, resuming countdown');
     }
   }
 
@@ -85,8 +82,6 @@ class BackgroundAutoFetchService {
     this.isEnabled = true;
     this.countdown = 300; // Reset to 5 minutes
     this.saveState();
-    
-    console.log('Background AutoFetch Service: Started');
 
     this.intervalId = setInterval(() => {
       if (this.isEnabled && !this.isFetching) {
@@ -111,8 +106,6 @@ class BackgroundAutoFetchService {
     
     this.isEnabled = false;
     this.saveState();
-    
-    console.log('Background AutoFetch Service: Stopped');
   }
 
   public toggle() {
@@ -135,13 +128,11 @@ class BackgroundAutoFetchService {
 
   public async performFetch() {
     if (this.isFetching) {
-      console.log('Background AutoFetch Service: Fetch already in progress, skipping');
       return;
     }
 
     try {
       this.isFetching = true;
-      console.log('Background AutoFetch Service: Starting background sync...');
       
       const response = await fetch('/api/orders/sync', {
         method: 'POST',
@@ -152,7 +143,8 @@ class BackgroundAutoFetchService {
         this.lastFetchTime = new Date();
         this.saveState();
         
-        console.log('Background AutoFetch Service: Sync successful', result);
+        // Emit custom event to notify components that new data is available
+        this.emitDataFetchedEvent(result.data);
         
         // Show notification if page is visible
         if (!document.hidden && 'Notification' in window && Notification.permission === 'granted') {
@@ -161,20 +153,40 @@ class BackgroundAutoFetchService {
             icon: '/favicon.ico'
           });
         }
+        return result.data; // Return data for manual fetch
       } else {
         console.error('Background AutoFetch Service: Sync failed with status', response.status);
+        return null; // Return null on failure
       }
     } catch (error) {
       console.error('Background AutoFetch Service: Sync error:', error);
+      return null; // Return null on error
     } finally {
       this.isFetching = false;
     }
   }
 
+  // Emit custom event when new data is fetched
+  private emitDataFetchedEvent(data: { created?: number; updated?: number } | null) {
+    const event = new CustomEvent('ordersDataFetched', {
+      detail: {
+        timestamp: new Date(),
+        data: data,
+        source: 'backgroundService'
+      }
+    });
+    window.dispatchEvent(event);
+  }
+
   public async triggerManualFetch() {
-    await this.performFetch();
+    const result = await this.performFetch();
     this.countdown = 300; // Reset countdown after manual fetch
     localStorage.setItem('backgroundAutoFetchCountdown', this.countdown.toString());
+    
+    // Emit event for manual fetch as well
+    if (result) {
+      this.emitDataFetchedEvent(result);
+    }
   }
 
   public destroy() {

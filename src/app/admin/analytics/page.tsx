@@ -3,15 +3,11 @@
 import { useState } from "react";
 import { 
   ChartBarIcon,
-  ArrowTrendingUpIcon,
-  UsersIcon,
   CurrencyDollarIcon,
-  CalendarIcon,
   UserGroupIcon,
-  StarIcon,
-  MapPinIcon
+  StarIcon
 } from "@heroicons/react/24/outline";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState("month");
@@ -31,13 +27,6 @@ export default function AnalyticsPage() {
     { name: "Plumbing", partners: 15, avgOrders: 28, avgRevenue: 840, avgRating: 4.7 },
     { name: "HVAC", partners: 12, avgOrders: 22, avgRevenue: 1200, avgRating: 4.5 },
     { name: "Landscaping", partners: 8, avgOrders: 15, avgRevenue: 600, avgRating: 4.4 },
-  ];
-
-  const partnerSegments = [
-    { name: "Active", value: 65, color: "#10B981" },
-    { name: "Pending", value: 20, color: "#F59E0B" },
-    { name: "Suspended", value: 10, color: "#EF4444" },
-    { name: "Inactive", value: 5, color: "#6B7280" },
   ];
 
   const topPerformingPartners = [

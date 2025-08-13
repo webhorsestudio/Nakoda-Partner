@@ -4,14 +4,10 @@ import { useState } from "react";
 import { 
   CurrencyDollarIcon,
   ArrowTrendingUpIcon,
-  CalendarIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
   UserGroupIcon,
-  StarIcon,
-  MapPinIcon
+  StarIcon
 } from "@heroicons/react/24/outline";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 export default function EarningsPage() {
   const [timeRange, setTimeRange] = useState("week");

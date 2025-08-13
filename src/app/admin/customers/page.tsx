@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react";
 import { 
   MagnifyingGlassIcon,
-  FunnelIcon,
   EyeIcon,
   PhoneIcon,
   EnvelopeIcon,
   StarIcon,
-  MapPinIcon,
   UserIcon,
   UserGroupIcon,
   CurrencyDollarIcon

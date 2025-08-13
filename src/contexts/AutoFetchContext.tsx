@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { toast } from 'react-hot-toast';
 import { getBackgroundAutoFetchService } from '@/services/backgroundAutoFetchService';
-import { initializeBackgroundServices, requestNotificationPermission } from '@/utils/backgroundService';
+import { requestNotificationPermission } from '@/utils/backgroundService';
 
 interface AutoFetchContextType {
   countdown: number;
@@ -26,28 +26,35 @@ export function AutoFetchProvider({ children }: AutoFetchProviderProps) {
   const [countdown, setCountdown] = useState(300); // 5 minutes (300 seconds)
   const [isFetching, setIsFetching] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
-  const [totalOrders, setTotalOrders] = useState(0);
+  const totalOrders = 0; // Static value since it's never updated
   
   // Get auto-fetch state from background service
   const [isAutoFetchEnabled, setIsAutoFetchEnabled] = useState(false);
 
   // Initialize background services and sync state
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Initialize background services
-      const backgroundService = initializeBackgroundServices();
-      
-      if (backgroundService) {
-        const status = backgroundService.getStatus();
+    const initBackgroundServices = async () => {
+      try {
+        // Get the background service instance (it auto-initializes)
+        const backgroundService = getBackgroundAutoFetchService();
         
+        // Get initial status
+        const status = backgroundService.getStatus();
         setIsAutoFetchEnabled(status.isEnabled);
         setCountdown(status.countdown);
         setLastFetchTime(status.lastFetchTime);
         setIsFetching(status.isFetching);
         
-        console.log('AutoFetch Context: Background services initialized', status);
+        // Request notification permission
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      } catch (error) {
+        console.error('Failed to initialize background services:', error);
       }
-    }
+    };
+
+    initBackgroundServices();
   }, []);
 
   // Sync countdown from background service

@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { orderService } from "@/services/orderService";
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // Test database connection first
     try {
       const { supabase } = await import("@/lib/supabase");
       
       // Test basic connection
-      const { data: connectionTest, error: connectionError } = await supabase.from('orders').select('count').limit(1);
+      const { error: connectionError } = await supabase.from('orders').select('count').limit(1);
       if (connectionError) {
         console.error("Database connection error:", connectionError);
         
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Test table structure
-      const { data: tableInfo, error: tableError } = await supabase
+      const { error: tableError } = await supabase
         .from('orders')
         .select('*')
         .limit(1);

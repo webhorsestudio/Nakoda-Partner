@@ -35,7 +35,6 @@ export default function TeamPage() {
   });
 
   const {
-    adminUsers,
     loading,
     error,
     addAdminUser,
@@ -79,7 +78,7 @@ export default function TeamPage() {
         try {
           await removeAdminUser(admin.id);
           notificationService.success(`Admin user ${admin.name} deleted successfully`);
-        } catch (error) {
+        } catch {
           notificationService.error(`Failed to delete admin user ${admin.name}`);
         }
       },

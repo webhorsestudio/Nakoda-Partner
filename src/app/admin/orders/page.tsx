@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import { 
   OrdersHeader, 
   OrdersSearchAndFilter, 
@@ -18,9 +19,11 @@ export default function OrdersPage() {
     status: '',
   });
 
+  // State to track when table is refreshing due to background service
+  const [isTableRefreshing, setIsTableRefreshing] = useState(false);
+
   // Use the auto-fetch context for automatic syncing
   const {
-    isFetching,
     lastFetchTime,
     triggerManualFetch,
   } = useAutoFetch();
@@ -49,6 +52,50 @@ export default function OrdersPage() {
     }
   }, [filters, lastFetchTime, fetchOrders]);
 
+  // Listen for custom events from background service when new data is fetched
+  useEffect(() => {
+    const handleDataFetched = (event: CustomEvent) => {
+      console.log('New orders data fetched:', event.detail);
+      
+      // Set refreshing state to show visual indicator
+      setIsTableRefreshing(true);
+      
+      // Automatically refresh the orders table with current filters
+      fetchOrders(filters);
+      
+      // Show a toast notification about the new data
+      if (event.detail.data) {
+        const { created, updated } = event.detail.data;
+        if (created > 0 || updated > 0) {
+          // Show success toast for new data
+          if (created > 0 && updated > 0) {
+            toast.success(`🔄 Auto-synced: ${created} new orders, ${updated} updated orders`);
+          } else if (created > 0) {
+            toast.success(`🆕 Auto-synced: ${created} new orders found`);
+          } else if (updated > 0) {
+            toast.success(`📝 Auto-synced: ${updated} orders updated`);
+          }
+        } else {
+          // Show info toast when no new data
+          toast.success('✅ Orders are up to date');
+        }
+      }
+      
+      // Clear refreshing state after a short delay
+      setTimeout(() => {
+        setIsTableRefreshing(false);
+      }, 2000);
+    };
+
+    // Add event listener for custom events
+    window.addEventListener('ordersDataFetched', handleDataFetched as EventListener);
+
+    // Cleanup event listener
+    return () => {
+      window.removeEventListener('ordersDataFetched', handleDataFetched as EventListener);
+    };
+  }, [fetchOrders, filters]);
+
   // Handle search change
   const handleSearchChange = (value: string) => {
     setFilters(prev => ({ ...prev, search: value }));
@@ -76,9 +123,7 @@ export default function OrdersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <OrdersHeader 
-        loading={isFetching} 
-      />
+      <OrdersHeader />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Countdown Timer */}
@@ -108,6 +153,8 @@ export default function OrdersPage() {
           onPageChange={goToPage}
           onNextPage={nextPage}
           onPrevPage={prevPage}
+          onOrderUpdated={fetchOrders}
+          isRefreshing={isTableRefreshing}
         />
       </div>
     </div>

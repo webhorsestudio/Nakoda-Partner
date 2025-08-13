@@ -2,7 +2,8 @@ import { Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { Order } from '@/types/orders'
-import { formatDate, getStatusColor, getStatusIcon } from '@/utils/orders'
+import { formatDate, getStatusColor, getStatusIcon, formatDateOnly } from '@/utils/orders'
+import { formatServiceDateTime } from '@/utils/timeSlots'
 
 interface OrderDetailsModalProps {
   order: Order | null
@@ -147,34 +148,17 @@ export function OrderDetailsModal({ order, isOpen, onClose }: OrderDetailsModalP
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">Service Date:</span>
-                            <span className="font-medium">{order.service_date || 'N/A'}</span>
+                            <span className="font-medium">
+                              {order.service_date ? 
+                                formatDateOnly(order.service_date)
+                                : 'N/A'
+                              }
+                            </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">Time Slot:</span>
                             <span className="font-medium">
-                              {order.time_slot ? 
-                                (order.time_slot.match(/^\d+$/) ? 
-                                  (order.service_date ? 
-                                    `Service Date: ${new Date(order.service_date).toLocaleDateString('en-US', { 
-                                      weekday: 'long', 
-                                      year: 'numeric', 
-                                      month: 'long', 
-                                      day: 'numeric' 
-                                    })}` : 
-                                    '⚠️ Time Information Required'
-                                  ) : 
-                                  order.time_slot
-                                ) : 
-                                (order.service_date ? 
-                                  `Service Date: ${new Date(order.service_date).toLocaleDateString('en-US', { 
-                                    weekday: 'long', 
-                                    year: 'numeric', 
-                                    month: 'long', 
-                                    day: 'numeric' 
-                                  })}` : 
-                                  '⚠️ Time Information Required'
-                                )
-                              }
+                              {formatServiceDateTime(order.time_slot, order.service_date)}
                             </span>
                           </div>
                         </div>
@@ -205,10 +189,6 @@ export function OrderDetailsModal({ order, isOpen, onClose }: OrderDetailsModalP
                           <div className="flex justify-between">
                             <span className="text-gray-600">Is Closed:</span>
                             <span className="font-medium">{order.is_closed ? 'Yes' : 'No'}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Is New:</span>
-                            <span className="font-medium">{order.is_new ? 'Yes' : 'No'}</span>
                           </div>
                         </div>
                       </div>

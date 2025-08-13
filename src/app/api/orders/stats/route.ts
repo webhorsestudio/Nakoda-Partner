@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { orderService } from "@/services/orderService";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const result = await orderService.getOrderStats();
     

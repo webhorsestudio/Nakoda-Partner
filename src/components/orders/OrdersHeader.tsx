@@ -1,10 +1,14 @@
+"use client";
 
+import { useRouter } from 'next/navigation';
 
-interface OrdersHeaderProps {
-  loading: boolean;
-}
+export function OrdersHeader() {
+  const router = useRouter();
 
-export function OrdersHeader({ loading }: OrdersHeaderProps) {
+  const handleViewReports = () => {
+    router.push('/admin/reports');
+  };
+
   return (
     <div className="sm:flex sm:items-center">
       <div className="sm:flex-auto">
@@ -19,6 +23,7 @@ export function OrdersHeader({ loading }: OrdersHeaderProps) {
       <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none space-x-3">
         <button
           type="button"
+          onClick={handleViewReports}
           className="block rounded-md bg-blue-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
           suppressHydrationWarning
         >

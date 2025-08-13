@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { 
   MagnifyingGlassIcon,
-  PlusIcon,
   EyeIcon,
   PencilIcon,
   TrashIcon,

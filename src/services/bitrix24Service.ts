@@ -53,6 +53,7 @@ class Bitrix24Service {
           "UF_CRM_1681749732453", // Package & partner: "Intense Cleaning 1 Bathroom By : Pams Facility Management Services"
           "UF_CRM_1681648036958", // Service date: "2025-08-12T03:00:00+03:00"
           "UF_CRM_1681647842342", // Order time: "2918" (time slot)
+          "UF_CRM_1681747291577", // Service slot time: "4972", "4974", etc.
           "UF_CRM_1681648200083", // Commission(%): "25"
           "UF_CRM_1681648220910", // Additional info: "1"
           "UF_CRM_1681648284105", // Advance Amount: "1000"
@@ -110,7 +111,7 @@ class Bitrix24Service {
           "1": { "STAGE_ID": "C2:EXECUTING" }
         },
         order: { "DATE_CREATE": "DESC" },
-        select: ["ID", "TITLE", "DATE_CREATE", "UF_CRM_1681747087033", "UF_CRM_1681645659170"],
+        select: ["ID", "TITLE", "DATE_CREATE", "UF_CRM_1681747087033", "UF_CRM_1681645659170", "UF_CRM_1681747291577"],
         start: 0,
         limit: 1
       };
@@ -124,7 +125,6 @@ class Bitrix24Service {
       });
       
       if (response.ok) {
-        const data = await response.json();
         return true;
       } else {
         return false;
@@ -401,6 +401,7 @@ class Bitrix24Service {
     const packagePartner = deal.UF_CRM_1681749732453; // Package & partner: "Intense Cleaning 1 Bathroom By : Pams Facility Management Services"
     const orderDate = deal.UF_CRM_1681648036958; // Service date: "2025-08-12T03:00:00+03:00"
     const orderTime = deal.UF_CRM_1681647842342; // Order time: "2918" (time slot)
+    const serviceSlotTime = deal.UF_CRM_1681747291577; // Service slot time: "4972", "4974", etc.
     const mode = deal.UF_CRM_1681648200083; // Commission(%): "25"
     
     // New financial and service fields
@@ -409,17 +410,23 @@ class Bitrix24Service {
     const taxesAndFees = deal.UF_CRM_1723904458952; // Taxes and Fee: "150"
     const serviceDate = deal.UF_CRM_1681648036958; // Service Date: "2025-08-12T03:00:00+03:00"
 
-    // Fallback logic for time slot when custom field is empty
-    let finalOrderTime = orderTime;
-    if (!finalOrderTime && deal.TITLE) {
-      // Extract time from title: "Time :12:00PM - 2:00PM" or similar patterns
-      // Look for time followed by either comma or "Order Total" or end of string
-      // Handle both "Time :6:00PM" and "Time : 6:00PM" formats
+    // Enhanced time slot logic with priority order
+    let finalOrderTime: string | undefined;
+    
+    // Priority 1: Use the dedicated service slot time field if available and valid
+    if (serviceSlotTime && serviceSlotTime !== "0" && serviceSlotTime !== "") {
+      finalOrderTime = serviceSlotTime;
+    }
+    // Priority 2: Use the order time field if available and valid
+    else if (orderTime && orderTime !== "0" && orderTime !== "") {
+      finalOrderTime = orderTime;
+    }
+    // Priority 3: Extract from title as fallback
+    else if (deal.TITLE) {
       const timeMatch = deal.TITLE.match(/Time\s*:\s*([^,]+?)(?=,|Order Total|$)/i);
       if (timeMatch) {
         const extractedTime = timeMatch[1].trim();
-        // Only use if we actually extracted meaningful time data
-        if (extractedTime && extractedTime.length > 0 && !extractedTime.match(/^\s*$/)) {
+        if (extractedTime && extractedTime.length > 0 && !extractedTime.match(/^\s*$/) && extractedTime !== "0") {
           finalOrderTime = extractedTime;
         }
       }

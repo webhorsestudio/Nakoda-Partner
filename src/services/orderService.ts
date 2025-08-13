@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { CreateOrderData, Order, OrderFilters, OrderStats } from "@/types/orders";
+import { Order, OrderFilters, OrderStats } from "@/types/orders";
 import { bitrix24Service } from "./bitrix24Service";
 
 export class OrderService {
@@ -41,8 +41,6 @@ export class OrderService {
             
             // If it's a duplicate key error, try to update instead
             if (upsertError.code === '23505' && upsertError.message.includes('duplicate key')) {
-              console.log(`Attempting to update existing order with bitrix24_id: ${orderData.bitrix24_id}`);
-              
               const { error: updateError } = await supabase
                 .from("orders")
                 .update(orderData)
@@ -58,23 +56,31 @@ export class OrderService {
               errors++;
             }
           } else {
-            // Check if this was an insert or update by looking for existing order
-            const { data: existingOrder } = await supabase
-              .from("orders")
-              .select("id, updated_at")
-              .eq("bitrix24_id", orderData.bitrix24_id)
+            // Check if order already exists
+            const { data: existingOrder, error: checkError } = await supabase
+              .from('orders')
+              .select('id')
+              .eq('bitrix24_id', orderData.bitrix24_id)
               .single();
 
+            if (checkError && checkError.code !== 'PGRST116') {
+              throw checkError;
+            }
+
             if (existingOrder) {
-              // If the order was just updated (updated_at is very recent), count as update
-              const updatedAt = new Date(existingOrder.updated_at);
-              const now = new Date();
-              const timeDiff = now.getTime() - updatedAt.getTime();
-              
-              if (timeDiff < 5000) { // Less than 5 seconds ago
-                updated++;
+              // Update existing order
+              const { error: updateError } = await supabase
+                .from('orders')
+                .update(orderData)
+                .eq('id', existingOrder.id)
+                .select()
+                .single();
+
+              if (updateError) {
+                console.error("Error updating existing order:", updateError);
+                errors++;
               } else {
-                created++;
+                updated++;
               }
             } else {
               created++;
@@ -234,8 +240,8 @@ export class OrderService {
 
       // Find bitrix24_ids with duplicates
       const duplicateBitrixIds = Array.from(ordersByBitrixId.entries())
-        .filter(([_, orders]) => orders.length > 1)
-        .map(([bitrixId, _]) => bitrixId);
+        .filter(([, orders]) => orders.length > 1)
+        .map(([bitrixId]) => bitrixId);
 
       if (duplicateBitrixIds.length === 0) {
         return { removed: 0, errors: 0 };

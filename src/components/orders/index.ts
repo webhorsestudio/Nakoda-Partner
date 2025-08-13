@@ -5,3 +5,4 @@ export { OrdersTable } from './OrdersTable';
 export { OrdersPagination } from './OrdersPagination';
 export { default as OrdersCountdown } from './OrdersCountdown';
 export { OrderDetailsModal } from './OrderDetailsModal';
+export { OrderEditModal } from './OrderEditModal';
