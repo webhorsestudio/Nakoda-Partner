@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  UsersIcon, 
-  UserGroupIcon,
-  CurrencyDollarIcon,
-  StarIcon,
+import {
+  UsersIcon,
   CalendarIcon,
+  CurrencyDollarIcon,
+  UserGroupIcon,
+  StarIcon,
   CheckCircleIcon,
   ClockIcon,
   ExclamationTriangleIcon
@@ -226,6 +226,11 @@ export default function AdminDashboard() {
         <p className="mt-1 text-sm text-gray-500">
           Welcome back! Here&apos;s what&apos;s happening across the Nakoda platform today.
         </p>
+      </div>
+
+      {/* Role Test Component */}
+      <div className="mb-6">
+        {/* Removed RoleTest component */}
       </div>
 
       {/* Platform Stats */}

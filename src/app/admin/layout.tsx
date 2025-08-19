@@ -19,6 +19,8 @@ import {
   ClockIcon
 } from "@heroicons/react/24/outline";
 import { useAutoFetch } from "@/contexts/AutoFetchContext";
+import { verifyJWTTokenClient, verifySimpleToken } from "@/utils/authUtils";
+import { getUserRole, getNavigationItems, UserRole } from "@/utils/roleUtils";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -27,45 +29,167 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
   
   // Get auto-fetch status from context
   const { isAutoFetchEnabled, countdown } = useAutoFetch();
 
-  // Handle hydration mismatch
+  // Handle hydration mismatch - always call this hook
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Check authentication
+  // Check authentication and permissions - always call this hook
   useEffect(() => {
-    if (isClient) {
-      const authToken = document.cookie.includes('auth-token');
-      if (!authToken) {
+    const checkAuth = async () => {
+      if (!isClient) return;
+      
+      try {
+        // Check for JWT token in localStorage
+        const token = localStorage.getItem('auth-token');
+        console.log('🔐 Checking authentication...');
+        console.log('Token found:', token ? 'Yes' : 'No');
+        
+        if (token) {
+          console.log('Token length:', token.length);
+          console.log('Token preview:', token.substring(0, 20) + '...');
+          
+          // Try JWT verification first
+          let decoded = verifyJWTTokenClient(token);
+          
+          // If JWT verification fails, try simple token verification
+          if (!decoded) {
+            console.log('JWT verification failed, trying simple token verification...');
+            decoded = verifySimpleToken(token);
+          }
+          
+          console.log('Token verification result:', decoded);
+          
+          if (decoded) {
+            console.log('✅ Authentication successful:', decoded);
+            setIsAuthenticated(true);
+            
+            // Get user role from mobile number (since we use mobile for OTP login)
+            try {
+              if (decoded.mobile) {
+                const role = await getUserRole(decoded.mobile);
+                if (role) {
+                  setUserRole(role);
+                  console.log('🔑 User role:', role);
+                  
+                  // Check if user is actually an admin
+                  if (role.role !== 'admin') {
+                    console.log('❌ User is not an admin, redirecting to appropriate page');
+                    if (role.role === 'partner') {
+                      router.push('/partner');
+                      return;
+                    } else {
+                      router.push('/login');
+                      return;
+                    }
+                  }
+                } else {
+                  console.log('❌ Failed to get user role');
+                  router.push('/login');
+                  return;
+                }
+              } else if (decoded.phone) {
+                // Fallback to phone if mobile not found
+                const role = await getUserRole(decoded.phone);
+                if (role) {
+                  setUserRole(role);
+                  console.log('🔑 User role:', role);
+                  
+                  // Check if user is actually an admin
+                  if (role.role !== 'admin') {
+                    console.log('❌ User is not an admin, redirecting to appropriate page');
+                    if (role.role === 'partner') {
+                      router.push('/partner');
+                      return;
+                    } else {
+                      router.push('/login');
+                      return;
+                    }
+                  }
+                } else {
+                  console.log('❌ Failed to get user role');
+                  router.push('/login');
+                  return;
+                }
+              } else {
+                console.log('❌ No mobile/phone found in token');
+                // Redirect to login if we can't determine role
+                router.push('/login');
+                return;
+              }
+              
+              setIsLoading(false);
+              return;
+            } catch (roleError) {
+              console.error('Error getting user role:', roleError);
+              // Redirect to login on error instead of setting default admin role
+              router.push('/login');
+              return;
+            }
+          } else {
+            console.log('❌ Invalid token, clearing and redirecting');
+            localStorage.removeItem('auth-token');
+            document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+          }
+        } else {
+          console.log('❌ No token found, redirecting to login');
+        }
+        
+        // If we reach here, authentication failed
+        setIsAuthenticated(false);
+        setUserRole(null);
+        setIsLoading(false);
+        router.push('/login');
+      } catch (error) {
+        console.error('Authentication check failed:', error);
+        setIsAuthenticated(false);
+        setUserRole(null);
+        setIsLoading(false);
+        // Clear any invalid tokens
+        localStorage.removeItem('auth-token');
+        document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+        router.push('/login');
+      }
+    };
+
+    checkAuth();
+  }, [isClient, router]);
+
+  // Additional role check to ensure only admins can access admin pages - always call this hook
+  useEffect(() => {
+    if (userRole && userRole.role !== 'admin') {
+      console.log('❌ Non-admin user trying to access admin page, redirecting');
+      if (userRole.role === 'partner') {
+        router.push('/partner');
+      } else {
         router.push('/login');
       }
     }
-  }, [isClient, router]);
+  }, [userRole, router]);
 
   const handleLogout = () => {
-    document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    // Clear JWT token from both localStorage and cookie
+    localStorage.removeItem('auth-token');
+    document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+    setIsAuthenticated(false);
+    setUserRole(null);
     router.push('/login');
   };
 
-  const navigation = [
-    { name: "Dashboard", href: "/admin", icon: HomeIcon },
-    { name: "Orders", href: "/admin/orders", icon: CalendarIcon },
-    { name: "Customers", href: "/admin/customers", icon: UsersIcon },
-    { name: "Partners", href: "/admin/partners", icon: UserGroupIcon },
-    { name: "Nakoda Team", href: "/admin/team", icon: UserGroupIcon },
-    { name: "Earnings", href: "/admin/earnings", icon: CurrencyDollarIcon },
-    { name: "Analytics", href: "/admin/analytics", icon: ChartBarIcon },
-    { name: "Settings", href: "/admin/settings", icon: CogIcon },
-  ];
+  // Get navigation based on user role
+  const navigation = getNavigationItems(userRole);
 
-  // Show loading state during hydration or if not authenticated
-  if (!isClient) {
+  // Show loading state during hydration, authentication check, or if not authenticated
+  if (!isClient || isLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="animate-pulse">
@@ -86,6 +210,18 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
+  // Show loading state while redirecting non-admin users
+  if (userRole && userRole.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting to appropriate page...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile sidebar */}
@@ -101,6 +237,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
+              // Map icon names to actual icon components
+              const IconComponent = {
+                'HomeIcon': HomeIcon,
+                'CalendarIcon': CalendarIcon,
+                'UsersIcon': UsersIcon,
+                'UserGroupIcon': UserGroupIcon,
+                'CurrencyDollarIcon': CurrencyDollarIcon,
+                'ChartBarIcon': ChartBarIcon,
+                'CogIcon': CogIcon
+              }[item.icon] || HomeIcon;
+              
               return (
                 <Link
                   key={item.name}
@@ -112,7 +259,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <item.icon className="mr-3 h-5 w-5" />
+                  <IconComponent className="mr-3 h-5 w-5" />
                   {item.name}
                 </Link>
               );
@@ -139,6 +286,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
+              // Map icon names to actual icon components
+              const IconComponent = {
+                'HomeIcon': HomeIcon,
+                'CalendarIcon': CalendarIcon,
+                'UsersIcon': UsersIcon,
+                'UserGroupIcon': UserGroupIcon,
+                'CurrencyDollarIcon': CurrencyDollarIcon,
+                'ChartBarIcon': ChartBarIcon,
+                'CogIcon': CogIcon
+              }[item.icon] || HomeIcon;
+              
               return (
                 <Link
                   key={item.name}
@@ -149,7 +307,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
-                  <item.icon className="mr-3 h-5 w-5" />
+                  <IconComponent className="mr-3 h-5 w-5" />
                   {item.name}
                 </Link>
               );

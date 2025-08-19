@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Order, OrderStats, OrderFilters } from "@/types/orders";
 
 interface UseOrdersReturn {
@@ -47,16 +47,19 @@ export function useOrders(): UseOrdersReturn {
       params.append('limit', pageSize.toString());
 
       const response = await fetch(`/api/orders?${params}`);
-      const data = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch orders");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
+      
+      const data = await response.json();
 
       setOrders(data.data || []);
       setTotalOrders(data.total || 0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      const errorMessage = err instanceof Error ? err.message : "An error occurred";
+      setError(errorMessage);
       console.error("Error fetching orders:", err);
     } finally {
       setLoading(false);
@@ -69,11 +72,13 @@ export function useOrders(): UseOrdersReturn {
       const response = await fetch("/api/orders/stats", {
         method: "GET",
       });
-      const data = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch stats");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
+      
+      const data = await response.json();
 
       if (data.success && data.data) {
         setStats(data.data);
@@ -81,6 +86,7 @@ export function useOrders(): UseOrdersReturn {
         throw new Error("Invalid stats data received");
       }
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch stats";
       console.error("Error fetching stats:", err);
       // Don't set error for stats to avoid blocking the UI
     }
@@ -94,49 +100,54 @@ export function useOrders(): UseOrdersReturn {
       const response = await fetch("/api/orders/sync", {
         method: "POST",
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to sync orders");
+      if (data.success) {
+        // Refresh orders after successful sync
+        await fetchOrders();
+        return data;
+      } else {
+        throw new Error(data.error || "Sync failed");
       }
-
-      // Refresh orders after sync
-      await fetchOrders();
-      await fetchStats();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      const errorMessage = err instanceof Error ? err.message : "Failed to sync orders";
+      setError(errorMessage);
       console.error("Error syncing orders:", err);
+      throw err;
     } finally {
       setLoading(false);
     }
-  }, [fetchOrders, fetchStats]);
+  }, [fetchOrders]);
 
+  // Navigation functions
   const goToPage = useCallback((page: number) => {
-    setCurrentPage(page);
-  }, []);
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  }, [totalPages]);
 
   const nextPage = useCallback(() => {
     if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
+      setCurrentPage(prev => prev + 1);
     }
   }, [currentPage, totalPages]);
 
   const prevPage = useCallback(() => {
     if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+      setCurrentPage(prev => prev - 1);
     }
   }, [currentPage]);
 
-  // Fetch orders when page changes
+  // Auto-fetch stats on mount
   useEffect(() => {
-    fetchOrders();
-  }, [currentPage, fetchOrders]);
-
-  // Initial load
-  useEffect(() => {
-    fetchOrders();
     fetchStats();
-  }, [fetchOrders, fetchStats]);
+  }, [fetchStats]);
 
   return {
     orders,

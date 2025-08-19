@@ -1,54 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { validateAndSanitizeMobile, handleUserValidationError, createUserValidationSuccess, DatabaseError } from "@/utils/validationUtils";
 
 export async function POST(request: NextRequest) {
   try {
     const { mobile } = await request.json();
 
-    if (!mobile) {
+    // Input validation and sanitization
+    const validation = validateAndSanitizeMobile(mobile);
+    if (!validation.isValid) {
       return NextResponse.json(
-        { error: "Mobile number is required" },
-        { status: 400 }
+        { error: validation.error },
+        { status: validation.status || 400 }
       );
     }
 
     // Query the admin_users table to check if mobile number exists and has admin role
     const { data: adminUser, error } = await supabase
       .from("admin_users")
-      .select("id, name, email, phone, role")
-      .eq("phone", mobile)
+      .select("id, name, email, phone, role, status")
+      .eq("phone", validation.sanitizedMobile)
       .eq("role", "Admin")
       .single();
 
     if (error) {
-      console.error("Database error:", error);
-      
-      // Check if it's a "no rows returned" error (mobile number not found)
-      if (error.code === 'PGRST116') {
-        return NextResponse.json(
-          { 
-            error: "Mobile number not registered. Please check and try again.",
-            code: "MOBILE_NOT_FOUND"
-          },
-          { status: 404 }
-        );
-      }
-      
-      // Check if it's a "not found" error
-      if (error.message && error.message.includes('No rows returned')) {
-        return NextResponse.json(
-          { 
-            error: "Mobile number not registered. Please check and try again.",
-            code: "MOBILE_NOT_FOUND"
-          },
-          { status: 404 }
-        );
-      }
-      
-      // For other database errors, return a user-friendly message
+      const errorResponse = handleUserValidationError(error as unknown as DatabaseError);
       return NextResponse.json(
-        { error: "Unable to verify mobile number. Please try again later." },
-        { status: 500 }
+        { error: errorResponse.error, code: errorResponse.code },
+        { status: errorResponse.status }
       );
     }
 
@@ -62,18 +41,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return success with admin user info (without sensitive data)
-    return NextResponse.json({
-      success: true,
-      message: "Admin user found",
-      user: {
-        id: adminUser.id,
-        name: adminUser.name,
-        email: adminUser.email,
-        phone: adminUser.phone,
-        role: adminUser.role
-      }
-    });
+    // Check if user account is active
+    if (adminUser.status !== 'Active') {
+      return NextResponse.json(
+        { 
+          error: "Account is deactivated. Please contact your system administrator.",
+          code: "ACCOUNT_DEACTIVATED"
+        },
+        { status: 403 }
+      );
+    }
+
+    // Return success with admin user info
+    return NextResponse.json(createUserValidationSuccess(adminUser, 'admin'));
 
   } catch (error) {
     console.error("Validation error:", error);

@@ -13,14 +13,6 @@ export default function LoadingSkeleton() {
         <div className="w-full max-w-md">
           {/* Logo and Brand Section Skeleton */}
           <div className="text-center mb-10">
-            <div className="relative inline-block mb-6">
-              {/* Logo skeleton with gradient */}
-              <div className="w-20 h-20 bg-gradient-to-br from-slate-200 via-blue-200 to-indigo-200 rounded-2xl shadow-2xl animate-pulse"></div>
-              {/* Decorative elements skeleton */}
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-200 rounded-full animate-pulse"></div>
-              <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-green-200 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-            </div>
-            
             <div className="h-8 bg-gradient-to-r from-slate-200 via-blue-200 to-indigo-200 rounded-lg w-64 mx-auto mb-3 animate-pulse"></div>
             <div className="h-5 bg-slate-200 rounded-lg w-48 mx-auto mb-4 animate-pulse"></div>
             <div className="w-24 h-1 bg-gradient-to-r from-slate-200 to-blue-200 mx-auto rounded-full animate-pulse"></div>
@@ -54,15 +46,7 @@ export default function LoadingSkeleton() {
             </div>
           </div>
 
-          {/* Footer Skeleton */}
-          <div className="text-center mt-8">
-            <div className="h-3 bg-slate-200 rounded w-32 mx-auto mb-2 animate-pulse"></div>
-            <div className="flex items-center justify-center space-x-2">
-              <div className="w-2 h-2 bg-blue-200 rounded-full animate-pulse"></div>
-              <div className="w-2 h-2 bg-indigo-200 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-              <div className="w-2 h-2 bg-purple-200 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-            </div>
-          </div>
+
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { LockClosedIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { CheckIcon, LoadingSpinner } from "./icons";
 
 interface OtpFormProps {
   mobile: string;
@@ -47,8 +48,8 @@ export default function OtpForm({ mobile, onSubmit, onBack, loading }: OtpFormPr
             value={otp}
             onChange={(e) => setOtp(e.target.value)}
             className="block w-full pl-12 pr-16 py-4 rounded-2xl border-2 border-slate-200 bg-white/50 backdrop-blur-sm shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 focus:bg-white transition-all duration-300 text-center text-xl font-mono tracking-widest text-slate-700 placeholder-slate-400"
-            placeholder="Enter 4-digit OTP"
-            maxLength={4}
+            placeholder="Enter 6-digit OTP"
+            maxLength={6}
             disabled={loading}
           />
           {/* Input focus indicator */}
@@ -72,7 +73,7 @@ export default function OtpForm({ mobile, onSubmit, onBack, loading }: OtpFormPr
         
         <div className="flex items-center space-x-2 text-xs text-slate-500">
           <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></div>
-          <span>Enter the 4-digit verification code sent to your mobile</span>
+          <span>Enter the 6-digit verification code sent to your mobile</span>
         </div>
       </div>
 
@@ -94,15 +95,13 @@ export default function OtpForm({ mobile, onSubmit, onBack, loading }: OtpFormPr
         >
           {loading ? (
             <div className="flex items-center justify-center space-x-3">
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+              <LoadingSpinner />
               <span>Verifying...</span>
             </div>
           ) : (
             <div className="flex items-center justify-center space-x-2">
               <span>Verify OTP</span>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <CheckIcon />
             </div>
           )}
         </button>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PhoneIcon } from "@heroicons/react/24/outline";
+import { ArrowRightIcon, LoadingSpinner } from "./icons";
 
 interface MobileFormProps {
   onSubmit: (mobile: string) => Promise<void>;
@@ -58,15 +59,13 @@ export default function MobileForm({ onSubmit, loading }: MobileFormProps) {
       >
         {loading ? (
           <div className="flex items-center justify-center space-x-3">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+            <LoadingSpinner />
             <span>Sending OTP...</span>
           </div>
         ) : (
           <div className="flex items-center justify-center space-x-2">
             <span>Send OTP</span>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
+            <ArrowRightIcon />
           </div>
         )}
       </button>
