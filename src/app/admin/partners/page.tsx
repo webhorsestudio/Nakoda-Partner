@@ -7,11 +7,13 @@ import {
   PencilIcon,
   TrashIcon,
   UserGroupIcon,
-  PlusIcon
+  PlusIcon,
+  DocumentArrowUpIcon
 } from "@heroicons/react/24/outline";
 import { usePartners } from "@/hooks/usePartners";
 import { Partner, PartnerFormData, SERVICE_TYPES, PARTNER_STATUSES, VERIFICATION_STATUSES } from "@/types/partners";
 import { PartnerForm } from "@/components/partners";
+import CSVUploadModal from "@/components/partners/CSVUploadModal";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { getUserRole, canAccessPartners, UserRole } from "@/utils/roleUtils";
@@ -58,6 +60,7 @@ const PermissionDenied = () => (
 export default function PartnersPage() {
   const [isClient, setIsClient] = useState(false);
   const [showAddPartner, setShowAddPartner] = useState(false);
+  const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
@@ -199,6 +202,149 @@ export default function PartnersPage() {
     }
   }, [updatePartner, selectedPartner]);
 
+  // Helper functions to normalize status values
+  const normalizeStatus = (status: string): "pending" | "active" | "inactive" => {
+    const normalized = status.toLowerCase().trim();
+    if (normalized === 'active' || normalized === 'pending' || normalized === 'inactive') {
+      return normalized as "pending" | "active" | "inactive";
+    }
+    return 'pending'; // default fallback
+  };
+
+  const normalizeVerificationStatus = (status: string): "Pending" | "Verified" | "Rejected" => {
+    const normalized = status.trim();
+    if (normalized === 'Pending' || normalized === 'Verified' || normalized === 'Rejected') {
+      return normalized as "Pending" | "Verified" | "Rejected";
+    }
+    return 'Pending'; // default fallback
+  };
+
+  // Function to update partner by mobile number
+  const updatePartnerByMobile = async (mobile: string, partnerData: Omit<Partner, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      // First, find the partner by mobile number
+      const response = await fetch(`/api/partners/by-mobile?mobile=${encodeURIComponent(mobile)}`);
+      
+      if (!response.ok) {
+        throw new Error(`Partner with mobile ${mobile} not found`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.success || !data.data) {
+        throw new Error(`Partner with mobile ${mobile} not found`);
+      }
+      
+      const partnerId = data.data.id;
+      
+      // Update the partner using the existing updatePartner function
+      await updatePartner(partnerId, partnerData);
+      
+      return data.data;
+    } catch (error) {
+      console.error(`Error updating partner with mobile ${mobile}:`, error);
+      throw error;
+    }
+  };
+
+  // Handle CSV upload
+  const handleCSVUpload = useCallback(async (partnersData: Array<{
+    name: string;
+    service_type: string;
+    mobile: string;
+    email: string;
+    location: string;
+    city: string;
+    state: string;
+    status: string; // Changed to string to accept any value
+    verification_status: string; // Changed to string to accept any value
+    rating: number;
+    total_orders: number;
+    total_revenue: number;
+    commission_percentage: number;
+    address: string;
+    pin_code: string;
+    notes: string;
+    joined_date?: string;
+    last_active?: string | null;
+    documents_verified?: boolean;
+  }>, mode: 'create' | 'update' = 'create') => {
+    try {
+      let successCount = 0;
+      let errorCount = 0;
+      
+      // Process each partner from CSV
+      for (const partnerData of partnersData) {
+        try {
+          // Transform CSV data to match Partner type exactly
+          const transformedPartner = {
+            name: partnerData.name,
+            service_type: partnerData.service_type,
+            status: normalizeStatus(partnerData.status),
+            rating: partnerData.rating,
+            total_orders: partnerData.total_orders,
+            total_revenue: partnerData.total_revenue,
+            location: partnerData.location,
+            city: partnerData.city,
+            state: partnerData.state,
+            pin_code: partnerData.pin_code,
+            mobile: partnerData.mobile,
+            email: partnerData.email,
+            address: partnerData.address,
+            commission_percentage: partnerData.commission_percentage,
+            joined_date: partnerData.joined_date || new Date().toISOString(),
+            last_active: partnerData.last_active || null,
+            verification_status: normalizeVerificationStatus(partnerData.verification_status),
+            documents_verified: partnerData.documents_verified || false,
+            notes: partnerData.notes
+          };
+
+          // Debug logging
+          console.log(`Processing partner: ${partnerData.name} (Mode: ${mode})`);
+          console.log(`Original status: "${partnerData.status}" -> Normalized: "${transformedPartner.status}"`);
+          console.log(`Original verification_status: "${partnerData.verification_status}" -> Normalized: "${transformedPartner.verification_status}"`);
+          
+          if (mode === 'update') {
+            // Try to update existing partner
+            try {
+              await updatePartnerByMobile(transformedPartner.mobile, transformedPartner);
+              successCount++;
+              console.log(`✅ Updated partner: ${partnerData.name}`);
+            } catch (error) {
+              // If update fails, try to create new partner
+              console.log(`⚠️ Update failed for ${partnerData.name}, trying to create new partner`);
+              await createPartner(transformedPartner);
+              successCount++;
+              console.log(`✅ Created new partner: ${partnerData.name}`);
+            }
+          } else {
+            // Create new partner
+            await createPartner(transformedPartner);
+            successCount++;
+            console.log(`✅ Created partner: ${partnerData.name}`);
+          }
+        } catch (error) {
+          console.error(`Failed to ${mode} partner ${partnerData.name}:`, error);
+          errorCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        const action = mode === 'create' ? 'created' : 'updated';
+        toast.success(`Successfully ${action} ${successCount} partners`);
+        // No need to call fetchPartners() here - createPartner already refreshes the list
+      }
+      
+      if (errorCount > 0) {
+        toast.error(`${errorCount} partners failed to import. Check console for details.`);
+      }
+      
+    } catch (error) {
+      toast.error("Failed to process CSV upload");
+      console.error("CSV import error:", error);
+    }
+  }, [createPartner, updatePartnerByMobile]);
+
   // Show loading state during hydration
   if (!isClient) {
     return <PartnersLoadingSkeleton />;
@@ -246,13 +392,21 @@ export default function PartnersPage() {
               Manage and monitor all service partners on the platform
             </p>
           </div>
-          <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+          <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none space-x-3">
+            <button
+              type="button"
+              onClick={() => setShowCSVUpload(true)}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <DocumentArrowUpIcon className="h-4 w-4 mr-2" />
+              Upload CSV
+            </button>
             <button
               type="button"
               onClick={() => setShowAddPartner(true)}
-              className="block rounded-md bg-blue-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+              className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              <PlusIcon className="h-4 w-4 inline mr-2" />
+              <PlusIcon className="h-4 w-4 mr-2" />
               Add Partner
             </button>
           </div>
@@ -603,6 +757,13 @@ export default function PartnersPage() {
           onClose={() => setSelectedPartner(null)}
           onSubmit={handleUpdatePartner}
           mode="edit"
+        />
+
+        {/* CSV Upload Modal */}
+        <CSVUploadModal
+          isOpen={showCSVUpload}
+          onClose={() => setShowCSVUpload(false)}
+          onUpload={handleCSVUpload}
         />
       </div>
     </Suspense>

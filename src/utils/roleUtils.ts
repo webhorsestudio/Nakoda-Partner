@@ -8,6 +8,24 @@ export interface UserRole {
   source_table: 'admin_users' | 'partners';
 }
 
+// Navigation item interface with support for sub-menus
+export interface NavigationItem {
+  name: string;
+  href: string;
+  icon: string;
+  alwaysShow: boolean;
+  children?: NavigationItem[];
+}
+
+// Navigation item interface with support for sub-menus
+export interface NavigationItem {
+  name: string;
+  href: string;
+  icon: string;
+  alwaysShow: boolean;
+  children?: NavigationItem[];
+}
+
 // Check user role from mobile number (since we use mobile for OTP login)
 export async function getUserRole(mobile: string): Promise<UserRole | null> {
   try {
@@ -121,13 +139,22 @@ export function canAccessSettings(userRole: UserRole | null): boolean {
 }
 
 // Get navigation items based on user role
-export function getNavigationItems(userRole: UserRole | null) {
-  const baseItems = [
+export function getNavigationItems(userRole: UserRole | null): NavigationItem[] {
+  const baseItems: NavigationItem[] = [
     { name: "Dashboard", href: "/admin", icon: "HomeIcon", alwaysShow: true }
   ];
 
   if (canAccessOrders(userRole)) {
-    baseItems.push({ name: "Orders", href: "/admin/orders", icon: "CalendarIcon", alwaysShow: false });
+    baseItems.push({
+      name: "Orders",
+      href: "/admin/orders",
+      icon: "CalendarIcon",
+      alwaysShow: false,
+      children: [
+        { name: "Bitrix24 Orders", href: "/admin/orders", icon: "CalendarIcon", alwaysShow: false },
+        { name: "Order Details", href: "/admin/orders/details", icon: "CalendarIcon", alwaysShow: false }
+      ]
+    });
   }
 
   if (canAccessCustomers(userRole)) {
@@ -135,7 +162,16 @@ export function getNavigationItems(userRole: UserRole | null) {
   }
 
   if (canAccessPartners(userRole)) {
-    baseItems.push({ name: "Partners", href: "/admin/partners", icon: "UserGroupIcon", alwaysShow: false });
+    baseItems.push({
+      name: "Partners",
+      href: "/admin/partners",
+      icon: "UserGroupIcon",
+      alwaysShow: false,
+      children: [
+        { name: "Partners Details", href: "/admin/partners", icon: "UserGroupIcon", alwaysShow: false },
+        { name: "Services Details", href: "/admin/partners/services", icon: "WrenchScrewdriverIcon", alwaysShow: false }
+      ]
+    });
   }
 
   // Always show these for now

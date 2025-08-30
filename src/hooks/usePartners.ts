@@ -98,7 +98,7 @@ export function usePartners(pageSize: number = 10): UsePartnersReturn {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters]); // Include filters dependency
 
   // Fetch stats
   const fetchStats = useCallback(async () => {
@@ -148,8 +148,8 @@ export function usePartners(pageSize: number = 10): UsePartnersReturn {
       const data = await response.json();
       
       if (data.success) {
-        // Refresh partners list
-        await fetchPartners();
+        // Refresh partners list with current filters and page
+        await fetchPartners({ ...filters, page: currentPage });
         return data.data;
       } else {
         throw new Error(data.error || "Failed to create partner");
@@ -158,7 +158,7 @@ export function usePartners(pageSize: number = 10): UsePartnersReturn {
       const errorMessage = error instanceof Error ? error.message : "Failed to create partner";
       throw new Error(errorMessage);
     }
-  }, [fetchPartners]);
+  }, [fetchPartners, filters, currentPage]);
 
   // Update partner
   const updatePartner = useCallback(async (id: number, partner: Partial<Partner>): Promise<Partner> => {
@@ -279,11 +279,11 @@ export function usePartners(pageSize: number = 10): UsePartnersReturn {
   // Effects
   useEffect(() => {
     fetchPartners({ ...filters, page: currentPage });
-  }, [currentPage, fetchPartners]);
+  }, [currentPage, filters.page, filters.limit, filters.search, filters.status, filters.verification_status, fetchPartners]);
 
   useEffect(() => {
     fetchStats();
-  }, [fetchStats]);
+  }, [fetchStats]); // Include fetchStats dependency
 
   return {
     // Data

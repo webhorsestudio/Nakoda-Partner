@@ -236,7 +236,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || (item.children && item.children.some(child => pathname === child.href));
               // Map icon names to actual icon components
               const IconComponent = {
                 'HomeIcon': HomeIcon,
@@ -249,19 +249,54 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               }[item.icon] || HomeIcon;
               
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                    isActive
-                      ? 'bg-blue-100 text-blue-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <IconComponent className="mr-3 h-5 w-5" />
-                  {item.name}
-                </Link>
+                <div key={item.name}>
+                  <Link
+                    href={item.href}
+                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                      isActive
+                        ? 'bg-blue-100 text-blue-900'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <IconComponent className="mr-3 h-5 w-5" />
+                    {item.name}
+                  </Link>
+                  
+                  {/* Render sub-menu items */}
+                  {item.children && (
+                    <div className="ml-6 space-y-1">
+                      {item.children.map((child) => {
+                        const isChildActive = pathname === child.href;
+                        const ChildIconComponent = {
+                          'HomeIcon': HomeIcon,
+                          'CalendarIcon': CalendarIcon,
+                          'UsersIcon': UsersIcon,
+                          'UserGroupIcon': UserGroupIcon,
+                          'CurrencyDollarIcon': CurrencyDollarIcon,
+                          'ChartBarIcon': ChartBarIcon,
+                          'CogIcon': CogIcon
+                        }[child.icon] || HomeIcon;
+                        
+                        return (
+                          <Link
+                            key={child.name}
+                            href={child.href}
+                            className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                              isChildActive
+                                ? 'bg-blue-50 text-blue-800 border-l-2 border-blue-300'
+                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                            }`}
+                            onClick={() => setSidebarOpen(false)}
+                          >
+                            <ChildIconComponent className="mr-3 h-4 w-4" />
+                            {child.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
             <div className="pt-4 mt-4 border-t border-gray-200">
@@ -285,7 +320,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || (item.children && item.children.some(child => pathname === child.href));
               // Map icon names to actual icon components
               const IconComponent = {
                 'HomeIcon': HomeIcon,
@@ -298,18 +333,52 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               }[item.icon] || HomeIcon;
               
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                    isActive
-                      ? 'bg-blue-100 text-blue-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  <IconComponent className="mr-3 h-5 w-5" />
-                  {item.name}
-                </Link>
+                <div key={item.name}>
+                  <Link
+                    href={item.href}
+                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                      isActive
+                        ? 'bg-blue-100 text-blue-900'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <IconComponent className="mr-3 h-5 w-5" />
+                    {item.name}
+                  </Link>
+                  
+                  {/* Render sub-menu items */}
+                  {item.children && (
+                    <div className="ml-6 space-y-1">
+                      {item.children.map((child) => {
+                        const isChildActive = pathname === child.href;
+                        const ChildIconComponent = {
+                          'HomeIcon': HomeIcon,
+                          'CalendarIcon': CalendarIcon,
+                          'UsersIcon': UsersIcon,
+                          'UserGroupIcon': UserGroupIcon,
+                          'CurrencyDollarIcon': CurrencyDollarIcon,
+                          'ChartBarIcon': ChartBarIcon,
+                          'CogIcon': CogIcon
+                        }[child.icon] || HomeIcon;
+                        
+                        return (
+                          <Link
+                            key={child.name}
+                            href={child.href}
+                            className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                              isChildActive
+                                ? 'bg-blue-50 text-blue-800 border-l-2 border-blue-300'
+                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                            }`}
+                          >
+                            <ChildIconComponent className="mr-3 h-4 w-4" />
+                            <span className="text-xs">{child.name}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
             <div className="pt-4 mt-4 border-t border-gray-200">
