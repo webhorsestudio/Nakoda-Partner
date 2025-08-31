@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Partner, PartnerFormData, SERVICE_TYPES, PARTNER_STATUSES, VERIFICATION_STATUSES, INDIAN_STATES } from "@/types/partners";
+import { Partner, PartnerFormData, PARTNER_STATUSES, VERIFICATION_STATUSES, INDIAN_STATES } from "@/types/partners";
+import { useServices } from "@/hooks/useServices";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 
 interface PartnerFormProps {
@@ -14,7 +15,7 @@ interface PartnerFormProps {
 
 const initialFormData: PartnerFormData = {
   name: '',
-  service_type: 'Other',
+  service_type: '',
   status: 'pending',
   rating: 0,
   total_orders: 0,
@@ -39,30 +40,38 @@ export default function PartnerForm({ partner, isOpen, onClose, onSubmit, mode }
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<keyof PartnerFormData, string | undefined>>({} as Record<keyof PartnerFormData, string | undefined>);
 
+  // Use services hook to fetch available services
+  const { services, servicesLoading, fetchServices } = useServices();
+
+  // Fetch services when component mounts
+  useEffect(() => {
+    fetchServices();
+  }, [fetchServices]);
+
   // Initialize form data when partner changes
   useEffect(() => {
     if (partner && mode === 'edit') {
-              setFormData({
-          name: partner.name || '',
-          service_type: partner.service_type || 'Other',
-          status: partner.status || 'pending',
-          rating: partner.rating || 0,
-          total_orders: partner.total_orders || 0,
-          total_revenue: partner.total_revenue || 0,
-          location: partner.location || '',
-          city: partner.city || '',
-          state: partner.state || '',
-          pin_code: partner.pin_code || '',
-          mobile: partner.mobile || '',
-          email: partner.email || '',
-          address: partner.address || '',
-          commission_percentage: partner.commission_percentage || 0,
-          joined_date: partner.joined_date || new Date().toISOString(),
-          last_active: partner.last_active || null,
-          verification_status: partner.verification_status || 'Pending',
-          documents_verified: partner.documents_verified || false,
-          notes: partner.notes || ''
-        });
+      setFormData({
+        name: partner.name || '',
+        service_type: partner.service_type || '',
+        status: partner.status || 'pending',
+        rating: partner.rating || 0,
+        total_orders: partner.total_orders || 0,
+        total_revenue: partner.total_revenue || 0,
+        location: partner.location || '',
+        city: partner.city || '',
+        state: partner.state || '',
+        pin_code: partner.pin_code || '',
+        mobile: partner.mobile || '',
+        email: partner.email || '',
+        address: partner.address || '',
+        commission_percentage: partner.commission_percentage || 0,
+        joined_date: partner.joined_date || new Date().toISOString(),
+        last_active: partner.last_active || null,
+        verification_status: partner.verification_status || 'Pending',
+        documents_verified: partner.documents_verified || false,
+        notes: partner.notes || ''
+      });
     } else {
       setFormData(initialFormData);
     }
@@ -84,7 +93,7 @@ export default function PartnerForm({ partner, isOpen, onClose, onSubmit, mode }
       newErrors.name = 'Partner name is required';
     }
 
-    if (!formData.service_type) {
+    if (!formData.service_type.trim()) {
       newErrors.service_type = 'Service type is required';
     }
 
@@ -175,9 +184,14 @@ export default function PartnerForm({ partner, isOpen, onClose, onSubmit, mode }
                   errors.service_type ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
-                {SERVICE_TYPES.map(service => (
-                  <option key={service} value={service}>{service}</option>
-                ))}
+                <option value="">Select service type</option>
+                {servicesLoading ? (
+                  <option value="">Loading services...</option>
+                ) : (
+                  services.map(service => (
+                    <option key={service.id} value={service.name}>{service.name}</option>
+                  ))
+                )}
               </select>
               {errors.service_type && <p className="mt-1 text-sm text-red-600">{errors.service_type}</p>}
             </div>

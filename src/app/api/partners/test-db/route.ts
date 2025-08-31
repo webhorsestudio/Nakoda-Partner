@@ -62,6 +62,39 @@ export async function GET(request: NextRequest) {
 
     console.log("✅ Sample partners retrieved:", samplePartners);
 
+    // Check table structure
+    let columns = null;
+    let columnsError = null;
+    
+    try {
+      const columnsResult = await supabase
+        .rpc('get_table_columns', { table_name: 'partners' });
+      columns = columnsResult.data;
+      columnsError = columnsResult.error;
+    } catch (error) {
+      console.log("⚠️ Could not get table columns via RPC, trying alternative method");
+      columnsError = error;
+    }
+
+    if (columnsError) {
+      console.log("⚠️ Could not get table columns via RPC, trying alternative method");
+      // Try a simple query to see what columns exist
+      const { data: testColumns, error: testColumnsError } = await supabase
+        .from("partners")
+        .select("*")
+        .limit(1);
+
+      if (testColumnsError) {
+        console.log("❌ Could not test columns:", testColumnsError);
+      } else if (testColumns && testColumns.length > 0) {
+        const availableColumns = Object.keys(testColumns[0]);
+        console.log("✅ Available columns:", availableColumns);
+        console.log("❌ 'deleted_at' column exists:", availableColumns.includes('deleted_at'));
+      }
+    } else {
+      console.log("✅ Table columns:", columns);
+    }
+
     return NextResponse.json({
       success: true,
       message: "Database connection and queries successful",

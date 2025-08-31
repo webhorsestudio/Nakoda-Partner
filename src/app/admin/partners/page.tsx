@@ -7,13 +7,12 @@ import {
   PencilIcon,
   TrashIcon,
   UserGroupIcon,
-  PlusIcon,
-  DocumentArrowUpIcon
+  PlusIcon
 } from "@heroicons/react/24/outline";
 import { usePartners } from "@/hooks/usePartners";
-import { Partner, PartnerFormData, SERVICE_TYPES, PARTNER_STATUSES, VERIFICATION_STATUSES } from "@/types/partners";
+import { useServices } from "@/hooks/useServices";
+import { Partner, PartnerFormData, PARTNER_STATUSES, VERIFICATION_STATUSES } from "@/types/partners";
 import { PartnerForm } from "@/components/partners";
-import CSVUploadModal from "@/components/partners/CSVUploadModal";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { getUserRole, canAccessPartners, UserRole } from "@/utils/roleUtils";
@@ -60,11 +59,18 @@ const PermissionDenied = () => (
 export default function PartnersPage() {
   const [isClient, setIsClient] = useState(false);
   const [showAddPartner, setShowAddPartner] = useState(false);
-  const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [permissionsLoading, setPermissionsLoading] = useState(true);
+  
+  // Bulk operations state
+  const [selectedPartners, setSelectedPartners] = useState<Set<number>>(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+  const [showBulkPermanentDeleteModal, setShowBulkPermanentDeleteModal] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState<Partner['status']>('active');
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const router = useRouter();
 
@@ -87,13 +93,23 @@ export default function PartnersPage() {
     prevPage,
     goToPage,
     updateFilters,
-    clearFilters
+    clearFilters,
+    permanentlyDeleteMultiplePartners
   } = usePartners(10);
+
+  const { services, fetchServices } = useServices();
 
   // Handle hydration mismatch
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Fetch services when component mounts
+  useEffect(() => {
+    if (isClient) {
+      fetchServices();
+    }
+  }, [isClient, fetchServices]);
 
   // Check user role and permissions
   useEffect(() => {
@@ -202,148 +218,99 @@ export default function PartnersPage() {
     }
   }, [updatePartner, selectedPartner]);
 
-  // Helper functions to normalize status values
-  const normalizeStatus = (status: string): "pending" | "active" | "inactive" => {
-    const normalized = status.toLowerCase().trim();
-    if (normalized === 'active' || normalized === 'pending' || normalized === 'inactive') {
-      return normalized as "pending" | "active" | "inactive";
-    }
-    return 'pending'; // default fallback
-  };
+  // Bulk operations functions
+  const handleSelectPartner = useCallback((partnerId: number, checked: boolean) => {
+    setSelectedPartners(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(partnerId);
+      } else {
+        newSet.delete(partnerId);
+      }
+      return newSet;
+    });
+  }, []);
 
-  const normalizeVerificationStatus = (status: string): "Pending" | "Verified" | "Rejected" => {
-    const normalized = status.trim();
-    if (normalized === 'Pending' || normalized === 'Verified' || normalized === 'Rejected') {
-      return normalized as "Pending" | "Verified" | "Rejected";
+  const handleSelectAllPartners = useCallback((checked: boolean) => {
+    if (checked) {
+      setSelectedPartners(new Set(partners.map(p => p.id)));
+    } else {
+      setSelectedPartners(new Set());
     }
-    return 'Pending'; // default fallback
-  };
+  }, [partners]);
 
-  // Function to update partner by mobile number
-  const updatePartnerByMobile = async (mobile: string, partnerData: Omit<Partner, 'id' | 'created_at' | 'updated_at'>) => {
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedPartners.size === 0) return;
+    
+    setBulkLoading(true);
     try {
-      // First, find the partner by mobile number
-      const response = await fetch(`/api/partners/by-mobile?mobile=${encodeURIComponent(mobile)}`);
+      const deletePromises = Array.from(selectedPartners).map(id => deletePartner(id));
+      await Promise.all(deletePromises);
       
-      if (!response.ok) {
-        throw new Error(`Partner with mobile ${mobile} not found`);
-      }
+      toast.success(`Successfully deactivated ${selectedPartners.size} partners`);
+      setSelectedPartners(new Set());
+      setShowBulkDeleteModal(false);
       
-      const data = await response.json();
-      
-      if (!data.success || !data.data) {
-        throw new Error(`Partner with mobile ${mobile} not found`);
-      }
-      
-      const partnerId = data.data.id;
-      
-      // Update the partner using the existing updatePartner function
-      await updatePartner(partnerId, partnerData);
-      
-      return data.data;
+      // Refresh the partners list
+      await fetchPartners();
     } catch (error) {
-      console.error(`Error updating partner with mobile ${mobile}:`, error);
-      throw error;
+      toast.error("Failed to deactivate some partners");
+      console.error("Bulk delete error:", error);
+    } finally {
+      setBulkLoading(false);
     }
-  };
+  }, [selectedPartners, deletePartner, fetchPartners]);
 
-  // Handle CSV upload
-  const handleCSVUpload = useCallback(async (partnersData: Array<{
-    name: string;
-    service_type: string;
-    mobile: string;
-    email: string;
-    location: string;
-    city: string;
-    state: string;
-    status: string; // Changed to string to accept any value
-    verification_status: string; // Changed to string to accept any value
-    rating: number;
-    total_orders: number;
-    total_revenue: number;
-    commission_percentage: number;
-    address: string;
-    pin_code: string;
-    notes: string;
-    joined_date?: string;
-    last_active?: string | null;
-    documents_verified?: boolean;
-  }>, mode: 'create' | 'update' = 'create') => {
+  const handleBulkStatusChange = useCallback(async () => {
+    if (selectedPartners.size === 0) return;
+    
+    setBulkLoading(true);
     try {
-      let successCount = 0;
-      let errorCount = 0;
+      const statusPromises = Array.from(selectedPartners).map(id => 
+        updatePartnerStatus(id, bulkStatus)
+      );
+      await Promise.all(statusPromises);
       
-      // Process each partner from CSV
-      for (const partnerData of partnersData) {
-        try {
-          // Transform CSV data to match Partner type exactly
-          const transformedPartner = {
-            name: partnerData.name,
-            service_type: partnerData.service_type,
-            status: normalizeStatus(partnerData.status),
-            rating: partnerData.rating,
-            total_orders: partnerData.total_orders,
-            total_revenue: partnerData.total_revenue,
-            location: partnerData.location,
-            city: partnerData.city,
-            state: partnerData.state,
-            pin_code: partnerData.pin_code,
-            mobile: partnerData.mobile,
-            email: partnerData.email,
-            address: partnerData.address,
-            commission_percentage: partnerData.commission_percentage,
-            joined_date: partnerData.joined_date || new Date().toISOString(),
-            last_active: partnerData.last_active || null,
-            verification_status: normalizeVerificationStatus(partnerData.verification_status),
-            documents_verified: partnerData.documents_verified || false,
-            notes: partnerData.notes
-          };
-
-          // Debug logging
-          console.log(`Processing partner: ${partnerData.name} (Mode: ${mode})`);
-          console.log(`Original status: "${partnerData.status}" -> Normalized: "${transformedPartner.status}"`);
-          console.log(`Original verification_status: "${partnerData.verification_status}" -> Normalized: "${transformedPartner.verification_status}"`);
-          
-          if (mode === 'update') {
-            // Try to update existing partner
-            try {
-              await updatePartnerByMobile(transformedPartner.mobile, transformedPartner);
-              successCount++;
-              console.log(`✅ Updated partner: ${partnerData.name}`);
-            } catch (error) {
-              // If update fails, try to create new partner
-              console.log(`⚠️ Update failed for ${partnerData.name}, trying to create new partner`);
-              await createPartner(transformedPartner);
-              successCount++;
-              console.log(`✅ Created new partner: ${partnerData.name}`);
-            }
-          } else {
-            // Create new partner
-            await createPartner(transformedPartner);
-            successCount++;
-            console.log(`✅ Created partner: ${partnerData.name}`);
-          }
-        } catch (error) {
-          console.error(`Failed to ${mode} partner ${partnerData.name}:`, error);
-          errorCount++;
-        }
-      }
+      toast.success(`Successfully updated status for ${selectedPartners.size} partners to ${bulkStatus}`);
+      setSelectedPartners(new Set());
+      setShowBulkStatusModal(false);
       
-      if (successCount > 0) {
-        const action = mode === 'create' ? 'created' : 'updated';
-        toast.success(`Successfully ${action} ${successCount} partners`);
-        // No need to call fetchPartners() here - createPartner already refreshes the list
-      }
-      
-      if (errorCount > 0) {
-        toast.error(`${errorCount} partners failed to import. Check console for details.`);
-      }
-      
+      // Refresh the partners list
+      await fetchPartners();
     } catch (error) {
-      toast.error("Failed to process CSV upload");
-      console.error("CSV import error:", error);
+      toast.error("Failed to update status for some partners");
+      console.error("Bulk status change error:", error);
+    } finally {
+      setBulkLoading(false);
     }
-  }, [createPartner, updatePartnerByMobile]);
+  }, [selectedPartners, bulkStatus, updatePartnerStatus, fetchPartners]);
+
+  const handleBulkPermanentDelete = useCallback(async () => {
+    if (selectedPartners.size === 0) return;
+    
+    setBulkLoading(true);
+    try {
+      // Convert Set to array and call the bulk delete function
+      const partnerIds = Array.from(selectedPartners);
+      await permanentlyDeleteMultiplePartners(partnerIds);
+      
+      toast.success(`Successfully deleted ${selectedPartners.size} partners permanently`);
+      setSelectedPartners(new Set());
+      setShowBulkPermanentDeleteModal(false);
+      
+      // Refresh the partners list
+      await fetchPartners();
+    } catch (error) {
+      toast.error("Failed to delete some partners permanently");
+      console.error("Bulk permanent delete error:", error);
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selectedPartners, permanentlyDeleteMultiplePartners, fetchPartners]);
+
+  const clearSelectedPartners = useCallback(() => {
+    setSelectedPartners(new Set());
+  }, []);
 
   // Show loading state during hydration
   if (!isClient) {
@@ -395,14 +362,6 @@ export default function PartnersPage() {
           <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none space-x-3">
             <button
               type="button"
-              onClick={() => setShowCSVUpload(true)}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <DocumentArrowUpIcon className="h-4 w-4 mr-2" />
-              Upload CSV
-            </button>
-            <button
-              type="button"
               onClick={() => setShowAddPartner(true)}
               className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
@@ -444,8 +403,8 @@ export default function PartnersPage() {
             className="rounded-md border-gray-300 py-1.5 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
           >
             <option value="all">All Services</option>
-            {SERVICE_TYPES.map(service => (
-              <option key={service} value={service}>{service}</option>
+            {services.map(service => (
+              <option key={service.id} value={service.name}>{service.name}</option>
             ))}
           </select>
 
@@ -467,6 +426,49 @@ export default function PartnersPage() {
             Clear Filters
           </button>
         </div>
+
+        {/* Bulk Actions Bar */}
+        {selectedPartners.size > 0 && (
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-md p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-blue-900">
+                  {selectedPartners.size} partner{selectedPartners.size !== 1 ? 's' : ''} selected
+                </span>
+                <button
+                  onClick={clearSelectedPartners}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  Clear selection
+                </button>
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setShowBulkStatusModal(true)}
+                  disabled={bulkLoading}
+                  className="inline-flex items-center px-3 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Change Status
+                </button>
+                <button
+                  onClick={() => setShowBulkDeleteModal(true)}
+                  disabled={bulkLoading}
+                  className="inline-flex items-center px-3 py-2 border border-orange-300 shadow-sm text-sm font-medium rounded-md text-orange-700 bg-white hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Deactivate (Soft Delete)
+                </button>
+                <button
+                  onClick={() => setShowBulkPermanentDeleteModal(true)}
+                  disabled={bulkLoading}
+                  className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Delete Permanently
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Partner Stats */}
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -558,6 +560,14 @@ export default function PartnersPage() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <input
+                            type="checkbox"
+                            checked={partners.length > 0 && selectedPartners.size === partners.length}
+                            onChange={(e) => handleSelectAllPartners(e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Partner
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -583,13 +593,21 @@ export default function PartnersPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {partners.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                          <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
                             {loading ? "Loading partners..." : "No partners found"}
                           </td>
                         </tr>
                       ) : (
                         partners.map((partner) => (
                           <tr key={partner.id}>
+                            <td className="whitespace-nowrap px-6 py-4">
+                              <input
+                                type="checkbox"
+                                checked={selectedPartners.has(partner.id)}
+                                onChange={(e) => handleSelectPartner(partner.id, e.target.checked)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                            </td>
                             <td className="whitespace-nowrap px-6 py-4">
                               <div className="flex items-center">
                                 <div className="h-10 w-10 flex-shrink-0">
@@ -759,12 +777,123 @@ export default function PartnersPage() {
           mode="edit"
         />
 
-        {/* CSV Upload Modal */}
-        <CSVUploadModal
-          isOpen={showCSVUpload}
-          onClose={() => setShowCSVUpload(false)}
-          onUpload={handleCSVUpload}
-        />
+        {/* Bulk Delete Confirmation Modal */}
+        {showBulkDeleteModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3 text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 mb-4">
+                  <svg className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-orange-900 mb-4">Confirm Bulk Deactivation</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Are you sure you want to deactivate {selectedPartners.size} selected partner{selectedPartners.size !== 1 ? 's' : ''}?
+                </p>
+                <div className="bg-orange-50 border border-orange-200 rounded-md p-4 mb-6">
+                  <p className="text-sm text-orange-800">
+                    <strong>Note:</strong> This will deactivate the partners (soft delete). Their data will be preserved but they won&apos;t be able to access the system. You can reactivate them later if needed.
+                  </p>
+                </div>
+                <div className="flex justify-center gap-3">
+                  <button
+                    onClick={() => setShowBulkDeleteModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkDelete}
+                    disabled={bulkLoading}
+                    className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkLoading ? 'Deactivating...' : 'Deactivate Partners'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk Status Change Modal */}
+        {showBulkStatusModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4 text-center">Change Status for {selectedPartners.size} Partner{selectedPartners.size !== 1 ? 's' : ''}</h3>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Status
+                  </label>
+                  <select
+                    value={bulkStatus}
+                    onChange={(e) => setBulkStatus(e.target.value as Partner['status'])}
+                    className="w-full rounded-md border-gray-300 py-2 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                  >
+                    {PARTNER_STATUSES.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex justify-center gap-3">
+                  <button
+                    onClick={() => setShowBulkStatusModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkStatusChange}
+                    disabled={bulkLoading}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkLoading ? 'Updating...' : 'Update Status'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk Permanent Delete Confirmation Modal */}
+        {showBulkPermanentDeleteModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3 text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                  <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-red-900 mb-4">Confirm Bulk Permanent Delete</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Are you sure you want to delete {selectedPartners.size} selected partner{selectedPartners.size !== 1 ? 's' : ''} permanently? This action cannot be undone.
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+                  <p className="text-sm text-red-800">
+                    <strong>Warning:</strong> This will permanently delete the partners and their data from the system.
+                  </p>
+                </div>
+                <div className="flex justify-center gap-3">
+                  <button
+                    onClick={() => setShowBulkPermanentDeleteModal(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkPermanentDelete}
+                    disabled={bulkLoading}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkLoading ? 'Deleting...' : 'Delete Permanently'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Suspense>
   );

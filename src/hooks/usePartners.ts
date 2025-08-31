@@ -28,6 +28,8 @@ interface UsePartnersReturn {
   createPartner: (partner: Omit<Partner, 'id' | 'created_at' | 'updated_at'>) => Promise<Partner>;
   updatePartner: (id: number, partner: Partial<Partner>) => Promise<Partner>;
   deletePartner: (id: number) => Promise<void>;
+  permanentlyDeletePartner: (id: number) => Promise<void>;
+  permanentlyDeleteMultiplePartners: (ids: number[]) => Promise<void>;
   updatePartnerStatus: (id: number, status: Partner['status']) => Promise<void>;
   updateVerificationStatus: (id: number, verificationStatus: Partner['verification_status'], documentsVerified: boolean) => Promise<void>;
   
@@ -220,6 +222,68 @@ export function usePartners(pageSize: number = 10): UsePartnersReturn {
     }
   }, [fetchStats]);
 
+  // Permanently delete a partner
+  const permanentlyDeletePartner = useCallback(async (id: number): Promise<void> => {
+    try {
+      const response = await fetch(`/api/partners/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Remove from local state
+        setPartners(prev => prev.filter(p => p.id !== id));
+        // Refresh stats
+        await fetchStats();
+      } else {
+        throw new Error(data.error || "Failed to permanently delete partner");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to permanently delete partner";
+      console.error("Permanently delete partner error details:", error);
+      throw new Error(errorMessage);
+    }
+  }, [fetchStats]);
+
+  // Permanently delete multiple partners
+  const permanentlyDeleteMultiplePartners = useCallback(async (ids: number[]): Promise<void> => {
+    try {
+      const response = await fetch(`/api/partners`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ partnerIds: ids }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Remove from local state
+        setPartners(prev => prev.filter(p => !ids.includes(p.id)));
+        // Refresh stats
+        await fetchStats();
+      } else {
+        throw new Error(data.error || "Failed to permanently delete partners");
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to permanently delete partners";
+      console.error("Permanently delete multiple partners error details:", error);
+      throw new Error(errorMessage);
+    }
+  }, [fetchStats]);
+
   // Update partner status
   const updatePartnerStatus = useCallback(async (id: number, status: Partner['status']): Promise<void> => {
     try {
@@ -312,6 +376,8 @@ export function usePartners(pageSize: number = 10): UsePartnersReturn {
     createPartner,
     updatePartner,
     deletePartner,
+    permanentlyDeletePartner,
+    permanentlyDeleteMultiplePartners,
     updatePartnerStatus,
     updateVerificationStatus,
     

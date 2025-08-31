@@ -82,3 +82,49 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { partnerIds } = body;
+
+    if (!partnerIds || !Array.isArray(partnerIds) || partnerIds.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Partner IDs array is required"
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate that all IDs are numbers
+    if (!partnerIds.every(id => typeof id === 'number' && id > 0)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "All partner IDs must be valid positive numbers"
+        },
+        { status: 400 }
+      );
+    }
+
+    // Permanently delete the partners
+    await partnerService.permanentlyDeleteMultiplePartners(partnerIds);
+
+    return NextResponse.json({
+      success: true,
+      message: `Successfully deleted ${partnerIds.length} partner${partnerIds.length !== 1 ? 's' : ''} permanently`
+    });
+  } catch (error) {
+    console.error("Error permanently deleting partners:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to permanently delete partners",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
+      { status: 500 }
+    );
+  }
+}

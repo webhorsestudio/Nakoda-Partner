@@ -25,7 +25,8 @@ interface AdminUser extends BaseUser {
 interface PartnerUser extends BaseUser {
   mobile: string;
   service_type: string;
-  user_role?: string;
+  verification_status?: string;
+  documents_verified?: boolean;
 }
 
 type UserData = AdminUser | PartnerUser;
@@ -117,7 +118,8 @@ export const createUserValidationSuccess = (user: UserData, userType: 'admin' | 
         ...baseUser,
         mobile: partnerUser.mobile,
         service_type: partnerUser.service_type,
-        user_role: partnerUser.user_role || 'partner'
+        verification_status: partnerUser.verification_status || 'Pending',
+        documents_verified: partnerUser.documents_verified || false
       }
     };
   }

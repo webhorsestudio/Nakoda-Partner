@@ -31,11 +31,30 @@ export async function POST(request: NextRequest) {
     const otpValidation = await validateOTP(cleanedMobile, otp);
 
     if (!otpValidation.success) {
+      console.log('OTP validation failed:', otpValidation.message);
+      
+      // Provide more specific error messages based on the failure reason
+      let errorMessage = otpValidation.message;
+      let statusCode = 400;
+      
+      if (otpValidation.message.includes('expired') || otpValidation.message.includes('not found')) {
+        errorMessage = 'OTP has expired or was not found. Please request a new OTP.';
+        statusCode = 400;
+      } else if (otpValidation.message.includes('Maximum OTP attempts exceeded')) {
+        errorMessage = 'Too many failed attempts. Please request a new OTP.';
+        statusCode = 429;
+      } else if (otpValidation.message.includes('Invalid OTP')) {
+        errorMessage = otpValidation.message; // Keep the attempts remaining message
+        statusCode = 400;
+      }
+      
       return NextResponse.json(
-        { success: false, message: otpValidation.message },
-        { status: 400 }
+        { success: false, message: errorMessage },
+        { status: statusCode }
       );
     }
+
+    console.log('✅ OTP validation successful');
 
     // OTP is valid, now get user details (check both admin_users and partners)
     try {
@@ -44,44 +63,67 @@ export async function POST(request: NextRequest) {
       
       // First check admin_users table
       console.log('Checking admin_users table...');
-      const { data: adminUser, error: adminError } = await supabase
+      const { data: adminUsers, error: adminError } = await supabase
         .from("admin_users")
         .select("id, name, email, phone, role, status, access_level, permissions")
-        .eq("phone", cleanedMobile)
-        .single();
+        .eq("phone", cleanedMobile);
 
-      console.log('Admin lookup result:', { adminUser, adminError });
+      console.log('Admin lookup result:', { adminUsers, adminError });
 
       let userData = null;
       let userType = '';
 
-      if (adminUser && adminUser.status === 'Active') {
-        // Admin user found
-        userData = adminUser;
-        userType = 'admin';
-        console.log('✅ Admin user found:', adminUser.name);
+      // Check if admin user exists and is active
+      if (adminUsers && adminUsers.length > 0) {
+        const adminUser = adminUsers[0]; // Take the first admin user if multiple exist
+        if (adminUser.status === 'Active') {
+          // Admin user found
+          userData = adminUser;
+          userType = 'admin';
+          console.log('✅ Admin user found:', adminUser.name);
+        } else {
+          console.log('❌ Admin user found but status is not Active:', adminUser.status);
+        }
       } else {
-        // Check partners table
+        console.log('No admin user found with this mobile number');
+      }
+
+      // If no admin user found, check partners table
+      if (!userData) {
         console.log('Checking partners table...');
-        const { data: partnerUser, error: partnerError } = await supabase
+        const { data: partnerUsers, error: partnerError } = await supabase
           .from("partners")
           .select("id, name, email, mobile, status, service_type")
-          .eq("mobile", cleanedMobile)
-          .single();
+          .eq("mobile", cleanedMobile);
 
-        console.log('Partner lookup result:', { partnerUser, partnerError });
+        console.log('Partner lookup result:', { partnerUsers, partnerError });
 
-        if (partnerUser) {
-          console.log('✅ Partner user found:', partnerUser.name);
-          console.log('Partner status:', partnerUser.status);
+        if (partnerUsers && partnerUsers.length > 0) {
+          // If multiple partners exist, select the best one (prioritize active > pending > others)
+          let selectedPartner = partnerUsers[0];
+          
+          if (partnerUsers.length > 1) {
+            console.log(`Found ${partnerUsers.length} partners with same mobile, selecting best one...`);
+            
+            // Prioritize: Active > Pending > Others, then most recent
+            const activePartner = partnerUsers.find(p => p.status === 'Active' || p.status === 'active');
+            const pendingPartner = partnerUsers.find(p => p.status === 'Pending' || p.status === 'pending');
+            
+            selectedPartner = activePartner || pendingPartner || partnerUsers[0];
+            console.log(`Selected partner ID ${selectedPartner.id} with status: ${selectedPartner.status}`);
+          }
+
+          console.log('✅ Partner user found:', selectedPartner.name);
+          console.log('Partner status:', selectedPartner.status);
           
           // Check if partner can login (active or pending status)
-          if (partnerUser.status === 'active' || partnerUser.status === 'pending') {
-            userData = partnerUser;
+          if (selectedPartner.status === 'Active' || selectedPartner.status === 'active' || 
+              selectedPartner.status === 'Pending' || selectedPartner.status === 'pending') {
+            userData = selectedPartner;
             userType = 'partner';
-            console.log('✅ Partner login allowed with status:', partnerUser.status);
+            console.log('✅ Partner login allowed with status:', selectedPartner.status);
           } else {
-            console.log('❌ Partner status not allowed for login:', partnerUser.status);
+            console.log('❌ Partner status not allowed for login:', selectedPartner.status);
             return NextResponse.json(
               { success: false, message: 'Partner account is deactivated. Please contact administrator.' },
               { status: 403 }
@@ -92,17 +134,18 @@ export async function POST(request: NextRequest) {
           console.log('❌ No partner found with cleaned mobile, trying alternative formats...');
           
           // Try with +91 prefix
-          const { data: partnerWithPrefix, error: prefixError } = await supabase
+          const { data: partnersWithPrefix, error: prefixError } = await supabase
             .from("partners")
             .select("id, name, email, mobile, status, service_type")
-            .eq("mobile", `+91 ${cleanedMobile}`)
-            .single();
+            .eq("mobile", `+91 ${cleanedMobile}`);
           
-          console.log('Partner lookup with +91 prefix:', { partnerWithPrefix, prefixError });
+          console.log('Partner lookup with +91 prefix:', { partnersWithPrefix, prefixError });
           
-          if (partnerWithPrefix) {
+          if (partnersWithPrefix && partnersWithPrefix.length > 0) {
+            const partnerWithPrefix = partnersWithPrefix[0]; // Take first if multiple exist
             console.log('✅ Partner found with +91 prefix:', partnerWithPrefix.name);
-            if (partnerWithPrefix.status === 'active' || partnerWithPrefix.status === 'pending') {
+            if (partnerWithPrefix.status === 'Active' || partnerWithPrefix.status === 'active' ||
+                partnerWithPrefix.status === 'Pending' || partnerWithPrefix.status === 'pending') {
               userData = partnerWithPrefix;
               userType = 'partner';
               console.log('✅ Partner login allowed with +91 prefix');
@@ -117,17 +160,18 @@ export async function POST(request: NextRequest) {
             // Try with LIKE search as last resort
             console.log('❌ No partner found with +91 prefix, trying LIKE search...');
             
-            const { data: partnerLike, error: likeError } = await supabase
+            const { data: partnersLike, error: likeError } = await supabase
               .from("partners")
               .select("id, name, email, mobile, status, service_type")
-              .like("mobile", `%${cleanedMobile}%`)
-              .single();
+              .like("mobile", `%${cleanedMobile}%`);
             
-            console.log('Partner lookup with LIKE search:', { partnerLike, likeError });
+            console.log('Partner lookup with LIKE search:', { partnersLike, likeError });
             
-            if (partnerLike) {
+            if (partnersLike && partnersLike.length > 0) {
+              const partnerLike = partnersLike[0]; // Take first if multiple exist
               console.log('✅ Partner found with LIKE search:', partnerLike.name);
-              if (partnerLike.status === 'active' || partnerLike.status === 'pending') {
+              if (partnerLike.status === 'Active' || partnerLike.status === 'active' ||
+                  partnerLike.status === 'Pending' || partnerLike.status === 'pending') {
                 userData = partnerLike;
                 userType = 'partner';
                 console.log('✅ Partner login allowed with LIKE search');

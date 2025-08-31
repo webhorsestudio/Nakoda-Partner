@@ -29,7 +29,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ service });
+    return NextResponse.json({ 
+      success: true,
+      data: service 
+    });
 
   } catch (error) {
     console.error('Unexpected error in GET /api/services/[id]:', error);
@@ -85,7 +88,10 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json({ service });
+    return NextResponse.json({ 
+      success: true,
+      data: service 
+    });
 
   } catch (error) {
     console.error('Unexpected error in PUT /api/services/[id]:', error);
@@ -132,7 +138,10 @@ export async function DELETE(
       );
     }
 
-    return NextResponse.json({ message: 'Service deleted successfully' });
+    return NextResponse.json({ 
+      success: true,
+      message: 'Service deleted successfully' 
+    });
 
   } catch (error) {
     console.error('Unexpected error in DELETE /api/services/[id]:', error);

@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('services')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
 
     // Apply search filter
@@ -28,20 +28,23 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching services:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch services', details: error.message },
+        { success: false, error: 'Failed to fetch services', details: error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({
-      services: services || [],
+    const response = {
+      success: true,
+      data: services || [],
       total: count || 0
-    });
+    };
+
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error('Unexpected error in GET /api/services:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -56,7 +59,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!name || !name.trim()) {
       return NextResponse.json(
-        { error: 'Service name is required' },
+        { success: false, error: 'Service name is required' },
         { status: 400 }
       );
     }
@@ -77,17 +80,20 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating service:', error);
       return NextResponse.json(
-        { error: 'Failed to create service', details: error.message },
+        { success: false, error: 'Failed to create service', details: error.message },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ service }, { status: 201 });
+    return NextResponse.json({ 
+      success: true,
+      data: service 
+    }, { status: 201 });
 
   } catch (error) {
     console.error('Unexpected error in POST /api/services:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

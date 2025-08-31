@@ -9,8 +9,8 @@ export class PartnerService {
     try {
       let query = supabase
         .from("partners")
-        .select("*", { count: "exact" })
-        .is("deleted_at", null); // Only show non-deleted partners
+        .select("*", { count: "exact" });
+        // Removed .is("deleted_at", null) since that column doesn't exist
 
       // Apply filters
       if (filters.search) {
@@ -73,8 +73,8 @@ export class PartnerService {
         .from("partners")
         .select("*")
         .eq("id", id)
-        .is("deleted_at", null) // Only fetch non-deleted partners
         .single();
+        // Removed .is("deleted_at", null) since that column doesn't exist
 
       if (error) {
         console.error("Error fetching partner:", error);
@@ -311,6 +311,46 @@ export class PartnerService {
       return data;
     } catch (error) {
       console.error("Error in updateVerificationStatus:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Permanently delete a partner from the database
+   */
+  async permanentlyDeletePartner(id: number): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from("partners")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        console.error("Error permanently deleting partner:", error);
+        throw new Error(`Failed to permanently delete partner: ${error.message}`);
+      }
+    } catch (error) {
+      console.error("Error in permanentlyDeletePartner:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Permanently delete multiple partners from the database
+   */
+  async permanentlyDeleteMultiplePartners(ids: number[]): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from("partners")
+        .delete()
+        .in("id", ids);
+
+      if (error) {
+        console.error("Error permanently deleting multiple partners:", error);
+        throw new Error(`Failed to permanently delete partners: ${error.message}`);
+      }
+    } catch (error) {
+      console.error("Error in permanentlyDeleteMultiplePartners:", error);
       throw error;
     }
   }

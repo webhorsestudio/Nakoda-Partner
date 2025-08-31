@@ -37,9 +37,9 @@ export async function GET(request: NextRequest) {
         query.eq('phone', mobile);
       }
       
-      const { data, error } = await query.single();
+      const { data, error } = await query;
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (error) {
         console.error('Error fetching from admin_users:', error);
         return NextResponse.json({
           success: false,
@@ -47,10 +47,16 @@ export async function GET(request: NextRequest) {
         }, { status: 500 });
       }
 
-      if (data) {
+      if (data && data.length > 0) {
+        // If multiple users exist, select the first one (should be rare)
+        const user = data[0];
+        if (data.length > 1) {
+          console.log(`⚠️ Found ${data.length} admin users with same ${email ? 'email' : 'mobile'}, using first one: ${user.name}`);
+        }
+        
         userData = {
-          ...data,
-          user_role: data.role || 'admin', // Map existing role to user_role
+          ...user,
+          user_role: user.role || 'admin', // Map existing role to user_role
           source_table: 'admin_users'
         };
       }
@@ -67,9 +73,9 @@ export async function GET(request: NextRequest) {
         query.eq('mobile', mobile);
       }
       
-      const { data, error } = await query.single();
+      const { data, error } = await query;
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (error) {
         console.error('Error fetching from partners:', error);
         return NextResponse.json({
           success: false,
@@ -77,12 +83,23 @@ export async function GET(request: NextRequest) {
         }, { status: 500 });
       }
 
-      if (data) {
+      if (data && data.length > 0) {
+        // If multiple partners exist, select the best one (prioritize active > pending > others)
+        let selectedPartner = data[0];
+        if (data.length > 1) {
+          console.log(`⚠️ Found ${data.length} partners with same ${email ? 'email' : 'mobile'}, selecting best one...`);
+          
+          const activePartner = data.find(p => p.status === 'Active' || p.status === 'active');
+          const pendingPartner = data.find(p => p.status === 'Pending' || p.status === 'pending');
+          selectedPartner = activePartner || pendingPartner || data[0];
+          console.log(`✅ Selected partner ID ${selectedPartner.id} with status: ${selectedPartner.status}`);
+        }
+        
         userData = {
-          ...data,
+          ...selectedPartner,
           user_role: 'partner',
           source_table: 'partners',
-          phone: data.mobile // Map mobile to phone for consistency
+          phone: selectedPartner.mobile // Map mobile to phone for consistency
         };
       }
     }

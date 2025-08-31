@@ -118,7 +118,12 @@ export default function ServicesPage() {
       const response = await fetch('/api/services');
       if (response.ok) {
         const data = await response.json();
-        setServices(data.services || []);
+        if (data.success && data.data) {
+          setServices(data.data || []);
+        } else {
+          console.error('Invalid response format:', data);
+          toast.error('Invalid response format from server');
+        }
       } else {
         console.error('Failed to fetch services');
         toast.error('Failed to fetch services');
@@ -151,11 +156,12 @@ export default function ServicesPage() {
           body: JSON.stringify(formData),
         });
 
-        if (response.ok) {
+        const data = await response.json();
+        if (response.ok && data.success) {
           toast.success("Service updated successfully");
           fetchServices(); // Refresh the list
         } else {
-          toast.error("Failed to update service");
+          toast.error(data.error || "Failed to update service");
         }
       } else {
         // Add new service
@@ -167,11 +173,12 @@ export default function ServicesPage() {
           body: JSON.stringify(formData),
         });
 
-        if (response.ok) {
+        const data = await response.json();
+        if (response.ok && data.success) {
           toast.success("Service created successfully");
           fetchServices(); // Refresh the list
         } else {
-          toast.error("Failed to create service");
+          toast.error(data.error || "Failed to create service");
         }
       }
       setShowServiceForm(false);
@@ -189,11 +196,12 @@ export default function ServicesPage() {
         method: 'DELETE',
       });
 
-      if (response.ok) {
+      const data = await response.json();
+      if (response.ok && data.success) {
         toast.success("Service deleted successfully");
         fetchServices(); // Refresh the list
       } else {
-        toast.error("Failed to delete service");
+        toast.error(data.error || "Failed to delete service");
       }
       setShowDeleteConfirm(null);
     } catch (error) {
@@ -217,11 +225,12 @@ export default function ServicesPage() {
         body: JSON.stringify(updatedData),
       });
 
-      if (response.ok) {
+      const data = await response.json();
+      if (response.ok && data.success) {
         toast.success("Service status updated successfully");
         fetchServices(); // Refresh the list
       } else {
-        toast.error("Failed to update service status");
+        toast.error(data.error || "Failed to update service status");
       }
     } catch (error) {
       console.error('Error updating service status:', error);

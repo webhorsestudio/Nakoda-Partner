@@ -127,26 +127,31 @@ export const generateAndStoreOTP = async (mobile: string): Promise<{ success: bo
  */
 export const validateOTP = async (mobile: string, enteredOTP: string): Promise<{ success: boolean; message: string }> => {
   try {
-    const { data, error } = await supabase
+    // First check if OTP exists for this mobile number
+    const { data: otpData, error: fetchError } = await supabase
       .from('otp_store')
       .select('otp, expires_at, attempts')
-      .eq('mobile', mobile)
-      .single();
+      .eq('mobile', mobile);
 
-    if (error) {
-      console.error('Error fetching OTP from Supabase:', error);
+    if (fetchError) {
+      console.error('Error fetching OTP from Supabase:', fetchError);
       return {
         success: false,
         message: 'Failed to validate OTP. Please try again.'
       };
     }
 
-    if (!data) {
+    // Check if OTP exists
+    if (!otpData || otpData.length === 0) {
+      console.log(`No OTP found for mobile: ${mobile}`);
       return {
         success: false,
         message: 'OTP expired or not found. Please request a new OTP.'
       };
     }
+
+    // Get the first (and should be only) OTP record
+    const data = otpData[0];
 
     // Check if OTP is expired
     if (Date.now() > data.expires_at) {
@@ -302,14 +307,20 @@ export const getOTPExpiryTime = async (mobile: string): Promise<number | null> =
   const { data, error } = await supabase
     .from('otp_store')
     .select('expires_at')
-    .eq('mobile', mobile)
-    .single();
+    .eq('mobile', mobile);
 
   if (error) {
     console.error('Error fetching OTP expiry time from Supabase:', error);
     return null;
   }
-  return data?.expires_at || null;
+  
+  // Check if OTP exists
+  if (!data || data.length === 0) {
+    console.log(`No OTP found for mobile: ${mobile}`);
+    return null;
+  }
+  
+  return data[0]?.expires_at || null;
 };
 
 /**
@@ -319,14 +330,20 @@ export const getRemainingAttempts = async (mobile: string): Promise<number | nul
   const { data, error } = await supabase
     .from('otp_store')
     .select('attempts')
-    .eq('mobile', mobile)
-    .single();
+    .eq('mobile', mobile);
 
   if (error) {
     console.error('Error fetching remaining attempts from Supabase:', error);
     return null;
   }
-  return data?.attempts || null;
+  
+  // Check if OTP exists
+  if (!data || data.length === 0) {
+    console.log(`No OTP found for mobile: ${mobile}`);
+    return null;
+  }
+  
+  return data[0]?.attempts || null;
 };
 
 /**

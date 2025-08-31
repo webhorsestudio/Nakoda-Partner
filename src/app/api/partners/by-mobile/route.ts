@@ -18,50 +18,81 @@ export async function GET(request: NextRequest) {
 
     console.log(`🔍 Looking for partner with mobile: ${mobile}`);
 
-    // Try exact match first
-    let { data: partner, error } = await supabase
+    // Try exact match first - handle multiple results gracefully
+    const { data: partners, error: initialError } = await supabase
       .from("partners")
       .select("*")
-      .eq("mobile", mobile)
-      .single();
+      .eq("mobile", mobile);
+
+    let partner = null;
+    let hasError = initialError;
+
+    // If we found partners, select the best one
+    if (partners && partners.length > 0) {
+      if (partners.length === 1) {
+        partner = partners[0];
+        console.log(`✅ Found single partner: ${partner.name}`);
+      } else {
+        console.log(`🔍 Found ${partners.length} partners with same mobile, selecting best one...`);
+        
+        // Prioritize: Active > Pending > Suspended, then most recent
+        const activePartner = partners.find(p => p.status === 'Active' || p.status === 'active');
+        const pendingPartner = partners.find(p => p.status === 'Pending' || p.status === 'pending');
+        
+        partner = activePartner || pendingPartner || partners[0];
+        console.log(`✅ Selected partner ID ${partner.id} with status: ${partner.status}`);
+      }
+    }
 
     // If exact match fails, try with different formats
-    if (error && error.code === 'PGRST116') {
+    if (!partner) {
       console.log(`🔍 Exact match failed, trying different mobile formats...`);
       
       // Try with +91 prefix
-      const { data: partnerWithPrefix, error: prefixError } = await supabase
+      const { data: partnersWithPrefix, error: prefixError } = await supabase
         .from("partners")
         .select("*")
-        .eq("mobile", `+91${mobile}`)
-        .single();
+        .eq("mobile", `+91${mobile}`);
       
-      if (!prefixError && partnerWithPrefix) {
-        partner = partnerWithPrefix;
-        error = null;
+      if (partnersWithPrefix && partnersWithPrefix.length > 0) {
+        if (partnersWithPrefix.length === 1) {
+          partner = partnersWithPrefix[0];
+        } else {
+          // Multiple partners with +91 prefix, select best one
+          const activePartner = partnersWithPrefix.find(p => p.status === 'Active' || p.status === 'active');
+          const pendingPartner = partnersWithPrefix.find(p => p.status === 'Pending' || p.status === 'pending');
+          partner = activePartner || pendingPartner || partnersWithPrefix[0];
+        }
+        hasError = null;
         console.log(`✅ Found partner with +91 prefix: ${partner.name}`);
       } else {
         // Try without +91 prefix if mobile starts with it
         if (mobile.startsWith('+91')) {
           const mobileWithoutPrefix = mobile.substring(3);
-          const { data: partnerWithoutPrefix, error: noPrefixError } = await supabase
+          const { data: partnersWithoutPrefix, error: noPrefixError } = await supabase
             .from("partners")
             .select("*")
-            .eq("mobile", mobileWithoutPrefix)
-            .single();
+            .eq("mobile", mobileWithoutPrefix);
           
-          if (!noPrefixError && partnerWithoutPrefix) {
-            partner = partnerWithoutPrefix;
-            error = null;
+          if (partnersWithoutPrefix && partnersWithoutPrefix.length > 0) {
+            if (partnersWithoutPrefix.length === 1) {
+              partner = partnersWithoutPrefix[0];
+            } else {
+              // Multiple partners without +91 prefix, select best one
+              const activePartner = partnersWithoutPrefix.find(p => p.status === 'Active' || p.status === 'active');
+              const pendingPartner = partnersWithoutPrefix.find(p => p.status === 'Pending' || p.status === 'pending');
+              partner = activePartner || pendingPartner || partnersWithoutPrefix[0];
+            }
+            hasError = null;
             console.log(`✅ Found partner without +91 prefix: ${partner.name}`);
           }
         }
       }
     }
 
-    if (error) {
-      console.error(`❌ Database error for mobile ${mobile}:`, error);
-      if (error.code === 'PGRST116') {
+    if (hasError && !partner) {
+      console.error(`❌ Database error for mobile ${mobile}:`, hasError);
+      if (hasError.code === 'PGRST116') {
         return NextResponse.json(
           {
             success: false,
@@ -70,7 +101,7 @@ export async function GET(request: NextRequest) {
           { status: 404 }
         );
       }
-      throw error;
+      throw hasError;
     }
 
     if (!partner) {

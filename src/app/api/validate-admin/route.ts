@@ -16,12 +16,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Query the admin_users table to check if mobile number exists and has admin role
-    const { data: adminUser, error } = await supabase
+    const { data: adminUsers, error } = await supabase
       .from("admin_users")
       .select("id, name, email, phone, role, status")
       .eq("phone", validation.sanitizedMobile)
-      .eq("role", "Admin")
-      .single();
+      .eq("role", "Admin");
 
     if (error) {
       const errorResponse = handleUserValidationError(error as unknown as DatabaseError);
@@ -31,7 +30,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!adminUser) {
+    // Check if admin user exists
+    if (!adminUsers || adminUsers.length === 0) {
       return NextResponse.json(
         { 
           error: "Mobile number not registered. Please check and try again.",
@@ -39,6 +39,13 @@ export async function POST(request: NextRequest) {
         },
         { status: 404 }
       );
+    }
+
+    // If multiple admin users exist, select the first one (should be rare)
+    const adminUser = adminUsers[0];
+    
+    if (adminUsers.length > 1) {
+      console.log(`⚠️ Found ${adminUsers.length} admin users with same phone number, using first one: ${adminUser.name}`);
     }
 
     // Check if user account is active
