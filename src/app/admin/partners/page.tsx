@@ -253,7 +253,7 @@ export default function PartnersPage() {
       
       // Refresh the partners list
       await fetchPartners();
-    } catch (error) {
+      } catch (error) {
       toast.error("Failed to deactivate some partners");
       console.error("Bulk delete error:", error);
     } finally {
@@ -300,7 +300,7 @@ export default function PartnersPage() {
       
       // Refresh the partners list
       await fetchPartners();
-    } catch (error) {
+        } catch (error) {
       toast.error("Failed to delete some partners permanently");
       console.error("Bulk permanent delete error:", error);
     } finally {

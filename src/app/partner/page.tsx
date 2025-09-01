@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { usePartnerAuth } from "@/hooks/usePartnerAuth";
 import { usePartnerOrders } from "@/hooks/usePartnerOrders";
 import {
@@ -10,8 +11,9 @@ import {
 } from "@/components/partner";
 
 export default function PartnerDashboard() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('home');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get('tab');
   
   const { partnerInfo, error, isLoading, logout } = usePartnerAuth();
   const { totalOrders, isLoading: ordersLoading } = usePartnerOrders(partnerInfo?.mobile);
@@ -23,18 +25,21 @@ export default function PartnerDashboard() {
   // Calculate coins from total revenue (1 coin = ₹100)
   const coins = partnerInfo?.total_revenue ? Math.floor(partnerInfo.total_revenue / 100) : 0;
 
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen(prev => !prev);
-  }, []);
-
-  const handleTabChange = useCallback((tabId: string) => {
-    setActiveTab(tabId);
-  }, []);
-
-  const handlePromoButtonClick = useCallback(() => {
-    // Handle promotional button click
-    console.log('Promotional button clicked');
-  }, []);
+  // Redirect to proper routes based on tab parameter
+  useEffect(() => {
+    if (!isLoading && !ordersLoading) {
+      if (tab === 'new-task') {
+        router.replace('/partner/new-task');
+      } else if (tab === 'ongoing') {
+        router.replace('/partner/ongoing');
+      } else if (tab === 'reporting') {
+        router.replace('/partner/reporting');
+      } else if (tab === 'revenue') {
+        router.replace('/partner/revenue');
+      }
+      // For 'home' or no tab, stay on this page
+    }
+  }, [tab, isLoading, ordersLoading, router]);
 
   // Show loading state
   if (isLoading || ordersLoading) {
@@ -46,18 +51,24 @@ export default function PartnerDashboard() {
     return <ErrorDisplay error={error} />;
   }
 
+  // Only show home tab content
   return (
     <PartnerDashboardContent
       partnerName={displayName}
       location={displayLocation}
-      sidebarOpen={sidebarOpen}
-      activeTab={activeTab}
+      sidebarOpen={false}
+      activeTab="home"
       coins={coins}
       totalOrders={totalOrders}
-      onToggleSidebar={toggleSidebar}
-      onTabChange={handleTabChange}
+      onToggleSidebar={() => {}}
+      onTabChange={(tabId) => {
+        if (tabId === 'home') {
+          return; // Already on home
+        }
+        router.push(`/partner/${tabId}`);
+      }}
       onLogout={logout}
-      onPromoButtonClick={handlePromoButtonClick}
+      onPromoButtonClick={() => console.log('Promotional button clicked')}
     />
   );
 }

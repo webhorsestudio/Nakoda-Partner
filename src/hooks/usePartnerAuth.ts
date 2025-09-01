@@ -12,7 +12,7 @@ interface DecodedToken {
 }
 
 // Define the structure of partner information
-interface PartnerInfo {
+export interface PartnerInfo {
   id?: number;
   name?: string;
   mobile?: string;
@@ -23,13 +23,18 @@ interface PartnerInfo {
   service_type?: string;
   location?: string;
   city?: string;
+  state?: string;
+  pin_code?: string;
+  address?: string;
   total_revenue?: number;
   total_orders?: number;
+  rating?: number;
   commission_percentage?: number;
   verification_status?: string;
   documents_verified?: boolean;
   joined_date?: string;
   last_active?: string;
+  notes?: string;
   created_at?: string;
   updated_at?: string;
   [key: string]: unknown; // Allow for additional properties

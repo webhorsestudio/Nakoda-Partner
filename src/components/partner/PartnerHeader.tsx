@@ -1,18 +1,15 @@
 import React from 'react';
-import { MapPinIcon, MenuIcon } from "lucide-react";
+import { MenuIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Wallet } from './index';
+import Image from 'next/image';
 
 interface PartnerHeaderProps {
-  partnerName?: string;
-  location?: string;
   coins?: number;
   onMenuClick: () => void;
 }
 
 export default function PartnerHeader({ 
-  partnerName = 'Webhorse Studio', 
-  location = 'Andheri West, Mumbai',
   coins = 0,
   onMenuClick 
 }: PartnerHeaderProps) {
@@ -27,15 +24,16 @@ export default function PartnerHeader({
     <div className="bg-white border-b border-slate-200 sticky top-0 z-40">
       <div className="px-4 py-3">
         <div className="flex items-center justify-between">
-          {/* Left side - Partner Info */}
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-semibold text-slate-900 leading-tight truncate">
-              {partnerName}
-            </h1>
-            <div className="flex items-center text-slate-600 text-sm">
-              <MapPinIcon className="h-4 w-4 mr-1.5 flex-shrink-0" />
-              <span className="truncate">{location}</span>
-            </div>
+          {/* Left side - Nakoda Logo */}
+          <div className="flex items-center">
+            <Image
+              src="/images/logo.png"
+              alt="Nakoda Urban Services"
+              width={140}
+              height={45}
+              className="h-10 w-auto object-contain"
+              priority
+            />
           </div>
           
           {/* Right side - Actions */}

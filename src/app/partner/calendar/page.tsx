@@ -139,8 +139,6 @@ export default function CalendarPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <ErrorBoundary>
         <PartnerHeader
-          partnerName={displayName}
-          location={displayLocation}
           coins={coins}
           onMenuClick={toggleSidebar}
         />

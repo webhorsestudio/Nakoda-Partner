@@ -1,5 +1,10 @@
 import React, { Suspense } from 'react';
-import { PartnerHeader, PartnerSidebar, PromotionalBanner, BottomNavigation, JobListings, ErrorBoundary } from './index';
+import { PartnerHeader, PartnerSidebar, BottomNavigation, ErrorBoundary } from './index';
+import HomeTab from './tabs/HomeTab';
+import NewTaskTab from './tabs/NewTaskTab';
+import OngoingTab from './tabs/OngoingTab';
+import ReportingTab from './tabs/ReportingTab';
+import RevenueTab from './tabs/RevenueTab';
 
 interface PartnerDashboardContentProps {
   partnerName?: string;
@@ -26,14 +31,49 @@ export default function PartnerDashboardContent({
   onLogout,
   onPromoButtonClick
 }: PartnerDashboardContentProps) {
+  // Render different content based on active tab
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'home':
+        return (
+          <HomeTab 
+            totalOrders={totalOrders} 
+            onPromoButtonClick={onPromoButtonClick}
+            partnerName={partnerName}
+            location={location}
+          />
+        );
+      
+      case 'new-task':
+        return <NewTaskTab />;
+      
+      case 'ongoing':
+        return <OngoingTab />;
+      
+      case 'reporting':
+        return <ReportingTab />;
+      
+      case 'revenue':
+        return <RevenueTab coins={coins} />;
+      
+      default:
+        return (
+          <HomeTab 
+            totalOrders={totalOrders} 
+            onPromoButtonClick={onPromoButtonClick}
+            partnerName={partnerName}
+            location={location}
+          />
+        );
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-white pb-20">
+    <div className="min-h-screen bg-white pb-32">
       {/* Header */}
       <ErrorBoundary>
         <Suspense fallback={<div className="h-16 bg-slate-100 animate-pulse" />}>
           <PartnerHeader
-            partnerName={partnerName}
-            location={location}
             coins={coins}
             onMenuClick={onToggleSidebar}
           />
@@ -51,20 +91,7 @@ export default function PartnerDashboardContent({
 
       {/* Main Content */}
       <div className="px-4 py-4 space-y-4">
-        {/* Promotional Banner */}
-        <ErrorBoundary>
-          <Suspense fallback={<div className="h-24 bg-slate-100 animate-pulse rounded-lg" />}>
-            <PromotionalBanner onButtonClick={onPromoButtonClick} />
-          </Suspense>
-        </ErrorBoundary>
-
-        {/* Job Listings */}
-        <ErrorBoundary>
-          <JobListings
-            totalOrders={totalOrders}
-            onViewAllJobs={() => console.log('View all jobs clicked')}
-          />
-        </ErrorBoundary>
+        {renderTabContent()}
       </div>
 
       {/* Bottom Navigation */}
