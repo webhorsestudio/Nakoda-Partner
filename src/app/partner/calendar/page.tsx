@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useCallback } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, MessageCircleIcon, PhoneIcon, ArrowLeftIcon, CalendarIcon, ClockIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, MessageCircleIcon, PhoneIcon, CalendarIcon, ClockIcon, ArrowLeftIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
-import { PartnerHeader, PartnerSidebar, BottomNavigation, ErrorBoundary } from '@/components/partner';
+import { PartnerSidebar, ErrorBoundary } from '@/components/partner';
 
 interface Appointment {
   id: string;
@@ -21,13 +21,9 @@ export default function CalendarPage() {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('calendar');
+
   
   const { partnerInfo, error, isLoading, logout } = usePartnerAuth();
-  
-  const coins = 4567;
-  const displayName = partnerInfo?.name || 'Webhorse Studio';
-  const displayLocation = 'Andheri West, Mumbai';
   
   const appointments: Appointment[] = [
     {
@@ -65,16 +61,13 @@ export default function CalendarPage() {
     setSidebarOpen(prev => !prev);
   }, []);
 
-  const handleTabChange = useCallback((tabId: string) => {
-    setActiveTab(tabId);
-    if (tabId === 'home') {
-      router.push('/partner');
-    }
-  }, [router]);
+
 
   const handleBackToPartner = useCallback(() => {
     router.push('/partner');
   }, [router]);
+
+
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', { 
@@ -136,14 +129,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <ErrorBoundary>
-        <PartnerHeader
-          coins={coins}
-          onMenuClick={toggleSidebar}
-        />
-      </ErrorBoundary>
-
+    <div className="min-h-screen bg-slate-50">
       <ErrorBoundary>
         <PartnerSidebar
           isOpen={sidebarOpen}
@@ -152,27 +138,19 @@ export default function CalendarPage() {
         />
       </ErrorBoundary>
 
-      <div className="px-4 py-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBackToPartner}
-            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          >
-            <ArrowLeftIcon className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <h1 className="text-xl font-semibold text-gray-900">Calendar</h1>
-          <Button
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Add
-          </Button>
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div className="px-4 py-3">
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="icon" onClick={handleBackToPartner} className="h-8 w-8">
+              <ArrowLeftIcon className="h-5 w-5" />
+            </Button>
+            <h1 className="text-lg font-semibold text-slate-900">Working Calendar</h1>
+          </div>
         </div>
+      </div>
+
+      <div className="px-4 py-6 space-y-6">
 
         {/* Calendar */}
         <Card className="bg-white">
@@ -313,13 +291,6 @@ export default function CalendarPage() {
           )}
         </div>
       </div>
-
-      <ErrorBoundary>
-        <BottomNavigation
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-        />
-      </ErrorBoundary>
     </div>
   );
 }

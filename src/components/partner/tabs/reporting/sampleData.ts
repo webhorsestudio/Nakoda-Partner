@@ -1,4 +1,4 @@
-import { PerformanceMetrics, EarningsData, TaskPerformance, CustomerReview } from './types';
+import { PerformanceMetrics, EarningsData, TaskPerformance } from './types';
 
 export const samplePerformanceMetrics: PerformanceMetrics = {
   totalEarnings: 45600,
@@ -25,7 +25,23 @@ export const sampleEarningsData: EarningsData[] = [
   { date: '2025-01-11', earnings: 3000, tasks: 7, commission: 750 },
   { date: '2025-01-12', earnings: 3400, tasks: 8, commission: 850 },
   { date: '2025-01-13', earnings: 2900, tasks: 7, commission: 725 },
-  { date: '2025-01-14', earnings: 3100, tasks: 8, commission: 775 }
+  { date: '2025-01-14', earnings: 3100, tasks: 8, commission: 775 },
+  { date: '2025-01-15', earnings: 2700, tasks: 6, commission: 675 },
+  { date: '2025-01-16', earnings: 2300, tasks: 5, commission: 575 },
+  { date: '2025-01-17', earnings: 3500, tasks: 9, commission: 875 },
+  { date: '2025-01-18', earnings: 2800, tasks: 7, commission: 700 },
+  { date: '2025-01-19', earnings: 2100, tasks: 5, commission: 525 },
+  { date: '2025-01-20', earnings: 1900, tasks: 4, commission: 475 },
+  { date: '2025-01-21', earnings: 2500, tasks: 6, commission: 625 },
+  { date: '2025-01-22', earnings: 3200, tasks: 8, commission: 800 },
+  { date: '2025-01-23', earnings: 2900, tasks: 7, commission: 725 },
+  { date: '2025-01-24', earnings: 2400, tasks: 6, commission: 600 },
+  { date: '2025-01-25', earnings: 1800, tasks: 4, commission: 450 },
+  { date: '2025-01-26', earnings: 2200, tasks: 5, commission: 550 },
+  { date: '2025-01-27', earnings: 2600, tasks: 6, commission: 650 },
+  { date: '2025-01-28', earnings: 3000, tasks: 7, commission: 750 },
+  { date: '2025-01-29', earnings: 2800, tasks: 7, commission: 700 },
+  { date: '2025-01-30', earnings: 3100, tasks: 8, commission: 775 }
 ];
 
 export const sampleTaskPerformance: TaskPerformance[] = [
@@ -59,53 +75,7 @@ export const sampleTaskPerformance: TaskPerformance[] = [
   }
 ];
 
-export const sampleCustomerReviews: CustomerReview[] = [
-  {
-    id: '1',
-    customerName: 'Sarah Johnson',
-    rating: 5,
-    comment: 'Excellent deep cleaning service! The team was professional, thorough, and left my apartment spotless. Highly recommended!',
-    date: '2025-01-12',
-    serviceType: 'Cleaning',
-    orderNumber: 'NUS87638'
-  },
-  {
-    id: '2',
-    customerName: 'Rajesh Kumar',
-    rating: 4,
-    comment: 'Good plumbing repair work. Fixed the leak quickly and explained what was done. Would use again.',
-    date: '2025-01-11',
-    serviceType: 'Plumbing',
-    orderNumber: 'NUS87639'
-  },
-  {
-    id: '3',
-    customerName: 'Priya Sharma',
-    rating: 5,
-    comment: 'Outstanding electrical work! Professional, knowledgeable, and completed the installation perfectly. Very satisfied!',
-    date: '2025-01-10',
-    serviceType: 'Electrical',
-    orderNumber: 'NUS87640'
-  },
-  {
-    id: '4',
-    customerName: 'Amit Patel',
-    rating: 4,
-    comment: 'Great carpentry work. Assembled all furniture correctly and on time. Good communication throughout.',
-    date: '2025-01-09',
-    serviceType: 'Carpentry',
-    orderNumber: 'NUS87641'
-  },
-  {
-    id: '5',
-    customerName: 'Meera Singh',
-    rating: 5,
-    comment: 'Fantastic cleaning service! The team was punctual, professional, and did an amazing job. Will definitely book again!',
-    date: '2025-01-08',
-    serviceType: 'Cleaning',
-    orderNumber: 'NUS87642'
-  }
-];
+
 
 export const timeRanges = [
   { label: 'Last 7 Days', value: '7d', days: 7 },

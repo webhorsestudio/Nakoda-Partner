@@ -1,7 +1,6 @@
 import React from 'react';
-import { ClockIcon } from 'lucide-react';
+import { RadarIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import WorkingSchedule from './sections/WorkingSchedule';
 import JobOverview from './sections/JobOverview';
 
 interface JobListingsProps {
@@ -12,9 +11,6 @@ interface JobListingsProps {
 export default function JobListings({ totalOrders = 0, onViewAllJobs }: JobListingsProps) {
   return (
     <div className="space-y-4">
-      {/* Working Schedule Section */}
-      <WorkingSchedule />
-
       {/* Job Overview Section */}
       <JobOverview 
         totalOrders={totalOrders}
@@ -25,9 +21,11 @@ export default function JobListings({ totalOrders = 0, onViewAllJobs }: JobListi
       {totalOrders === 0 ? (
         <Card className="border border-slate-200 bg-white">
           <CardContent className="p-8 text-center">
-            <ClockIcon className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900 mb-2">No jobs allocated</h3>
-            <p className="text-slate-500">You don&apos;t have any jobs assigned yet. Check back later!</p>
+            <div className="relative mx-auto mb-4 w-12 h-12">
+              <RadarIcon className="h-12 w-12 text-blue-500 animate-pulse" />
+              <div className="absolute inset-0 rounded-full border-2 border-blue-200 animate-ping"></div>
+            </div>
+            <h3 className="text-lg font-medium text-slate-900">Looking for New Job...</h3>
           </CardContent>
         </Card>
       ) : (

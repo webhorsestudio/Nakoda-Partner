@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePartnerAuth } from "@/hooks/usePartnerAuth";
 import { usePartnerOrders } from "@/hooks/usePartnerOrders";
@@ -14,6 +14,7 @@ export default function PartnerDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   const { partnerInfo, error, isLoading, logout } = usePartnerAuth();
   const { totalOrders, isLoading: ordersLoading } = usePartnerOrders(partnerInfo?.mobile);
@@ -24,6 +25,10 @@ export default function PartnerDashboard() {
   
   // Calculate coins from total revenue (1 coin = ₹100)
   const coins = partnerInfo?.total_revenue ? Math.floor(partnerInfo.total_revenue / 100) : 0;
+
+  const handleToggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
 
   // Redirect to proper routes based on tab parameter
   useEffect(() => {
@@ -56,11 +61,11 @@ export default function PartnerDashboard() {
     <PartnerDashboardContent
       partnerName={displayName}
       location={displayLocation}
-      sidebarOpen={false}
+      sidebarOpen={sidebarOpen}
       activeTab="home"
       coins={coins}
       totalOrders={totalOrders}
-      onToggleSidebar={() => {}}
+      onToggleSidebar={handleToggleSidebar}
       onTabChange={(tabId) => {
         if (tabId === 'home') {
           return; // Already on home

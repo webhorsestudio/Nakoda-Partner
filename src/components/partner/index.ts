@@ -18,7 +18,6 @@ export { default as ReportingTab } from './tabs/reporting/ReportingTab';
 export { default as RevenueTab } from './tabs/RevenueTab';
 
 // Section Components
-export { default as WorkingSchedule } from './sections/WorkingSchedule';
 export { default as JobOverview } from './sections/JobOverview';
 
 // Profile Components

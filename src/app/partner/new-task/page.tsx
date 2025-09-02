@@ -1,14 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { usePartnerOrders } from '@/hooks/usePartnerOrders';
-import { PartnerHeader, BottomNavigation } from '@/components/partner';
+import { PartnerHeader, PartnerSidebar, BottomNavigation } from '@/components/partner';
 import NewTaskTab from '@/components/partner/tabs/new-task/NewTaskTab';
 
 export default function NewTaskPage() {
-  const { partnerInfo, error, isLoading } = usePartnerAuth();
+  const { partnerInfo, error, isLoading, logout } = usePartnerAuth();
   const { totalOrders, isLoading: ordersLoading } = usePartnerOrders(partnerInfo?.mobile);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Calculate coins from total revenue (1 coin = ₹100)
   const coins = partnerInfo?.total_revenue ? Math.floor(partnerInfo.total_revenue / 100) : 0;
@@ -19,6 +20,10 @@ export default function NewTaskPage() {
     }
     // Navigate to other tabs
     window.location.href = `/partner/${tabId === 'home' ? '' : tabId}`;
+  };
+
+  const handleToggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
   // Show loading state
@@ -49,7 +54,14 @@ export default function NewTaskPage() {
       {/* Header */}
       <PartnerHeader
         coins={coins}
-        onMenuClick={() => console.log('Menu clicked')}
+        onMenuClick={handleToggleSidebar}
+      />
+
+      {/* Sidebar */}
+      <PartnerSidebar
+        isOpen={sidebarOpen}
+        onClose={handleToggleSidebar}
+        onLogout={logout}
       />
 
       {/* Main Content */}

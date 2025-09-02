@@ -24,15 +24,7 @@ export interface TaskPerformance {
   totalEarnings: number;
 }
 
-export interface CustomerReview {
-  id: string;
-  customerName: string;
-  rating: number;
-  comment: string;
-  date: string;
-  serviceType: string;
-  orderNumber: string;
-}
+
 
 export interface TimeRange {
   label: string;
@@ -61,20 +53,15 @@ export interface MetricsCardProps {
 export interface EarningsChartProps {
   data: EarningsData[];
   timeRange: string;
+  isLoading?: boolean;
 }
 
 export interface TaskPerformanceTableProps {
   data: TaskPerformance[];
+  isLoading?: boolean;
 }
 
-export interface CustomerReviewsProps {
-  reviews: CustomerReview[];
-  onViewAll: () => void;
-}
 
-export interface ReviewCardProps {
-  review: CustomerReview;
-}
 
 export interface TimeRangeSelectorProps {
   selectedRange: string;

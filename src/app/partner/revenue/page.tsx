@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
 import React, { useState } from 'react';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { usePartnerOrders } from '@/hooks/usePartnerOrders';
 import { PartnerHeader, PartnerSidebar, BottomNavigation } from '@/components/partner';
-import OngoingTaskTab from '@/components/partner/tabs/ongoing/OngoingTaskTab';
+import RevenuePageContent from '@/components/partner/tabs/revenue/RevenuePageContent';
 
-export default function OngoingPage() {
+export default function RevenuePage() {
   const { partnerInfo, error, isLoading, logout } = usePartnerAuth();
   const { totalOrders, isLoading: ordersLoading } = usePartnerOrders(partnerInfo?.mobile);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -15,7 +15,7 @@ export default function OngoingPage() {
   const coins = partnerInfo?.total_revenue ? Math.floor(partnerInfo.total_revenue / 100) : 0;
 
   const handleTabChange = (tabId: string) => {
-    if (tabId === 'ongoing') {
+    if (tabId === 'revenue') {
       return; // Already on this page
     }
     // Navigate to other tabs
@@ -66,11 +66,11 @@ export default function OngoingPage() {
 
       {/* Main Content */}
       <div className="px-4 py-4 space-y-4">
-        <OngoingTaskTab />
+        <RevenuePageContent />
       </div>
 
       {/* Bottom Navigation */}
-      <BottomNavigation activeTab="ongoing" onTabChange={handleTabChange} />
+      <BottomNavigation activeTab="revenue" onTabChange={handleTabChange} />
     </div>
   );
 }
