@@ -7,12 +7,6 @@ const JWT_CONFIG = {
   REFRESH_EXPIRES_IN: '7d' as const
 };
 
-// Debug: Log JWT configuration
-console.log('=== JWT CONFIG DEBUG ===');
-console.log('JWT_SECRET loaded:', process.env.JWT_SECRET ? 'YES' : 'NO');
-console.log('JWT_SECRET length:', process.env.JWT_SECRET?.length || 0);
-console.log('Using fallback secret:', !process.env.JWT_SECRET);
-console.log('========================');
 
 // Token payload interface
 export interface TokenPayload {
@@ -54,14 +48,33 @@ export const generateRefreshToken = (payload: TokenPayload): string => {
  */
 export const verifyJWTToken = (token: string): TokenPayload | null => {
   try {
+    console.log('🔍 JWT verification attempt:', {
+      tokenLength: token.length,
+      tokenPreview: token.substring(0, 50) + '...',
+      secretLength: JWT_CONFIG.SECRET.length,
+      issuer: 'nakoda-partner',
+      audience: 'admin-users'
+    });
+    
     const decoded = jwt.verify(token, JWT_CONFIG.SECRET, {
       issuer: 'nakoda-partner',
       audience: 'admin-users'
     }) as TokenPayload;
     
+    console.log('✅ JWT verification successful:', {
+      userId: decoded.userId,
+      role: decoded.role,
+      phone: decoded.phone
+    });
+    
     return decoded;
   } catch (error) {
-    console.error('JWT verification failed:', error);
+    console.error('❌ JWT verification failed:', error);
+    console.error('Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    });
     return null;
   }
 };
@@ -85,23 +98,55 @@ export const decodeJWTToken = (token: string): TokenPayload | null => {
  */
 export const verifyJWTTokenClient = (token: string): TokenPayload | null => {
   try {
-    // Simple base64 decode and JSON parse for client-side
-    const base64Url = token.split('.')[1];
+    // Validate token format first
+    if (!token || typeof token !== 'string') {
+      console.error('Invalid JWT token: token is empty or not a string');
+      return null;
+    }
+
+    // Check if token has JWT format (3 parts separated by dots)
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.error('Invalid JWT token format: expected 3 parts, got', parts.length);
+      return null;
+    }
+
+    const base64Url = parts[1];
     if (!base64Url) {
-      console.error('Invalid JWT token format');
+      console.error('Invalid JWT token format: missing payload');
       return null;
     }
     
+    // Add padding if needed
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
+    const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
     
-    const decoded = JSON.parse(jsonPayload) as TokenPayload;
+    let jsonPayload: string;
+    try {
+      jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+    } catch (atobError) {
+      console.error('JWT payload base64 decode failed:', atobError);
+      return null;
+    }
+    
+    let decoded: TokenPayload;
+    try {
+      decoded = JSON.parse(jsonPayload) as TokenPayload;
+    } catch (jsonError) {
+      console.error('JWT payload JSON parse failed:', jsonError);
+      return null;
+    }
+    
+    // Validate required fields
+    if (!decoded || typeof decoded !== 'object') {
+      console.error('Invalid JWT token: decoded payload is not an object');
+      return null;
+    }
     
     // Check if token is expired
     if (decoded.exp && Date.now() >= decoded.exp * 1000) {
-      console.log('JWT token expired');
       return null;
     }
     
@@ -131,15 +176,87 @@ export const generateSimpleToken = (payload: TokenPayload): string => {
 };
 
 /**
+ * Debug token format and content (for development only)
+ */
+export const debugToken = (token: string): void => {
+  if (process.env.NODE_ENV !== 'development') return;
+  
+  
+  // Check if it looks like JWT
+  const parts = token.split('.');
+  if (parts.length === 3) {
+    // JWT format detected
+  } else {
+    // Simple token format
+  }
+  
+  // Check base64 validity
+  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+  
+  // Try to decode safely
+  try {
+    if (parts.length === 3) {
+      const base64Url = parts[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
+      const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const decoded = JSON.parse(jsonPayload);
+      // JWT payload decoded
+    } else {
+      const decoded = JSON.parse(decodeURIComponent(atob(token)));
+      // Simple token decoded
+    }
+  } catch (error) {
+    // Decode error
+  }
+};
+
+/**
  * Verify a simple token (for client-side use)
  */
 export const verifySimpleToken = (token: string): TokenPayload | null => {
   try {
-    const decoded = JSON.parse(decodeURIComponent(atob(token))) as TokenPayload;
+    // Validate token format first
+    if (!token || typeof token !== 'string') {
+      console.error('Invalid token: token is empty or not a string');
+      return null;
+    }
+
+    // Check if token looks like base64 (basic validation)
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    if (!base64Regex.test(token)) {
+      console.error('Invalid token: not base64 encoded');
+      return null;
+    }
+
+    // Try to decode the token
+    let decodedString: string;
+    try {
+      decodedString = decodeURIComponent(atob(token));
+    } catch (atobError) {
+      console.error('Token base64 decode failed:', atobError);
+      return null;
+    }
+
+    // Try to parse as JSON
+    let decoded: TokenPayload;
+    try {
+      decoded = JSON.parse(decodedString) as TokenPayload;
+    } catch (jsonError) {
+      console.error('Token JSON parse failed:', jsonError);
+      return null;
+    }
     
+    // Validate required fields
+    if (!decoded || typeof decoded !== 'object') {
+      console.error('Invalid token: decoded data is not an object');
+      return null;
+    }
+
     // Check if token is expired
     if (decoded.exp && Date.now() >= decoded.exp) {
-      console.log('Simple token expired');
       return null;
     }
     

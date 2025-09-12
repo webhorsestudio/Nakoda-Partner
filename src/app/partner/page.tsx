@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePartnerAuth } from "@/hooks/usePartnerAuth";
 import { usePartnerOrders } from "@/hooks/usePartnerOrders";
+import { usePartnerWallet } from "@/hooks/usePartnerWallet";
 import {
   PartnerDashboardContent,
   LoadingSpinner,
@@ -15,9 +16,11 @@ export default function PartnerDashboard() {
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const walletFetched = useRef(false);
   
   const { partnerInfo, error, isLoading, logout } = usePartnerAuth();
   const { totalOrders, isLoading: ordersLoading } = usePartnerOrders(partnerInfo?.mobile);
+  const { balance: walletBalance, fetchBalance, isLoading: walletLoading } = usePartnerWallet();
   
   // Get partner name from database or use default
   const displayName = partnerInfo?.name || 'Partner';
@@ -25,10 +28,21 @@ export default function PartnerDashboard() {
   
   // Calculate coins from total revenue (1 coin = ₹100)
   const coins = partnerInfo?.total_revenue ? Math.floor(partnerInfo.total_revenue / 100) : 0;
+  
+  // Get wallet balance for header display
+  const walletAmount = walletBalance?.walletBalance || 0;
 
   const handleToggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
+
+  // Fetch wallet balance when component mounts
+  useEffect(() => {
+    if (partnerInfo?.id && !walletLoading && !walletFetched.current) {
+      walletFetched.current = true;
+      fetchBalance();
+    }
+  }, [partnerInfo?.id, walletLoading]);
 
   // Redirect to proper routes based on tab parameter
   useEffect(() => {
@@ -47,7 +61,7 @@ export default function PartnerDashboard() {
   }, [tab, isLoading, ordersLoading, router]);
 
   // Show loading state
-  if (isLoading || ordersLoading) {
+  if (isLoading || ordersLoading || walletLoading) {
     return <LoadingSpinner />;
   }
 
@@ -64,6 +78,7 @@ export default function PartnerDashboard() {
       sidebarOpen={sidebarOpen}
       activeTab="home"
       coins={coins}
+      walletBalance={walletAmount}
       totalOrders={totalOrders}
       onToggleSidebar={handleToggleSidebar}
       onTabChange={(tabId) => {

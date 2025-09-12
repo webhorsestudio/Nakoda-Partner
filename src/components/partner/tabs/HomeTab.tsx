@@ -1,61 +1,49 @@
 import React from 'react';
-import { MapPinIcon, CalendarIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useRouter } from 'next/navigation';
-import { PromotionalBanner, JobListings, ErrorBoundary } from '../index';
+import { MapPinIcon } from "lucide-react";
+import { PromotionalBanner, JobListings, ErrorBoundary, Wallet } from '../index';
 
 interface HomeTabProps {
   totalOrders?: number;
   onPromoButtonClick: () => void;
   partnerName?: string;
   location?: string;
+  coins?: number;
+  walletBalance?: number;
 }
 
 export default function HomeTab({ 
   totalOrders, 
   onPromoButtonClick, 
   partnerName = 'Partner',
-  location = 'Location not specified'
+  location = 'Location not specified',
+  coins = 0,
+  walletBalance = 0
 }: HomeTabProps) {
-  const router = useRouter();
-
-  const handleCalendarClick = () => {
-    router.push('/partner/calendar');
-  };
 
   return (
     <>
       {/* Partner Info Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4 mb-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex items-center justify-between">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-semibold text-slate-900 leading-tight truncate mb-2">
+          <div className="min-w-0 flex-1 pr-3">
+            <h1 className="text-lg font-bold text-gray-900 leading-tight truncate mb-1">
               {partnerName}
             </h1>
-            <div className="flex items-center text-slate-600 text-sm">
-              <MapPinIcon className="h-4 w-4 mr-1.5 flex-shrink-0" />
+            <div className="flex items-center text-gray-600 text-sm">
+              <MapPinIcon className="h-4 w-4 mr-1.5 flex-shrink-0 text-gray-500" />
               <span className="truncate">{location}</span>
             </div>
           </div>
           
-          {/* Calendar Button */}
-          <div className="flex-shrink-0 ml-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleCalendarClick}
-              className="h-10 w-10 hover:bg-slate-100 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              aria-label="Open calendar view"
-              title="View Calendar"
-            >
-              <CalendarIcon className="h-5 w-5 text-slate-600" />
-            </Button>
+          {/* Wallet */}
+          <div className="flex-shrink-0">
+            <Wallet coins={coins} walletBalance={walletBalance} />
           </div>
         </div>
       </div>
 
       {/* Separator */}
-      <div className="h-px bg-slate-200 mb-4" />
+      <div className="h-px bg-gray-100 mb-4" />
 
       {/* Promotional Banner */}
       <ErrorBoundary>

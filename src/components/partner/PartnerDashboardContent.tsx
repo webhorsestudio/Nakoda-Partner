@@ -12,6 +12,7 @@ interface PartnerDashboardContentProps {
   sidebarOpen: boolean;
   activeTab: string;
   coins?: number;
+  walletBalance?: number;
   totalOrders?: number;
   onToggleSidebar: () => void;
   onTabChange: (tabId: string) => void;
@@ -25,6 +26,7 @@ export default function PartnerDashboardContent({
   sidebarOpen,
   activeTab,
   coins,
+  walletBalance,
   totalOrders,
   onToggleSidebar,
   onTabChange,
@@ -41,6 +43,8 @@ export default function PartnerDashboardContent({
             onPromoButtonClick={onPromoButtonClick}
             partnerName={partnerName}
             location={location}
+            coins={coins}
+            walletBalance={walletBalance}
           />
         );
       
@@ -63,6 +67,8 @@ export default function PartnerDashboardContent({
             onPromoButtonClick={onPromoButtonClick}
             partnerName={partnerName}
             location={location}
+            coins={coins}
+            walletBalance={walletBalance}
           />
         );
     }
@@ -74,7 +80,6 @@ export default function PartnerDashboardContent({
       <ErrorBoundary>
         <Suspense fallback={<div className="h-16 bg-slate-100 animate-pulse" />}>
           <PartnerHeader
-            coins={coins}
             onMenuClick={onToggleSidebar}
           />
         </Suspense>

@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 
 interface WalletProps {
   coins: number;
+  walletBalance?: number;
   className?: string;
 }
 
-export default function Wallet({ coins, className = '' }: WalletProps) {
+export default function Wallet({ coins, walletBalance, className = '' }: WalletProps) {
   const router = useRouter();
 
   const handleWalletClick = () => {
@@ -22,20 +23,22 @@ export default function Wallet({ coins, className = '' }: WalletProps) {
     }
   };
 
+  // Use wallet balance if available, otherwise fall back to coins
+  const displayAmount = walletBalance !== undefined ? walletBalance : coins;
+
   return (
     <div className={`${className}`}>
-      <Badge 
-        variant="secondary" 
-        className="px-3 py-2 bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 cursor-pointer transition-colors"
+      <button
+        className="flex items-center px-3 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer transition-colors"
         role="button"
         tabIndex={0}
-        aria-label={`Wallet balance: ₹${coins.toLocaleString()}. Click to view wallet details.`}
+        aria-label={`Wallet balance: ₹${displayAmount.toLocaleString()}. Click to view wallet details.`}
         onClick={handleWalletClick}
         onKeyDown={handleKeyDown}
       >
-        <WalletIcon className="h-4 w-4 mr-2" aria-hidden="true" />
-        <span className="font-medium">₹{coins.toLocaleString()}</span>
-      </Badge>
+        <WalletIcon className="h-4 w-4 mr-1.5" aria-hidden="true" />
+        <span className="font-semibold text-sm">₹{displayAmount.toLocaleString()}</span>
+      </button>
     </div>
   );
 }

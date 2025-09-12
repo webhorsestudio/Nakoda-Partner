@@ -6,30 +6,40 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // Define public paths that don't require authentication
-  const isPublicPath = path === '/login';
+  const isPublicPath = path === '/login' || path === '/';
 
-  // Define admin paths that require authentication
+  // Define static asset paths that should be allowed
+  const isStaticAsset = path.startsWith('/_next/') || 
+                       path.startsWith('/images/') || 
+                       path.startsWith('/favicon.ico') ||
+                       path.startsWith('/api/') ||
+                       path.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js)$/);
+
+  // Define protected paths
   const isAdminPath = path.startsWith('/admin');
+  const isPartnerPath = path.startsWith('/partner');
 
-  // For now, let the client-side handle authentication
-  // This avoids the Edge Runtime crypto module issue
-  // The admin layout will handle JWT verification and role-based access
-  
-  // If trying to access login page and has auth cookie, let client-side handle redirects
-  if (isPublicPath) {
-    const authCookie = request.cookies.get('auth-token')?.value;
-    if (authCookie) {
-      console.log('🔐 Auth cookie found, letting client-side handle role-based redirects');
-      // Don't redirect automatically - let the login page check the role and redirect accordingly
-    }
+  // Allow public paths and static assets to pass through
+  if (isPublicPath || isStaticAsset) {
+    return NextResponse.next();
   }
 
-  // For protected admin routes, let the client-side handle redirects
-  // This prevents the redirect loop issue and allows for role-based access control
+  // Check for authentication token
+  const authToken = request.cookies.get('auth-token')?.value;
+  
+  if (!authToken) {
+    console.log(`🔒 No auth token found for protected route: ${path}`);
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // For protected routes, let the client-side handle role-based access control
+  // This prevents the Edge Runtime crypto module issue while still protecting routes
   
   // Log access attempts for monitoring
   if (isAdminPath) {
     console.log(`🔒 Admin route access attempt: ${path}`);
+  } else if (isPartnerPath) {
+    console.log(`🔒 Partner route access attempt: ${path}`);
   }
   
   return NextResponse.next();

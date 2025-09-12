@@ -1,18 +1,19 @@
 export interface Task {
   id: string;
   title: string;
+  description: string;
   customerName: string;
+  customerPhone: string;
   location: string;
   amount: number;
-  duration: string;
+  advanceAmount: number;
   serviceType: string;
   priority: string;
-  isExclusive: boolean;
-  countdown: string;
-  description: string;
-  requirements: string;
-  advanceAmount: number;
-  commission: string;
+  estimatedDuration: string;
+  createdAt: string;
+  status: string;
+  serviceDate?: string;
+  timeSlot?: string;
 }
 
 export interface TaskFiltersProps {
@@ -24,4 +25,5 @@ export interface TaskCardProps {
   task: Task;
   onAcceptTask: (taskId: string) => void;
   onViewDetails: (taskId: string) => void;
+  isAccepting?: boolean;
 }

@@ -53,7 +53,6 @@ export default function RevenuePage() {
     <div className="min-h-screen bg-slate-50 pb-32">
       {/* Header */}
       <PartnerHeader
-        coins={coins}
         onMenuClick={handleToggleSidebar}
       />
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { UserIcon, SettingsIcon, LogOutIcon, BellIcon, CreditCardIcon, HelpCircleIcon } from 'lucide-react';
+import { UserIcon, SettingsIcon, LogOutIcon, BellIcon, CreditCardIcon, HelpCircleIcon, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
@@ -58,6 +58,9 @@ export default function PartnerSidebar({
         // TODO: Implement payment methods page
         console.log('Payment methods clicked');
         break;
+      case 'calendar':
+        router.push('/partner/calendar');
+        break;
       case 'settings':
         // TODO: Implement settings page
         console.log('Settings clicked');
@@ -86,6 +89,11 @@ export default function PartnerSidebar({
       icon: CreditCardIcon,
       label: 'Payment Methods',
       action: 'payment'
+    },
+    {
+      icon: CalendarIcon,
+      label: 'Working Calendar',
+      action: 'calendar'
     },
     {
       icon: SettingsIcon,

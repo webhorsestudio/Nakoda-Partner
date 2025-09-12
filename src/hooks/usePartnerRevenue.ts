@@ -99,7 +99,7 @@ const getSampleServiceBreakdown = (): ServiceBreakdown[] => [
   { serviceType: 'Plumbing', earnings: 8900, tasks: 28, percentage: 19.5, color: '#F59E0B' },
   { serviceType: 'HVAC', earnings: 4200, tasks: 15, percentage: 9.2, color: '#8B5CF6' },
   { serviceType: 'Other', earnings: 1700, tasks: 10, percentage: 3.7, color: '#EF4444' }
-]);
+];
 
 const getSampleTransactions = (): Transaction[] => [
   { id: 1, service: 'Electrical Repair', amount: 2500, status: 'completed', date: '2024-01-07', commission: 625 },

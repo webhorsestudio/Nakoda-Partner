@@ -1,287 +1,175 @@
-"use client";
+'use client';
 
-import React, { useState } from 'react';
-import { ArrowLeftIcon, PlusIcon, MinusIcon, ArrowUpIcon, ArrowDownIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { usePartnerAuth } from '@/hooks/usePartnerAuth';
+import { usePartnerWallet } from '@/hooks/usePartnerWallet';
+import AddAmountModal from '@/components/partner/wallet/AddAmountModal';
+import { WalletTransactions } from '@/components/partner/wallet/WalletTransactions';
+import { WalletBalance } from '@/components/partner/wallet/WalletBalance';
 
-export default function PartnerWalletPage() {
+export default function WalletPage() {
+  const { isClient } = usePartnerAuth();
+  const { balance, transactions, isLoading: walletLoading, error: walletError, fetchBalance, fetchTransactions } = usePartnerWallet();
+  const [isAddAmountModalOpen, setIsAddAmountModalOpen] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
   const router = useRouter();
-  const [showAddAmount, setShowAddAmount] = useState(false);
-  const [amount, setAmount] = useState('');
-  const [transactionType, setTransactionType] = useState<'credit' | 'debit'>('credit');
+  const searchParams = useSearchParams();
 
-  // Mock data for UI demonstration
-  const walletBalance = 2400;
-  const pendingBalance = 800;
-  const availableBalance = 1600;
-
-  const mockTransactions = [
-    {
-      id: 1,
-      type: 'credit',
-      amount: 1200,
-      description: 'Order completion - AC Service',
-      date: '2024-01-15',
-      time: '14:30',
-      status: 'completed'
-    },
-    {
-      id: 2,
-      type: 'debit',
-      amount: 500,
-      description: 'Withdrawal to bank account',
-      date: '2024-01-14',
-      time: '10:15',
-      status: 'completed'
-    },
-    {
-      id: 3,
-      type: 'credit',
-      amount: 800,
-      description: 'Order completion - Cleaning Service',
-      date: '2024-01-13',
-      time: '16:45',
-      status: 'completed'
-    },
-    {
-      id: 4,
-      type: 'credit',
-      amount: 600,
-      description: 'Order completion - Plumbing',
-      date: '2024-01-12',
-      time: '11:20',
-      status: 'pending'
-    },
-    {
-      id: 5,
-      type: 'debit',
-      amount: 300,
-      description: 'Service fee deduction',
-      date: '2024-01-11',
-      time: '09:30',
-      status: 'completed'
+  useEffect(() => {
+    if (isClient) {
+      // Check if user has auth token
+      const token = localStorage.getItem('auth-token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+      
+      // Try to fetch wallet data
+      Promise.all([fetchBalance(), fetchTransactions()]).catch((error) => {
+        console.error('Wallet fetch error:', error);
+        // If it's an auth error, redirect to login
+        if (error.message.includes('authentication') || error.message.includes('token')) {
+          router.push('/login');
+        }
+      });
     }
-  ];
+  }, [isClient, router, fetchBalance, fetchTransactions]);
 
-  const handleBack = () => {
-    router.push('/partner');
-  };
-
-  const handleAddAmount = () => {
-    if (amount && parseFloat(amount) > 0) {
-      console.log(`${transactionType === 'credit' ? 'Adding' : 'Deducting'} ₹${amount}`);
-      setAmount('');
-      setShowAddAmount(false);
+  useEffect(() => {
+    // Check if user returned from payment
+    const paymentStatus = searchParams.get('payment');
+    if (paymentStatus === 'success') {
+      setPaymentSuccess(true);
+      Promise.all([fetchBalance(), fetchTransactions()]); // Refresh wallet data
+      // Remove the query parameter from URL
+      router.replace('/partner/wallet');
     }
-  };
+  }, [searchParams, fetchBalance, fetchTransactions, router]);
 
-  const getTransactionIcon = (type: string) => {
-    return type === 'credit' ? (
-      <ArrowDownIcon className="h-4 w-4 text-green-600" />
-    ) : (
-      <ArrowUpIcon className="h-4 w-4 text-red-600" />
-    );
-  };
-
-  const getTransactionColor = (type: string) => {
-    return type === 'credit' ? 'text-green-600' : 'text-red-600';
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      completed: 'bg-green-100 text-green-800',
-      pending: 'bg-yellow-100 text-yellow-800',
-      failed: 'bg-red-100 text-red-800'
-    };
-    
+  if (walletLoading) {
     return (
-      <span className={`px-2 py-1 text-xs rounded-full ${statusConfig[status as keyof typeof statusConfig] || 'bg-gray-100 text-gray-800'}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading wallet...</p>
+        </div>
+      </div>
     );
-  };
+  }
+
+  if (walletError) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
+            <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Wallet</h3>
+            <p className="text-sm text-red-600 mb-4">{walletError}</p>
+            <button
+              onClick={() => Promise.all([fetchBalance(), fetchTransactions()])}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="px-4 py-3">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Mobile Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
+        <div className="px-4 py-4">
           <div className="flex items-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleBack}
-              className="mr-3"
+            <button
+              onClick={() => router.back()}
+              className="mr-4 p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
             >
-              <ArrowLeftIcon className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-semibold text-gray-900">Wallet</h1>
+              <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">My Wallet</h1>
+              <p className="text-sm text-gray-600">Manage your balance & transactions</p>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="px-4 py-6 space-y-6">
-        {/* Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Total Balance */}
-          <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600">Total Balance</p>
-                <p className="text-2xl font-bold text-blue-900">₹{walletBalance.toLocaleString()}</p>
+        {/* Payment Success Message */}
+        {paymentSuccess && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 shadow-sm">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-green-500 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
               </div>
-              <div className="h-12 w-12 bg-blue-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-lg">₹</span>
-              </div>
-            </div>
-          </Card>
-
-          {/* Available Balance */}
-          <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600">Available</p>
-                <p className="text-2xl font-bold text-green-900">₹{availableBalance.toLocaleString()}</p>
-              </div>
-              <div className="h-12 w-12 bg-green-500 rounded-full flex items-center justify-center">
-                <ArrowDownIcon className="h-5 w-5 text-white" />
+              <div className="ml-3">
+                <h3 className="text-sm font-semibold text-green-800">Payment Successful!</h3>
+                <p className="text-sm text-green-700 mt-1">Your wallet has been topped up successfully.</p>
               </div>
             </div>
-          </Card>
-
-          {/* Pending Balance */}
-          <Card className="p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-yellow-600">Pending</p>
-                <p className="text-2xl font-bold text-yellow-900">₹{pendingBalance.toLocaleString()}</p>
-              </div>
-              <div className="h-12 w-12 bg-yellow-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-lg">⏳</span>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button
-            onClick={() => setShowAddAmount(true)}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-          >
-            <PlusIcon className="h-4 w-4 mr-2" />
-            Add Amount
-          </Button>
-          <Button
-            variant="outline"
-            className="flex-1 border-orange-300 text-orange-700 hover:bg-orange-50"
-          >
-            <MinusIcon className="h-4 w-4 mr-2" />
-            Withdraw
-          </Button>
-        </div>
-
-        {/* Add Amount Modal */}
-        {showAddAmount && (
-          <Card className="p-6 border-2 border-blue-200 bg-blue-50">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Amount</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Transaction Type
-                </label>
-                <div className="flex gap-3">
-                  <Button
-                    variant={transactionType === 'credit' ? 'default' : 'outline'}
-                    onClick={() => setTransactionType('credit')}
-                    className="flex-1"
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Credit
-                  </Button>
-                  <Button
-                    variant={transactionType === 'debit' ? 'default' : 'outline'}
-                    onClick={() => setTransactionType('debit')}
-                    className="flex-1"
-                  >
-                    <MinusIcon className="h-4 w-4 mr-2" />
-                    Debit
-                  </Button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  onClick={handleAddAmount}
-                  disabled={!amount || parseFloat(amount) <= 0}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                >
-                  Confirm
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowAddAmount(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </Card>
+          </div>
         )}
 
-        {/* Transaction History */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">Transaction History</h2>
-            <Button variant="outline" size="sm">
-              View All
-            </Button>
-          </div>
-          
-          <div className="space-y-4">
-            {mockTransactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center border-2 border-gray-200">
-                    {getTransactionIcon(transaction.type)}
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{transaction.description}</p>
-                    <div className="flex items-center space-x-2 text-sm text-gray-500">
-                      <span>{transaction.date}</span>
-                      <span>•</span>
-                      <span>{transaction.time}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <span className={`font-semibold ${getTransactionColor(transaction.type)}`}>
-                    {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount.toLocaleString()}
-                  </span>
-                  {getStatusBadge(transaction.status)}
-                </div>
+        {/* Wallet Balance Card */}
+        {balance && <WalletBalance balance={balance} />}
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            onClick={() => setIsAddAmountModalOpen(true)}
+            className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-100 p-2 rounded-lg">
+                <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
               </div>
-            ))}
-          </div>
-        </Card>
+              <div className="text-left">
+                <p className="text-sm font-medium text-gray-900">Add Money</p>
+                <p className="text-xs text-gray-500">Top up wallet</p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => {/* TODO: Implement withdraw functionality */}}
+            className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-100 p-2 rounded-lg">
+                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-medium text-gray-900">Withdraw</p>
+                <p className="text-xs text-gray-500">Transfer funds</p>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        {/* Wallet Transactions */}
+        <WalletTransactions transactions={transactions} />
+
+        {/* Add Amount Modal */}
+        <AddAmountModal
+          isOpen={isAddAmountModalOpen}
+          onClose={() => setIsAddAmountModalOpen(false)}
+          onAddAmount={() => {
+            setIsAddAmountModalOpen(false);
+            Promise.all([fetchBalance(), fetchTransactions()]);
+          }}
+          balance={balance || { partnerId: 0, partnerName: '', walletBalance: 0, availableBalance: 0, pendingBalance: 0, walletStatus: '', lastTransactionAt: null }}
+        />
       </div>
     </div>
   );

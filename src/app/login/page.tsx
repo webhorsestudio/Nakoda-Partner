@@ -133,7 +133,7 @@ export default function LoginPage() {
         localStorage.setItem("auth-token", data.token);
         
         // Also set as cookie for middleware access
-        document.cookie = `auth-token=${data.token}; path=/; max-age=${24 * 60 * 60}; SameSite=Strict`;
+        document.cookie = `auth-token=${data.token}; path=/; max-age=${24 * 60 * 60}; SameSite=Lax`;
         
         setSuccess("Login successful! Redirecting...");
         

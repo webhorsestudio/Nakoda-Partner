@@ -19,7 +19,7 @@ import {
   ClockIcon
 } from "@heroicons/react/24/outline";
 import { useAutoFetch } from "@/contexts/AutoFetchContext";
-import { verifyJWTTokenClient, verifySimpleToken } from "@/utils/authUtils";
+import { verifyJWTTokenClient, verifySimpleToken, debugToken } from "@/utils/authUtils";
 import { getUserRole, getNavigationItems, UserRole } from "@/utils/roleUtils";
 
 interface AdminLayoutProps {
@@ -34,8 +34,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
-  
-  // Get auto-fetch status from context
+
+  // Get auto-fetch status from context - always call hooks at top level
   const { isAutoFetchEnabled, countdown } = useAutoFetch();
 
   // Handle hydration mismatch - always call this hook
@@ -51,18 +51,29 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       try {
         // Check for JWT token in localStorage
         const token = localStorage.getItem('auth-token');
-        console.log('🔐 Checking authentication...');
+        console.log('🔐 Admin layout checking authentication...');
         console.log('Token found:', token ? 'Yes' : 'No');
         
         if (token) {
           console.log('Token length:', token.length);
           console.log('Token preview:', token.substring(0, 20) + '...');
           
+          // Debug token in development
+          debugToken(token);
+          
+          // Validate token format before attempting verification
+          if (token.trim() === '') {
+            console.error('❌ Empty token found');
+            localStorage.removeItem('auth-token');
+            router.push('/login');
+            return;
+          }
+          
           // Try JWT verification first
           let decoded = verifyJWTTokenClient(token);
           
-          // If JWT verification fails, try simple token verification
-          if (!decoded) {
+          // If JWT verification fails, try simple token verification only if it's not a JWT
+          if (!decoded && !token.includes('.')) {
             console.log('JWT verification failed, trying simple token verification...');
             decoded = verifySimpleToken(token);
           }
@@ -81,7 +92,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   setUserRole(role);
                   console.log('🔑 User role:', role);
                   
-                  // Check if user is actually an admin
+                  // Check if user is actually an admin - if not, redirect to appropriate page
                   if (role.role !== 'admin') {
                     console.log('❌ User is not an admin, redirecting to appropriate page');
                     if (role.role === 'partner') {
@@ -104,7 +115,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   setUserRole(role);
                   console.log('🔑 User role:', role);
                   
-                  // Check if user is actually an admin
+                  // Check if user is actually an admin - if not, redirect to appropriate page
                   if (role.role !== 'admin') {
                     console.log('❌ User is not an admin, redirecting to appropriate page');
                     if (role.role === 'partner') {
@@ -139,6 +150,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             console.log('❌ Invalid token, clearing and redirecting');
             localStorage.removeItem('auth-token');
             document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+            setIsAuthenticated(false);
+            setUserRole(null);
+            setIsLoading(false);
+            router.push('/login');
+            return;
           }
         } else {
           console.log('❌ No token found, redirecting to login');
@@ -175,6 +191,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       }
     }
   }, [userRole, router]);
+
+  // Only apply admin layout to admin routes - check this after hooks
+  if (!pathname.startsWith('/admin')) {
+    console.log('🚫 Not an admin route, skipping admin layout for:', pathname);
+    return <>{children}</>;
+  }
+
+  console.log('✅ Admin route detected, applying admin layout for:', pathname);
 
   const handleLogout = () => {
     // Clear JWT token from both localStorage and cookie

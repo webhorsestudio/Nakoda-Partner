@@ -137,7 +137,7 @@ export default function RevenuePageContent() {
                 <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
               ) : (
                 <p className="text-2xl font-bold text-gray-900">
-                  {revenueStats ? formatCurrency(revenueStats.totalEarnings) : '₹0'}
+                  {revenueStats ? formatCurrency(revenueStats?.totalEarnings || 0) : '₹0'}
                 </p>
               )}
             </div>
@@ -148,7 +148,7 @@ export default function RevenuePageContent() {
           <div className="flex items-center mt-2">
             <ArrowTrendingUpIcon className="h-4 w-4 text-green-500 mr-1" />
             <span className="text-sm text-green-600">
-              {revenueStats ? `+${revenueStats.monthlyGrowth}%` : '0%'}
+              {revenueStats ? `+${revenueStats?.monthlyGrowth}%` : '0%'}
             </span>
           </div>
         </div>
@@ -161,7 +161,7 @@ export default function RevenuePageContent() {
                 <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
               ) : (
                 <p className="text-2xl font-bold text-gray-900">
-                  {revenueStats ? revenueStats.totalTasks : 0}
+                  {revenueStats ? revenueStats?.totalTasks : 0}
                 </p>
               )}
             </div>
@@ -171,7 +171,7 @@ export default function RevenuePageContent() {
           </div>
           <div className="flex items-center mt-2">
             <span className="text-sm text-gray-500">
-              {revenueStats ? `${revenueStats.completedTasks} completed` : '0 completed'}
+              {revenueStats ? `${revenueStats?.completedTasks} completed` : '0 completed'}
             </span>
           </div>
         </div>
@@ -352,15 +352,15 @@ export default function RevenuePageContent() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Average per task</span>
-                      <span className="font-semibold">{formatCurrency(revenueStats.averageEarnings)}</span>
+                      <span className="font-semibold">{formatCurrency(revenueStats?.averageEarnings || 0)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Completion rate</span>
-                      <span className="font-semibold">{Math.round((revenueStats.completedTasks / revenueStats.totalTasks) * 100)}%</span>
+                      <span className="font-semibold">{Math.round(((revenueStats?.completedTasks || 0) / (revenueStats?.totalTasks || 1)) * 100)}%</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Weekly growth</span>
-                      <span className="font-semibold text-green-600">+{revenueStats.weeklyGrowth}%</span>
+                      <span className="font-semibold text-green-600">+{revenueStats?.weeklyGrowth || 0}%</span>
                     </div>
                   </div>
                 </div>
@@ -370,15 +370,15 @@ export default function RevenuePageContent() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Total revenue</span>
-                      <span className="font-semibold">{formatCurrency(revenueStats.totalEarnings)}</span>
+                      <span className="font-semibold">{formatCurrency(revenueStats?.totalEarnings || 0)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Average per task</span>
-                      <span className="font-semibold">{formatCurrency(revenueStats.averageEarnings)}</span>
+                      <span className="font-semibold">{formatCurrency(revenueStats?.averageEarnings || 0)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Monthly growth</span>
-                      <span className="font-semibold text-green-600">+{revenueStats.monthlyGrowth}%</span>
+                      <span className="font-semibold text-green-600">+{revenueStats?.monthlyGrowth}%</span>
                     </div>
                   </div>
                 </div>

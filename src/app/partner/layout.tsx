@@ -21,18 +21,7 @@ export default function PartnerLayout({ children }: PartnerLayoutProps) {
           return;
         }
 
-        // Decode token to check role
-        const decoded = JSON.parse(atob(token.split('.')[1] || '{}'));
-        if (decoded.role !== 'partner') {
-          // If not a partner, redirect to appropriate page
-          if (decoded.role === 'admin') {
-            router.push('/admin');
-          } else {
-            router.push('/login');
-          }
-          return;
-        }
-
+        // Simple token existence check - let usePartnerAuth handle detailed validation
         setIsAuthenticated(true);
       } catch (error) {
         console.error('Partner auth check failed:', error);

@@ -67,29 +67,59 @@ export function usePartnerAuth() {
       // Decode token to get partner info
       let decoded: DecodedToken;
       try {
+        // Validate token format first
+        if (!token || typeof token !== 'string' || token.trim() === '') {
+          throw new Error('Invalid token format');
+        }
+
         // Try to decode as JWT first
-        const base64Url = token.split('.')[1];
-        if (base64Url) {
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-          }).join(''));
-          decoded = JSON.parse(jsonPayload);
+        const parts = token.split('.');
+        console.log('Token parts:', parts.length, 'First part:', parts[0]?.substring(0, 20) + '...');
+        
+        if (parts.length === 3) {
+          // JWT format - use manual decode for client-side (jsonwebtoken doesn't work in browser)
+          console.log('🔍 JWT token detected, using manual decode for client-side');
+          const base64Url = parts[1];
+          if (base64Url) {
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
+            const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            decoded = JSON.parse(jsonPayload);
+            console.log('✅ Manual JWT decode successful');
+          } else {
+            throw new Error('Invalid JWT format');
+          }
         } else {
           // Fallback to simple token
+          console.log('Token is not JWT format, trying simple token decode');
+          const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+          if (!base64Regex.test(token)) {
+            throw new Error('Invalid token encoding');
+          }
           decoded = JSON.parse(decodeURIComponent(atob(token)));
         }
       } catch (decodeError) {
         console.error('Token decode failed:', decodeError);
         setError('Invalid authentication token');
+        // Clear invalid token
+        localStorage.removeItem('auth-token');
         setTimeout(() => router.push('/login'), 2000);
         return;
       }
 
+      console.log('🔍 Decoded token:', decoded);
+      console.log('🔍 Token role:', decoded.role);
+
       if (decoded.role !== 'partner') {
+        console.log('❌ User is not a partner, role:', decoded.role);
+        console.log('🔄 Redirecting to admin...');
         router.push('/admin');
         return;
       }
+      
+      console.log('✅ User is a partner, continuing...');
 
       // Extract mobile number from token
       const mobile = decoded.mobile || decoded.phone;
@@ -145,7 +175,7 @@ export function usePartnerAuth() {
     if (isClient) {
       checkAuth();
     }
-  }, [isClient, checkAuth]);
+  }, [isClient]); // Remove checkAuth from dependencies to prevent infinite loop
 
   const logout = useCallback(() => {
     localStorage.removeItem('auth-token');

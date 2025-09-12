@@ -1,33 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
-import { usePartnerOrders } from '@/hooks/usePartnerOrders';
 import { PartnerHeader, PartnerSidebar, BottomNavigation } from '@/components/partner';
-import NewTaskTab from '@/components/partner/tabs/new-task/NewTaskTab';
+import NewTaskTabWrapper from '@/components/partner/tabs/new-task/NewTaskTabWrapper';
 
-export default function NewTaskPage() {
+const NewTaskPage = memo(function NewTaskPage() {
   const { partnerInfo, error, isLoading, logout } = usePartnerAuth();
-  const { totalOrders, isLoading: ordersLoading } = usePartnerOrders(partnerInfo?.mobile);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
-  // Calculate coins from total revenue (1 coin = ₹100)
-  const coins = partnerInfo?.total_revenue ? Math.floor(partnerInfo.total_revenue / 100) : 0;
 
-  const handleTabChange = (tabId: string) => {
+  const handleTabChange = useCallback((tabId: string) => {
     if (tabId === 'new-task') {
       return; // Already on this page
     }
     // Navigate to other tabs
     window.location.href = `/partner/${tabId === 'home' ? '' : tabId}`;
-  };
+  }, []);
 
-  const handleToggleSidebar = () => {
+  const handleToggleSidebar = useCallback(() => {
     setSidebarOpen(!sidebarOpen);
-  };
+  }, [sidebarOpen]);
 
   // Show loading state
-  if (isLoading || ordersLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
@@ -50,10 +45,9 @@ export default function NewTaskPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-32">
+    <div className="min-h-screen bg-white pb-32">
       {/* Header */}
       <PartnerHeader
-        coins={coins}
         onMenuClick={handleToggleSidebar}
       />
 
@@ -66,11 +60,13 @@ export default function NewTaskPage() {
 
       {/* Main Content */}
       <div className="px-4 py-4 space-y-4">
-        <NewTaskTab />
+        <NewTaskTabWrapper />
       </div>
 
       {/* Bottom Navigation */}
       <BottomNavigation activeTab="new-task" onTabChange={handleTabChange} />
     </div>
   );
-}
+});
+
+export default NewTaskPage;

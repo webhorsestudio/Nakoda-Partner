@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { verifyJWTToken, TokenPayload } from '@/utils/authUtils';
+import { verifyJWTToken, TokenPayload, verifyJWTTokenClient, verifySimpleToken } from '@/utils/authUtils';
 
 export interface AuthResult {
   success: boolean;
@@ -13,14 +13,35 @@ export async function verifyPartnerToken(request: NextRequest): Promise<AuthResu
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');
     
+    console.log('Auth debug:', {
+      hasAuthHeader: !!authHeader,
+      hasToken: !!token,
+      cookies: request.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value }))
+    });
+    
     if (!token) {
       // Try to get token from cookies
       const cookieToken = request.cookies.get('auth-token')?.value;
+      
+      console.log('Cookie token check:', {
+        hasCookieToken: !!cookieToken,
+        cookieValue: cookieToken ? `${cookieToken.substring(0, 50)}...` : 'none'
+      });
+      
       if (!cookieToken) {
         return { success: false, error: 'No token provided' };
       }
       
-      const decoded = verifyJWTToken(cookieToken);
+      // Try multiple verification methods
+      let decoded = verifyJWTToken(cookieToken);
+      if (!decoded) {
+        decoded = verifyJWTTokenClient(cookieToken);
+      }
+      if (!decoded && !cookieToken.includes('.')) {
+        // Only try simple token if it's not a JWT (no dots)
+        decoded = verifySimpleToken(cookieToken);
+      }
+      
       if (!decoded) {
         return { success: false, error: 'Invalid token' };
       }
@@ -32,7 +53,16 @@ export async function verifyPartnerToken(request: NextRequest): Promise<AuthResu
       return { success: true, userId: decoded.userId };
     }
     
-    const decoded = verifyJWTToken(token);
+    // Try multiple verification methods
+    let decoded = verifyJWTToken(token);
+    if (!decoded) {
+      decoded = verifyJWTTokenClient(token);
+    }
+    if (!decoded && !token.includes('.')) {
+      // Only try simple token if it's not a JWT (no dots)
+      decoded = verifySimpleToken(token);
+    }
+    
     if (!decoded) {
       return { success: false, error: 'Invalid token' };
     }
@@ -59,7 +89,16 @@ export async function verifyAdminToken(request: NextRequest): Promise<AuthResult
         return { success: false, error: 'No token provided' };
       }
       
-      const decoded = verifyJWTToken(cookieToken);
+      // Try multiple verification methods
+      let decoded = verifyJWTToken(cookieToken);
+      if (!decoded) {
+        decoded = verifyJWTTokenClient(cookieToken);
+      }
+      if (!decoded && !cookieToken.includes('.')) {
+        // Only try simple token if it's not a JWT (no dots)
+        decoded = verifySimpleToken(cookieToken);
+      }
+      
       if (!decoded) {
         return { success: false, error: 'Invalid token' };
       }
@@ -71,7 +110,16 @@ export async function verifyAdminToken(request: NextRequest): Promise<AuthResult
       return { success: true, userId: decoded.userId };
     }
     
-    const decoded = verifyJWTToken(token);
+    // Try multiple verification methods
+    let decoded = verifyJWTToken(token);
+    if (!decoded) {
+      decoded = verifyJWTTokenClient(token);
+    }
+    if (!decoded && !token.includes('.')) {
+      // Only try simple token if it's not a JWT (no dots)
+      decoded = verifySimpleToken(token);
+    }
+    
     if (!decoded) {
       return { success: false, error: 'Invalid token' };
     }
