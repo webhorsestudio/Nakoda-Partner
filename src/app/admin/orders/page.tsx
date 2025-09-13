@@ -9,6 +9,7 @@ import {
   OrdersTable, 
   OrdersCountdown
 } from '@/components/orders';
+import { GlobalSyncStatus } from '@/components/GlobalSyncStatus';
 import { useOrders } from '@/hooks/useOrders';
 import { useAutoFetch } from '@/contexts/AutoFetchContext';
 import { OrderFilters } from '@/types/orders';
@@ -80,7 +81,7 @@ export default function OrdersPage() {
     }
   }, [filters, lastFetchTime, fetchOrders]);
 
-  // Listen for custom events from background service when new data is fetched
+  // Listen for custom events from both background service and global fetcher
   useEffect(() => {
     const handleDataFetched = (event: CustomEvent) => {
       console.log('New orders data fetched:', event.detail);
@@ -115,12 +116,14 @@ export default function OrdersPage() {
       }, 2000);
     };
 
-    // Add event listener for custom events
+    // Add event listeners for both event types
     window.addEventListener('ordersDataFetched', handleDataFetched as EventListener);
+    window.addEventListener('globalOrdersUpdated', handleDataFetched as EventListener);
 
-    // Cleanup event listener
+    // Cleanup event listeners
     return () => {
       window.removeEventListener('ordersDataFetched', handleDataFetched as EventListener);
+      window.removeEventListener('globalOrdersUpdated', handleDataFetched as EventListener);
     };
   }, [fetchOrders, filters]);
 
@@ -151,6 +154,11 @@ export default function OrdersPage() {
         <OrdersHeader />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Global Sync Status */}
+          <div className="mb-4">
+            <GlobalSyncStatus />
+          </div>
+          
           {/* Countdown Timer */}
           <OrdersCountdown
             onManualFetch={triggerManualFetch}

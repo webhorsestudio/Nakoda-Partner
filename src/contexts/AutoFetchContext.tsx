@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { toast } from 'react-hot-toast';
 import { getBackgroundAutoFetchService } from '@/services/backgroundAutoFetchService';
 import { requestNotificationPermission } from '@/utils/backgroundService';
+import { globalOrderFetcher } from '@/services/globalOrderFetcher';
 
 interface AutoFetchContextType {
   countdown: number;
@@ -53,6 +54,10 @@ export function AutoFetchProvider({ children }: AutoFetchProviderProps) {
                 console.log('🌍 AutoFetchProvider: Non-admin user, skipping background services');
                 return;
               }
+              
+              // Start global order fetcher for admin
+              console.log('🌍 AutoFetchProvider: Starting global order fetcher for admin...');
+              globalOrderFetcher.start().catch(console.error);
             }
           } catch (error) {
             console.log('🌍 AutoFetchProvider: Token decode failed, skipping background services');

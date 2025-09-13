@@ -2,13 +2,24 @@
 
 import React, { createContext, useContext, ReactNode, useEffect } from 'react';
 import { globalOrderService } from '@/lib/globalOrderService';
+import { globalOrderFetcher } from '@/services/globalOrderFetcher';
 
 const GlobalOrderContext = createContext<{
   isServiceRunning: boolean;
   refreshOrders: () => void;
+  globalFetcherStatus: {
+    isRunning: boolean;
+    lastSync: Date | null;
+    retryCount: number;
+  };
 }>({
   isServiceRunning: false,
   refreshOrders: () => {},
+  globalFetcherStatus: {
+    isRunning: false,
+    lastSync: null,
+    retryCount: 0
+  },
 });
 
 interface GlobalOrderProviderProps {
@@ -31,14 +42,33 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
             const base64Url = parts[1];
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
             const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
-            const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
               return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             }).join(''));
             const decoded = JSON.parse(jsonPayload);
             
             if (decoded.role === 'partner') {
               console.log('🌍 Global Order Provider: Partner user authenticated, initializing service...');
+              
+              // Initialize partner order service
               globalOrderService.initialize(10000);
+              
+              // Start global fetcher for continuous updates
+              globalOrderFetcher.start().catch(console.error);
+              
+              // Listen for global order updates
+              const handleGlobalOrdersUpdated = (event: CustomEvent) => {
+                console.log('🔄 Partner: Received global order update', event.detail);
+                // Refresh partner orders when global orders are updated
+                globalOrderService.refresh();
+              };
+              
+              window.addEventListener('globalOrdersUpdated', handleGlobalOrdersUpdated as EventListener);
+              
+              // Cleanup function
+              return () => {
+                window.removeEventListener('globalOrdersUpdated', handleGlobalOrdersUpdated as EventListener);
+              };
             } else {
               console.log('🌍 Global Order Provider: Non-partner user, skipping initialization');
             }
@@ -54,7 +84,7 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
     };
     
     // Initialize immediately if token exists and user is partner
-    checkAuthAndInitialize();
+    const cleanup = checkAuthAndInitialize();
     
     // Also listen for auth changes
     const handleStorageChange = (e: StorageEvent) => {
@@ -67,7 +97,7 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
               const base64Url = parts[1];
               const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
               const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
-              const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+              const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
                 return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
               }).join(''));
               const decoded = JSON.parse(jsonPayload);
@@ -75,6 +105,7 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
               if (decoded.role === 'partner') {
                 console.log('🌍 Global Order Provider: Partner auth token added, initializing service...');
                 globalOrderService.initialize(10000);
+                globalOrderFetcher.start().catch(console.error);
               } else {
                 console.log('🌍 Global Order Provider: Non-partner auth token added, skipping initialization');
               }
@@ -85,6 +116,7 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
         } else {
           console.log('🌍 Global Order Provider: Auth token removed, stopping service...');
           globalOrderService.stop();
+          globalOrderFetcher.stop().catch(console.error);
         }
       }
     };
@@ -94,8 +126,10 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
     return () => {
       console.log('🌍 Global Order Provider: Cleaning up...');
       window.removeEventListener('storage', handleStorageChange);
-      // Stop the service when component unmounts
+      if (cleanup) cleanup();
+      // Stop the services when component unmounts
       globalOrderService.stop();
+      globalOrderFetcher.stop().catch(console.error);
     };
   }, []);
 
@@ -103,10 +137,14 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
     globalOrderService.refresh();
   };
 
+  // Get global fetcher status
+  const globalFetcherStatus = globalOrderFetcher.getStatus();
+
   return (
     <GlobalOrderContext.Provider value={{ 
       isServiceRunning: true, 
-      refreshOrders 
+      refreshOrders,
+      globalFetcherStatus
     }}>
       {children}
     </GlobalOrderContext.Provider>
