@@ -98,10 +98,6 @@ export interface FinancialDetailsSectionProps {
   financial: {
     totalAmount: number;
     advanceAmount: number;
-    balanceAmount: number;
-    commissionPercentage: string;
-    commissionAmount: number;
-    taxesAndFees: number;
   };
 }
 
@@ -110,4 +106,5 @@ export interface OrderActionsProps {
   status: string;
   onAcceptOrder: (orderId: string) => void;
   onClose?: () => void;
+  isAccepting?: boolean;
 }

@@ -35,6 +35,34 @@ export function AutoFetchProvider({ children }: AutoFetchProviderProps) {
   useEffect(() => {
     const initBackgroundServices = async () => {
       try {
+        // Check if user is admin before initializing
+        const token = localStorage.getItem('auth-token');
+        if (token) {
+          try {
+            const parts = token.split('.');
+            if (parts.length === 3) {
+              const base64Url = parts[1];
+              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+              const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
+              const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+              }).join(''));
+              const decoded = JSON.parse(jsonPayload);
+              
+              if (decoded.role !== 'admin') {
+                console.log('🌍 AutoFetchProvider: Non-admin user, skipping background services');
+                return;
+              }
+            }
+          } catch (error) {
+            console.log('🌍 AutoFetchProvider: Token decode failed, skipping background services');
+            return;
+          }
+        } else {
+          console.log('🌍 AutoFetchProvider: No token found, skipping background services');
+          return;
+        }
+
         // Get the background service instance (it auto-initializes)
         const backgroundService = getBackgroundAutoFetchService();
         
@@ -60,6 +88,31 @@ export function AutoFetchProvider({ children }: AutoFetchProviderProps) {
   // Sync countdown from background service
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Check if user is admin before setting up countdown sync
+      const token = localStorage.getItem('auth-token');
+      if (token) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const base64Url = parts[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
+            const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const decoded = JSON.parse(jsonPayload);
+            
+            if (decoded.role !== 'admin') {
+              return; // Skip countdown sync for non-admin users
+            }
+          }
+        } catch (error) {
+          return; // Skip countdown sync if token decode fails
+        }
+      } else {
+        return; // Skip countdown sync if no token
+      }
+
       const updateCountdown = () => {
         const savedCountdown = localStorage.getItem('backgroundAutoFetchCountdown');
         if (savedCountdown) {
@@ -80,6 +133,31 @@ export function AutoFetchProvider({ children }: AutoFetchProviderProps) {
   // Sync fetching state from background service
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Check if user is admin before setting up fetching state sync
+      const token = localStorage.getItem('auth-token');
+      if (token) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const base64Url = parts[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
+            const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const decoded = JSON.parse(jsonPayload);
+            
+            if (decoded.role !== 'admin') {
+              return; // Skip fetching state sync for non-admin users
+            }
+          }
+        } catch (error) {
+          return; // Skip fetching state sync if token decode fails
+        }
+      } else {
+        return; // Skip fetching state sync if no token
+      }
+
       const updateFetchingState = () => {
         const backgroundService = getBackgroundAutoFetchService();
         const status = backgroundService.getStatus();
@@ -99,6 +177,34 @@ export function AutoFetchProvider({ children }: AutoFetchProviderProps) {
 
   const triggerManualFetch = useCallback(async () => {
     if (typeof window !== 'undefined') {
+      // Check if user is admin before triggering manual fetch
+      const token = localStorage.getItem('auth-token');
+      if (token) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const base64Url = parts[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
+            const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const decoded = JSON.parse(jsonPayload);
+            
+            if (decoded.role !== 'admin') {
+              console.log('🌍 AutoFetchProvider: Non-admin user, skipping manual fetch');
+              return;
+            }
+          }
+        } catch (error) {
+          console.log('🌍 AutoFetchProvider: Token decode failed, skipping manual fetch');
+          return;
+        }
+      } else {
+        console.log('🌍 AutoFetchProvider: No token found, skipping manual fetch');
+        return;
+      }
+
       const backgroundService = getBackgroundAutoFetchService();
       await backgroundService.triggerManualFetch();
       
@@ -111,6 +217,34 @@ export function AutoFetchProvider({ children }: AutoFetchProviderProps) {
 
   const toggleAutoFetch = useCallback(() => {
     if (typeof window !== 'undefined') {
+      // Check if user is admin before toggling auto-fetch
+      const token = localStorage.getItem('auth-token');
+      if (token) {
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const base64Url = parts[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
+            const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const decoded = JSON.parse(jsonPayload);
+            
+            if (decoded.role !== 'admin') {
+              console.log('🌍 AutoFetchProvider: Non-admin user, skipping auto-fetch toggle');
+              return;
+            }
+          }
+        } catch (error) {
+          console.log('🌍 AutoFetchProvider: Token decode failed, skipping auto-fetch toggle');
+          return;
+        }
+      } else {
+        console.log('🌍 AutoFetchProvider: No token found, skipping auto-fetch toggle');
+        return;
+      }
+
       const backgroundService = getBackgroundAutoFetchService();
       const newState = backgroundService.toggle();
       

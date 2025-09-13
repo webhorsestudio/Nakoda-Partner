@@ -9,11 +9,7 @@ import { useGlobalOrderService } from '@/hooks/useGlobalOrderService';
 import RefreshIndicator from './RefreshIndicator';
 
 function NewTaskTab() {
-  console.log('NewTaskTab component rendering');
   const [acceptedOrders, setAcceptedOrders] = useState<Set<string>>(new Set());
-  const renderCountRef = useRef(0);
-  const lastOrdersRef = useRef<string>('');
-  const lastStateRef = useRef<Record<string, unknown> | null>(null);
   
   const {
     orders,
@@ -29,51 +25,6 @@ function NewTaskTab() {
     dismissNewOrdersNotification
   } = useGlobalOrderService(); // Uses global service that runs independently
 
-  // Check if state actually changed to prevent unnecessary re-renders
-  const currentState = { orders, isLoading, error, total, partner, hasNewOrders, newOrdersCount };
-  const stateChanged = JSON.stringify(lastStateRef.current) !== JSON.stringify(currentState);
-  
-  if (stateChanged) {
-    lastStateRef.current = currentState;
-  }
-
-  // Track render count and prevent unnecessary re-renders
-  useEffect(() => {
-    renderCountRef.current += 1;
-    const currentOrders = JSON.stringify(orders);
-    const hasOrdersChanged = lastOrdersRef.current !== currentOrders;
-    
-    if (hasOrdersChanged) {
-      lastOrdersRef.current = currentOrders;
-      console.log(`🔄 NewTaskTab render count: ${renderCountRef.current} (orders changed)`);
-    } else {
-      console.log(`⏭️ NewTaskTab render count: ${renderCountRef.current} (no order changes)`);
-    }
-  });
-
-  // Memoize the component props to prevent unnecessary re-renders
-  const memoizedProps = useMemo(() => ({
-    orders,
-    isLoading,
-    error,
-    total,
-    partner,
-    refreshOrders,
-    acceptOrder,
-    isAccepting,
-    hasNewOrders,
-    newOrdersCount,
-    dismissNewOrdersNotification
-  }), [orders, isLoading, error, total, partner, refreshOrders, acceptOrder, isAccepting, hasNewOrders, newOrdersCount, dismissNewOrdersNotification]);
-
-  // Debug logging
-  console.log('NewTaskTab render:', {
-    isLoading,
-    error,
-    ordersCount: orders.length,
-    total,
-    partner: partner?.name
-  });
 
   // Memoize filtered orders to prevent unnecessary recalculations
   const availableOrders = useMemo(() => {
@@ -106,21 +57,53 @@ function NewTaskTab() {
     refreshOrders();
   };
 
-  // Debug: Show current state
+  // Show no orders available state
   if (orders.length === 0 && !isLoading && !error) {
     return (
       <div className="space-y-6">
-        <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
-          <h3 className="text-yellow-800 font-medium">Debug: No orders found</h3>
-          <p className="text-yellow-700 text-sm">
-            isLoading: {isLoading.toString()}, error: {error || 'none'}, orders: {orders.length}, total: {total}
-          </p>
-          <button 
-            onClick={refreshOrders}
-            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Refresh Orders
-          </button>
+        <NewTaskHeader totalTasks={0} />
+        
+        {/* Partner Info */}
+        {partner && (
+          <div className="bg-card border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold">{partner.name}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {partner.city} • {partner.serviceType} • 0 available orders
+                </p>
+              </div>
+              <RefreshIndicator
+                isLoading={isLoading}
+                onRefresh={handleRefresh}
+                refreshInterval={10000}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* No Orders Available */}
+        <div className="text-center py-12">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-8">
+            <div className="text-slate-400 mb-4">
+              <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-slate-900 mb-2">No Orders Available</h3>
+            <p className="text-slate-600 mb-6">
+              There are currently no new orders available for you. Check back later or refresh to see if new orders have been added.
+            </p>
+            <button
+              onClick={handleRefresh}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors inline-flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh Orders
+            </button>
+          </div>
         </div>
       </div>
     );

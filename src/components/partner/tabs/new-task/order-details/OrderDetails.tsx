@@ -58,11 +58,7 @@ export default function OrderDetails({ orderId, onClose, onAcceptOrder }: OrderD
           <FinancialDetailsSection
             financial={{
               totalAmount: order.totalAmount,
-              advanceAmount: order.advanceAmount,
-              balanceAmount: order.balanceAmount,
-              commissionPercentage: order.commissionPercentage,
-              commissionAmount: order.commissionAmount,
-              taxesAndFees: order.taxesAndFees
+              advanceAmount: order.advanceAmount
             }}
           />
         </div>

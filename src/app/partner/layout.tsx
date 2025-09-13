@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { GlobalOrderProvider } from "@/contexts/GlobalOrderProvider";
 
 interface PartnerLayoutProps {
   children: React.ReactNode;
@@ -46,5 +47,9 @@ export default function PartnerLayout({ children }: PartnerLayoutProps) {
     return null; // Will redirect to login
   }
 
-  return <>{children}</>;
+  return (
+    <GlobalOrderProvider>
+      {children}
+    </GlobalOrderProvider>
+  );
 }

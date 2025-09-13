@@ -13,7 +13,7 @@ export default function FinancialDetailsSection({ financial }: FinancialDetailsS
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
             <div className="text-sm font-medium text-green-700 mb-1">Total Amount</div>
             <div className="text-2xl font-bold text-green-800">₹{financial.totalAmount}</div>
@@ -22,39 +22,6 @@ export default function FinancialDetailsSection({ financial }: FinancialDetailsS
           <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
             <div className="text-sm font-medium text-blue-700 mb-1">Advance Amount</div>
             <div className="text-2xl font-bold text-blue-800">₹{financial.advanceAmount}</div>
-          </div>
-          
-          <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
-            <div className="text-sm font-medium text-orange-700 mb-1">Balance Amount</div>
-            <div className="text-2xl font-bold text-orange-800">₹{financial.balanceAmount}</div>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-slate-50 rounded-md">
-              <span className="text-sm font-medium text-slate-700">Commission</span>
-              <span className="text-lg font-semibold text-blue-600">{financial.commissionPercentage}</span>
-            </div>
-            
-            <div className="flex justify-between items-center p-3 bg-slate-50 rounded-md">
-              <span className="text-sm font-medium text-slate-700">Commission Amount</span>
-              <span className="text-lg font-semibold text-blue-600">₹{financial.commissionAmount}</span>
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-slate-50 rounded-md">
-              <span className="text-sm font-medium text-slate-700">Taxes & Fees</span>
-              <span className="text-lg font-semibold text-slate-600">₹{financial.taxesAndFees}</span>
-            </div>
-            
-            <div className="flex justify-between items-center p-3 bg-slate-50 rounded-md">
-              <span className="text-sm font-medium text-slate-700">Net Earnings</span>
-              <span className="text-lg font-semibold text-green-600">
-                ₹{financial.totalAmount - financial.taxesAndFees}
-              </span>
-            </div>
           </div>
         </div>
       </CardContent>
