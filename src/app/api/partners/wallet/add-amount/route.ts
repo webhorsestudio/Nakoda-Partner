@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     // Check if partner exists and wallet is active
     const { data: partner, error: partnerError } = await supabase
       .from('partners')
-      .select('id, wallet_status, wallet_balance, available_balance')
+      .select('id, wallet_status, wallet_balance')
       .eq('id', partnerId)
       .single();
 
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     // Get updated balance
     const { data: updatedPartner, error: balanceError } = await supabase
       .from('partners')
-      .select('wallet_balance, available_balance, last_transaction_at')
+      .select('wallet_balance, last_transaction_at')
       .eq('id', partnerId)
       .single();
 
@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
       data: {
         transactionId: transactionResult,
         newBalance: parseFloat(updatedPartner?.wallet_balance || 0),
-        availableBalance: parseFloat(updatedPartner?.available_balance || 0),
         lastTransactionAt: updatedPartner?.last_transaction_at
       },
       message: `Successfully added ₹${amount} to wallet`

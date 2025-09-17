@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Delete Functionality</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .result { margin-top: 10px; padding: 10px; background: #f5f5f5; }
+        .instructions { background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .feature-list { background: #f0f8ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Test Enhanced Delete Functionality</h1>
+    
+    <div class="instructions">
+        <h3>Manual Testing Instructions:</h3>
+        <ol>
+            <li>Navigate to <code>/admin/settings/partner-slider</code></li>
+            <li>Click the <strong>trash icon</strong> on any promotional image</li>
+            <li>Verify the <strong>confirmation modal</strong> appears with:
+                <ul>
+                    <li>Warning icon and red styling</li>
+                    <li>Clear title: "Delete Promotional Image"</li>
+                    <li>Descriptive message with image title</li>
+                    <li>"Delete Image" and "Cancel" buttons</li>
+                </ul>
+            </li>
+            <li>Click <strong>"Cancel"</strong> - modal should close, no action taken</li>
+            <li>Click <strong>"Delete Image"</strong> - should show loading state</li>
+            <li>Verify <strong>success toast</strong> appears with image title</li>
+            <li>Verify image is removed from the list</li>
+            <li>Test with non-existent image to verify error handling</li>
+        </ol>
+    </div>
+
+    <div class="feature-list">
+        <h3>Enhanced Features Implemented:</h3>
+        <ul>
+            <li>✅ <strong>Confirmation Modal</strong> - Replaces browser confirm() dialog</li>
+            <li>✅ <strong>Toast Notifications</strong> - Success/error feedback</li>
+            <li>✅ <strong>Loading States</strong> - Visual feedback during operations</li>
+            <li>✅ <strong>Error Handling</strong> - Graceful error recovery</li>
+            <li>✅ <strong>User-Friendly Messages</strong> - Clear, descriptive text</li>
+            <li>✅ <strong>Consistent UI</strong> - Matches app design patterns</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 1: Delete API Endpoint</h3>
+        <button onclick="testDeleteAPI()">Test Delete API</button>
+        <div id="result1" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Toast System</h3>
+        <button onclick="testToastSystem()">Test Toast Notifications</button>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Confirmation Modal</h3>
+        <button onclick="testConfirmationModal()">Test Confirmation Modal</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 4: Error Handling</h3>
+        <button onclick="testErrorHandling()">Test Error Scenarios</button>
+        <div id="result4" class="result"></div>
+    </div>
+
+    <script>
+        async function testDeleteAPI() {
+            const resultDiv = document.getElementById('result1');
+            resultDiv.innerHTML = 'Testing delete API...';
+            
+            try {
+                // First create a test image
+                const createResponse = await fetch('/api/admin/promotional-images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: 'Test Delete Image',
+                        subtitle: 'This will be deleted',
+                        button_text: 'Test',
+                        brand_name: 'Test Brand',
+                        image_url: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&h=400&fit=crop&crop=center',
+                        image_alt: 'Test image',
+                        gradient_from: 'blue-600',
+                        gradient_to: 'indigo-600',
+                        display_order: 0,
+                        auto_rotate_duration: 5000,
+                        action_type: 'button',
+                        action_url: '',
+                        action_target: '_self',
+                        target_audience: 'all',
+                        is_active: true,
+                        expires_at: null
+                    })
+                });
+
+                if (createResponse.ok) {
+                    const { image } = await createResponse.json();
+                    
+                    // Now test delete
+                    const deleteResponse = await fetch(`/api/admin/promotional-images/${image.id}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (deleteResponse.ok) {
+                        resultDiv.innerHTML = `<div class="success">✅ Delete API working correctly</div>`;
+                    } else {
+                        resultDiv.innerHTML = `<div class="error">❌ Delete API failed: ${await deleteResponse.text()}</div>`;
+                    }
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Failed to create test image</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        function testToastSystem() {
+            const resultDiv = document.getElementById('result2');
+            resultDiv.innerHTML = 'Testing toast system...';
+            
+            // Check if toast elements exist
+            const toastContainer = document.querySelector('[class*="fixed"][class*="top-4"][class*="right-4"]');
+            if (toastContainer) {
+                resultDiv.innerHTML = `<div class="success">✅ Toast container found</div>`;
+            } else {
+                resultDiv.innerHTML = `<div class="error">❌ Toast container not found</div>`;
+            }
+        }
+
+        function testConfirmationModal() {
+            const resultDiv = document.getElementById('result3');
+            resultDiv.innerHTML = 'Testing confirmation modal...';
+            
+            // Check if modal elements exist
+            const modal = document.querySelector('[role="dialog"]');
+            const title = document.querySelector('h3');
+            const buttons = document.querySelectorAll('button');
+            
+            if (modal && title && buttons.length >= 2) {
+                resultDiv.innerHTML = `<div class="success">✅ Confirmation modal elements found</div>`;
+            } else {
+                resultDiv.innerHTML = `<div class="error">❌ Confirmation modal elements not found</div>`;
+            }
+        }
+
+        function testErrorHandling() {
+            const resultDiv = document.getElementById('result4');
+            resultDiv.innerHTML = 'Testing error handling...';
+            
+            // Test with invalid ID
+            fetch('/api/admin/promotional-images/999999', {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (response.status === 404) {
+                    resultDiv.innerHTML = `<div class="success">✅ Error handling working (404 for non-existent image)</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Unexpected response: ${response.status}</div>`;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            });
+        }
+    </script>
+</body>
+</html>

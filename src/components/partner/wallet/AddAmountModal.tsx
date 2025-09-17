@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { PlusIcon, XIcon, CreditCardIcon, SmartphoneIcon, BuildingIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { WalletBalance } from '@/hooks/usePartnerWallet';
+import { WalletBalance } from '@/components/partner/wallet/WalletBalance';
 import { formatCurrency, validateAmount } from '@/utils/walletUtils';
 import { usePayment } from '@/hooks/usePayment';
 
@@ -9,7 +9,7 @@ interface AddAmountModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddAmount: (amount: string) => void;
-  balance: WalletBalance;
+  balance: number;
 }
 
 export default function AddAmountModal({ 
@@ -149,7 +149,7 @@ export default function AddAmountModal({
                     <span className="text-sm font-medium text-gray-700">Current Balance</span>
                   </div>
                   <span className="text-xl font-bold text-gray-900">
-                    {formatCurrency(balance.walletBalance)}
+                    {formatCurrency(balance)}
                   </span>
                 </div>
               </div>

@@ -1,9 +1,8 @@
 import React from 'react';
-import { WalletBalance as WalletBalanceType } from '@/hooks/usePartnerWallet';
 import { formatCurrency } from '@/utils/walletUtils';
 
 interface WalletBalanceProps {
-  balance: WalletBalanceType;
+  balance: number;
 }
 
 export function WalletBalance({ balance }: WalletBalanceProps) {
@@ -22,19 +21,15 @@ export function WalletBalance({ balance }: WalletBalanceProps) {
       {/* Main Balance */}
       <div className="mb-6">
         <div className="text-4xl font-bold">
-          {formatCurrency(balance.walletBalance)}
+          {formatCurrency(balance)}
         </div>
       </div>
 
       {/* Wallet Status */}
       <div className="mt-4 flex items-center justify-between text-sm">
         <span className="text-blue-100">Status:</span>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-          balance.walletStatus === 'active' 
-            ? 'bg-green-500 text-white' 
-            : 'bg-yellow-500 text-white'
-        }`}>
-          {balance.walletStatus || 'Active'}
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-500 text-white">
+          Active
         </span>
       </div>
     </div>

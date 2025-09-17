@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MagnifyingGlassIcon, 
   EyeIcon, 
@@ -16,65 +16,92 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
+interface Order {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  serviceType: string;
+  location: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  amount: number;
+  status: string;
+  partner: string;
+  orderDate: string;
+}
+
 export default function OrderDetailsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data for UI demonstration
-  const mockOrders = [
-    {
-      id: 'ORD-001',
-      customerName: 'John Smith',
-      customerPhone: '+91 98765 43210',
-      serviceType: 'AC Service',
-      location: 'Mumbai, Maharashtra',
-      scheduledDate: '2024-01-20',
-      scheduledTime: '10:00 AM - 12:00 PM',
-      amount: 2500,
-      status: 'confirmed',
-      partner: 'CoolTech Solutions',
-      orderDate: '2024-01-15'
-    },
-    {
-      id: 'ORD-002',
-      customerName: 'Sarah Johnson',
-      customerPhone: '+91 98765 43211',
-      serviceType: 'Home Cleaning',
-      location: 'Pune, Maharashtra',
-      scheduledDate: '2024-01-21',
-      scheduledTime: '2:00 PM - 4:00 PM',
-      amount: 1800,
-      status: 'pending',
-      partner: 'CleanPro Services',
-      orderDate: '2024-01-16'
-    },
-    {
-      id: 'ORD-003',
-      customerName: 'Mike Wilson',
-      customerPhone: '+91 98765 43212',
-      serviceType: 'Plumbing',
-      location: 'Nagpur, Maharashtra',
-      scheduledDate: '2024-01-22',
-      scheduledTime: '9:00 AM - 11:00 AM',
-      amount: 3200,
-      status: 'completed',
-      partner: 'PlumbRight Solutions',
-      orderDate: '2024-01-17'
-    },
-    {
-      id: 'ORD-004',
-      customerName: 'Lisa Brown',
-      customerPhone: '+91 98765 43213',
-      serviceType: 'Electrical',
-      location: 'Aurangabad, Maharashtra',
-      scheduledDate: '2024-01-23',
-      scheduledTime: '3:00 PM - 5:00 PM',
-      amount: 2100,
-      status: 'confirmed',
-      partner: 'Elite Electrical',
-      orderDate: '2024-01-18'
+  // Fetch accepted orders from API
+  const fetchAcceptedOrders = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/admin/orders/accepted', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Transform API data to match UI format
+        const transformedOrders: Order[] = result.orders.map((order: Record<string, unknown>) => ({
+          id: order.id,
+          customerName: order.customerName || 'Customer',
+          customerPhone: order.customerPhone || '',
+          serviceType: order.serviceType || 'General Service',
+          location: order.location || 'Unknown Location',
+          scheduledDate: order.serviceDate || new Date().toISOString().split('T')[0],
+          scheduledTime: order.timeSlot || 'Not specified',
+          amount: order.amount || 0,
+          status: order.status || 'assigned',
+          partner: order.partnerName || 'Unknown Partner',
+          orderDate: new Date((order.createdAt || order.date_created) as string).toISOString().split('T')[0]
+        }));
+        
+        setOrders(transformedOrders);
+      } else {
+        throw new Error(result.error || 'Failed to fetch orders');
+      }
+    } catch (error) {
+      console.error('Error fetching accepted orders:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch orders');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  // Fetch orders on component mount
+  useEffect(() => {
+    fetchAcceptedOrders();
+  }, []);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAcceptedOrders();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const getStatusColor = (status: string) => {
     const statusConfig = {
@@ -98,13 +125,81 @@ export default function OrderDetailsPage() {
     return statusConfig[status as keyof typeof statusConfig] || '❓';
   };
 
-  const filteredOrders = mockOrders.filter(order => {
+  const filteredOrders = orders.filter(order => {
     const matchesSearch = order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.serviceType.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  Loading accepted orders...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Loading orders...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  Error loading orders
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-medium text-red-800">
+                  Error: {error}
+                </span>
+              </div>
+              <Button 
+                onClick={fetchAcceptedOrders}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                Retry
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -115,11 +210,14 @@ export default function OrderDetailsPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
               <p className="mt-1 text-sm text-gray-500">
-                Manage and view detailed order information
+                Orders accepted by partners ({orders.length} total)
               </p>
             </div>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              + New Order
+            <Button 
+              onClick={fetchAcceptedOrders}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Refresh
             </Button>
           </div>
         </div>
@@ -216,6 +314,7 @@ export default function OrderDetailsPage() {
                   <ClockIcon className="h-4 w-4 text-gray-400" />
                   <span className="text-sm text-gray-600">{order.scheduledTime}</span>
                 </div>
+
               </div>
 
               {/* Partner and Amount */}

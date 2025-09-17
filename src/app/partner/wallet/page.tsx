@@ -168,7 +168,7 @@ export default function WalletPage() {
             setIsAddAmountModalOpen(false);
             Promise.all([fetchBalance(), fetchTransactions()]);
           }}
-          balance={balance || { partnerId: 0, partnerName: '', walletBalance: 0, availableBalance: 0, pendingBalance: 0, walletStatus: '', lastTransactionAt: null }}
+          balance={balance || 0}
         />
       </div>
     </div>

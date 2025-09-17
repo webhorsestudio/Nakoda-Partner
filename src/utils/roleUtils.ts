@@ -169,6 +169,7 @@ export function getNavigationItems(userRole: UserRole | null): NavigationItem[] 
       alwaysShow: false,
       children: [
         { name: "Partners Details", href: "/admin/partners", icon: "UserGroupIcon", alwaysShow: false },
+        { name: "Partner Wallet", href: "/admin/partners/wallet", icon: "CurrencyDollarIcon", alwaysShow: false },
         { name: "Services Details", href: "/admin/partners/services", icon: "WrenchScrewdriverIcon", alwaysShow: false }
       ]
     });
@@ -182,7 +183,16 @@ export function getNavigationItems(userRole: UserRole | null): NavigationItem[] 
   );
 
   if (canAccessSettings(userRole)) {
-    baseItems.push({ name: "Settings", href: "/admin/settings", icon: "CogIcon", alwaysShow: false });
+    baseItems.push({ 
+      name: "Settings", 
+      href: "/admin/settings", 
+      icon: "CogIcon", 
+      alwaysShow: false,
+      children: [
+        { name: "General Settings", href: "/admin/settings", icon: "CogIcon", alwaysShow: false },
+        { name: "Partner Slider", href: "/admin/settings/partner-slider", icon: "PhotoIcon", alwaysShow: false }
+      ]
+    });
   }
 
   return baseItems;

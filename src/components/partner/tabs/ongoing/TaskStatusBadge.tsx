@@ -5,6 +5,11 @@ import { TaskStatusBadgeProps } from './types';
 export default function TaskStatusBadge({ status, size = 'md' }: TaskStatusBadgeProps) {
   const getStatusConfig = (status: string) => {
     switch (status) {
+      case 'assigned':
+        return {
+          color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+          label: 'Assigned'
+        };
       case 'in-progress':
         return {
           color: 'bg-blue-100 text-blue-800 border-blue-200',

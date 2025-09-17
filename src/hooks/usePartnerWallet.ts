@@ -1,253 +1,222 @@
 import { useState, useCallback, useEffect } from 'react';
 
-export interface WalletBalance {
-  partnerId: number;
-  partnerName: string;
-  walletBalance: number;
-  availableBalance: number;
-  pendingBalance: number;
-  walletStatus: string;
-  lastTransactionAt: string | null;
-}
-
-export interface WalletTransaction {
+interface WalletTransaction {
   id: number;
   transaction_type: 'credit' | 'debit' | 'refund' | 'commission' | 'adjustment';
   amount: number;
-  balance_before: number;
-  balance_after: number;
   description: string;
-  reference_id: string | null;
-  reference_type: string | null;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
-  metadata: Record<string, unknown>;
-  processed_at: string;
   created_at: string;
+  status: 'completed' | 'pending' | 'failed';
 }
 
-export interface WalletTransactionsResponse {
+interface UsePartnerWalletReturn {
+  balance: number | null;
   transactions: WalletTransaction[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  isLoading: boolean;
+  error: string | null;
+  fetchBalance: () => Promise<void>;
+  fetchTransactions: () => Promise<void>;
+  addAmount: (amount: number) => Promise<boolean>;
+  withdrawAmount: (amount: number) => Promise<boolean>;
 }
 
-export interface AddAmountRequest {
-  amount: number;
-  description?: string;
-  referenceId?: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface WithdrawRequest {
-  amount: number;
-  bankAccountId: string;
-  description?: string;
-  metadata?: Record<string, unknown>;
-}
-
-export function usePartnerWallet() {
-  const [balance, setBalance] = useState<WalletBalance | null>(null);
+export function usePartnerWallet(): UsePartnerWalletReturn {
+  const [balance, setBalance] = useState<number | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const getAuthToken = useCallback(() => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('auth-token') || document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth-token='))
-      ?.split('=')[1];
-  }, []);
 
   const fetchBalance = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const token = getAuthToken();
+      // Check if user is authenticated and is a partner
+      const token = localStorage.getItem('auth-token');
       if (!token) {
         throw new Error('No authentication token found');
+      }
+
+      // Check user role before making API call
+      try {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const base64Url = parts[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
+          const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          const decoded = JSON.parse(jsonPayload);
+          
+          if (decoded.role !== 'partner') {
+            console.warn('⚠️ Non-partner user trying to access partner wallet API');
+            throw new Error('This feature is only available for partners');
+          }
+        }
+      } catch (tokenError) {
+        console.error('Error parsing token:', tokenError);
+        throw new Error('Invalid authentication token');
       }
 
       const response = await fetch('/api/partners/wallet/balance', {
-        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'
+        }
       });
-
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch wallet balance');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
-
+      
       const data = await response.json();
-      setBalance(data.data);
-      return data.data;
+
+      if (data.success) {
+        setBalance(data.data.walletBalance);
+      } else {
+        throw new Error(data.error || 'Failed to fetch balance');
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch wallet balance';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch balance';
       setError(errorMessage);
-      console.error('Error fetching wallet balance:', err);
-      throw err;
+      console.error('Error fetching balance:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [getAuthToken]);
+  }, []);
 
-  const fetchTransactions = useCallback(async (page = 1, limit = 10, type?: string, status?: string) => {
+  const fetchTransactions = useCallback(async () => {
     try {
-      setIsLoading(true);
-      setError(null);
-
-      const token = getAuthToken();
+      // Check if user is authenticated and is a partner
+      const token = localStorage.getItem('auth-token');
       if (!token) {
         throw new Error('No authentication token found');
       }
 
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-        ...(type && { type }),
-        ...(status && { status }),
-      });
-
-      const response = await fetch(`/api/partners/wallet/transactions?${params}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch transactions');
+      // Check user role before making API call
+      try {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const base64Url = parts[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const paddedBase64 = base64 + '='.repeat((4 - base64.length % 4) % 4);
+          const jsonPayload = decodeURIComponent(atob(paddedBase64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          const decoded = JSON.parse(jsonPayload);
+          
+          if (decoded.role !== 'partner') {
+            console.warn('⚠️ Non-partner user trying to access partner wallet transactions API');
+            return; // Silently return for transactions to avoid blocking the UI
+          }
+        }
+      } catch (tokenError) {
+        console.error('Error parsing token:', tokenError);
+        return; // Silently return for transactions to avoid blocking the UI
       }
 
+      const response = await fetch('/api/partners/wallet/transactions', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
-      setTransactions(data.data.transactions);
-      return data.data;
+
+      if (data.success) {
+        setTransactions(data.data.transactions || []);
+      } else {
+        throw new Error(data.error || 'Failed to fetch transactions');
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch transactions';
-      setError(errorMessage);
       console.error('Error fetching transactions:', err);
-      throw err;
-    } finally {
-      setIsLoading(false);
+      // Don't set error for transactions to avoid blocking the UI
     }
-  }, [getAuthToken]);
+  }, []);
 
-  const addAmount = useCallback(async (request: AddAmountRequest) => {
+  const addAmount = useCallback(async (amount: number): Promise<boolean> => {
     try {
       setIsLoading(true);
       setError(null);
-
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
 
       const response = await fetch('/api/partners/wallet/add-amount', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify({ amount }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to add amount to wallet');
-      }
-
-      const data = await response.json();
       
-      // Update balance
-      if (balance) {
-        setBalance({
-          ...balance,
-          walletBalance: data.data.newBalance,
-          availableBalance: data.data.availableBalance,
-          lastTransactionAt: data.data.lastTransactionAt,
-        });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
+      
+      const data = await response.json();
 
-      return data;
+      if (data.success) {
+        // Refresh balance and transactions
+        await Promise.all([fetchBalance(), fetchTransactions()]);
+        return true;
+      } else {
+        throw new Error(data.error || 'Failed to add amount');
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to add amount to wallet';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add amount';
       setError(errorMessage);
-      console.error('Error adding amount to wallet:', err);
-      throw err;
+      console.error('Error adding amount:', err);
+      return false;
     } finally {
       setIsLoading(false);
     }
-  }, [getAuthToken, balance]);
+  }, [fetchBalance, fetchTransactions]);
 
-  const withdraw = useCallback(async (request: WithdrawRequest) => {
+  const withdrawAmount = useCallback(async (amount: number): Promise<boolean> => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
       const response = await fetch('/api/partners/wallet/withdraw', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify({ amount }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to process withdrawal');
-      }
-
-      const data = await response.json();
       
-      // Update balance
-      if (balance) {
-        setBalance({
-          ...balance,
-          walletBalance: data.data.newBalance,
-          availableBalance: data.data.availableBalance,
-          lastTransactionAt: data.data.lastTransactionAt,
-        });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
+      
+      const data = await response.json();
 
-      return data;
+      if (data.success) {
+        // Refresh balance and transactions
+        await Promise.all([fetchBalance(), fetchTransactions()]);
+        return true;
+      } else {
+        throw new Error(data.error || 'Failed to withdraw amount');
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to process withdrawal';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to withdraw amount';
       setError(errorMessage);
-      console.error('Error processing withdrawal:', err);
-      throw err;
+      console.error('Error withdrawing amount:', err);
+      return false;
     } finally {
       setIsLoading(false);
     }
-  }, [getAuthToken, balance]);
-
-  const refreshAll = useCallback(async () => {
-    try {
-      await Promise.all([
-        fetchBalance(),
-        fetchTransactions(1, 10)
-      ]);
-    } catch (err) {
-      console.error('Error refreshing wallet data:', err);
-    }
   }, [fetchBalance, fetchTransactions]);
 
-  // Load balance on mount
+  // Auto-fetch balance on mount
   useEffect(() => {
     fetchBalance();
   }, [fetchBalance]);
@@ -260,7 +229,6 @@ export function usePartnerWallet() {
     fetchBalance,
     fetchTransactions,
     addAmount,
-    withdraw,
-    refreshAll,
+    withdrawAmount
   };
 }

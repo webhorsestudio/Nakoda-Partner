@@ -41,7 +41,7 @@ export default function TaskActions({
       }
     }
 
-    const currentBalance = balance.walletBalance || 0;
+    const currentBalance = balance || 0;
     
     if (currentBalance < advanceAmount) {
       setShowInsufficientBalanceModal(true);
@@ -100,7 +100,7 @@ export default function TaskActions({
         onClose={() => setShowInsufficientBalanceModal(false)}
         onAddMoney={handleAddMoney}
         requiredAmount={advanceAmount}
-        currentBalance={balance?.walletBalance || 0}
+        currentBalance={balance || 0}
       />
     </>
   );

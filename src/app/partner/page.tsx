@@ -30,7 +30,7 @@ export default function PartnerDashboard() {
   const coins = partnerInfo?.total_revenue ? Math.floor(partnerInfo.total_revenue / 100) : 0;
   
   // Get wallet balance for header display
-  const walletAmount = walletBalance?.walletBalance || 0;
+  const walletAmount = walletBalance || 0;
 
   const handleToggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);

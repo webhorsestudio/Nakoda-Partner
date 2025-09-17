@@ -16,7 +16,8 @@ import {
   XMarkIcon,
   UserGroupIcon,
   ArrowRightOnRectangleIcon,
-  ClockIcon
+  ClockIcon,
+  PhotoIcon
 } from "@heroicons/react/24/outline";
 import { useAutoFetch } from "@/contexts/AutoFetchContext";
 import { verifyJWTTokenClient, verifySimpleToken, debugToken } from "@/utils/authUtils";
@@ -269,7 +270,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 'UserGroupIcon': UserGroupIcon,
                 'CurrencyDollarIcon': CurrencyDollarIcon,
                 'ChartBarIcon': ChartBarIcon,
-                'CogIcon': CogIcon
+                'CogIcon': CogIcon,
+                'PhotoIcon': PhotoIcon
               }[item.icon] || HomeIcon;
               
               return (
@@ -299,7 +301,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                           'UserGroupIcon': UserGroupIcon,
                           'CurrencyDollarIcon': CurrencyDollarIcon,
                           'ChartBarIcon': ChartBarIcon,
-                          'CogIcon': CogIcon
+                          'CogIcon': CogIcon,
+                'PhotoIcon': PhotoIcon
                         }[child.icon] || HomeIcon;
                         
                         return (
@@ -353,7 +356,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 'UserGroupIcon': UserGroupIcon,
                 'CurrencyDollarIcon': CurrencyDollarIcon,
                 'ChartBarIcon': ChartBarIcon,
-                'CogIcon': CogIcon
+                'CogIcon': CogIcon,
+                'PhotoIcon': PhotoIcon
               }[item.icon] || HomeIcon;
               
               return (
@@ -382,7 +386,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                           'UserGroupIcon': UserGroupIcon,
                           'CurrencyDollarIcon': CurrencyDollarIcon,
                           'ChartBarIcon': ChartBarIcon,
-                          'CogIcon': CogIcon
+                          'CogIcon': CogIcon,
+                'PhotoIcon': PhotoIcon
                         }[child.icon] || HomeIcon;
                         
                         return (

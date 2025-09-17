@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Promotional Images API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Promotional Images API Test</h1>
+        <p>This page tests the promotional images API endpoints to verify authentication and functionality.</p>
+
+        <div class="test-section">
+            <h3>1. Test Partner Promotional Images API (Without Auth)</h3>
+            <p>This should fail with 401 Unauthorized since no token is provided.</p>
+            <button onclick="testPartnerAPIWithoutAuth()">Test GET /api/partners/promotional-images</button>
+            <div id="result1" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Test Partner Promotional Images API (With Mock Token)</h3>
+            <p>This should also fail since we're using a mock token.</p>
+            <button onclick="testPartnerAPIWithMockAuth()">Test with Mock Token</button>
+            <div id="result2" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. Test Admin Promotional Images API (Without Auth)</h3>
+            <p>This should fail with 401 Unauthorized since no admin token is provided.</p>
+            <button onclick="testAdminAPIWithoutAuth()">Test GET /api/admin/promotional-images</button>
+            <div id="result3" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. Test with Custom Token</h3>
+            <p>Enter a token to test with (if you have one from localStorage):</p>
+            <input type="text" id="customToken" placeholder="Enter token here..." />
+            <button onclick="testWithCustomToken()">Test with Custom Token</button>
+            <div id="result4" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. Check Local Storage Token</h3>
+            <p>Check if there's a token in localStorage:</p>
+            <button onclick="checkLocalStorageToken()">Check Local Storage</button>
+            <div id="result5" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        function displayResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${type}`;
+        }
+
+        async function testPartnerAPIWithoutAuth() {
+            try {
+                const response = await fetch('/api/partners/promotional-images');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResult('result1', `✅ SUCCESS: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    displayResult('result1', `❌ ERROR ${response.status}: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                displayResult('result1', `❌ NETWORK ERROR: ${error.message}`, 'error');
+            }
+        }
+
+        async function testPartnerAPIWithMockAuth() {
+            try {
+                const response = await fetch('/api/partners/promotional-images', {
+                    headers: {
+                        'Authorization': 'Bearer mock-token-123',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResult('result2', `✅ SUCCESS: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    displayResult('result2', `❌ ERROR ${response.status}: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                displayResult('result2', `❌ NETWORK ERROR: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAdminAPIWithoutAuth() {
+            try {
+                const response = await fetch('/api/admin/promotional-images');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResult('result3', `✅ SUCCESS: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    displayResult('result3', `❌ ERROR ${response.status}: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                displayResult('result3', `❌ NETWORK ERROR: ${error.message}`, 'error');
+            }
+        }
+
+        async function testWithCustomToken() {
+            const token = document.getElementById('customToken').value;
+            if (!token) {
+                displayResult('result4', '❌ Please enter a token first', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/partners/promotional-images', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResult('result4', `✅ SUCCESS: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    displayResult('result4', `❌ ERROR ${response.status}: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                displayResult('result4', `❌ NETWORK ERROR: ${error.message}`, 'error');
+            }
+        }
+
+        function checkLocalStorageToken() {
+            try {
+                const token = localStorage.getItem('auth-token');
+                if (token) {
+                    displayResult('result5', `✅ Token found: ${token.substring(0, 50)}...`, 'success');
+                } else {
+                    displayResult('result5', '❌ No token found in localStorage', 'error');
+                }
+            } catch (error) {
+                displayResult('result5', `❌ ERROR: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-check localStorage on page load
+        window.onload = function() {
+            checkLocalStorageToken();
+        };
+    </script>
+</body>
+</html>

@@ -132,8 +132,15 @@ export interface Order {
   utm_content: string | null;
   utm_term: string | null;
   last_activity_time: string | null;
-  last_activity_by: string | null;
   last_communication_time: string | null;
+  
+  // Task completion fields
+  partner_feedback?: string | null;
+  completed_at?: string | null;
+  completion_images?: string[] | null;
+  partner_completion_status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  completion_notes?: string | null;
+  
   created_at: string;
   updated_at: string;
 }

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Add New Image Functionality</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .result { margin-top: 10px; padding: 10px; background: #f5f5f5; }
+        .instructions { background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Test Add New Image Functionality</h1>
+    
+    <div class="instructions">
+        <h3>Manual Testing Instructions:</h3>
+        <ol>
+            <li>Navigate to <code>/admin/settings/partner-slider</code></li>
+            <li>Click the <strong>"Add New Image"</strong> button</li>
+            <li>Verify the modal opens with "Create New Promotional Image" title</li>
+            <li>Fill in the required fields (Title, Image URL/Upload)</li>
+            <li>Test both URL and Upload image sources</li>
+            <li>Click "Create Image" button</li>
+            <li>Verify the image appears in the list</li>
+            <li>Test editing the newly created image</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 1: Create Image via API</h3>
+        <button onclick="testCreateImage()">Test Create Image API</button>
+        <div id="result1" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 2: Validate Required Fields</h3>
+        <button onclick="testValidation()">Test Validation</button>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test 3: Check Modal State</h3>
+        <button onclick="testModalState()">Test Modal State</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <script>
+        async function testCreateImage() {
+            const resultDiv = document.getElementById('result1');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const testData = {
+                    title: 'Test Promotional Image',
+                    subtitle: 'Test subtitle',
+                    button_text: 'Learn More',
+                    brand_name: 'Test Brand',
+                    image_url: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&h=400&fit=crop&crop=center',
+                    image_alt: 'Test image',
+                    gradient_from: 'blue-600',
+                    gradient_to: 'indigo-600',
+                    display_order: 0,
+                    auto_rotate_duration: 5000,
+                    action_type: 'button',
+                    action_url: '',
+                    action_target: '_self',
+                    target_audience: 'all',
+                    is_active: true,
+                    expires_at: null
+                };
+                
+                const response = await fetch('/api/admin/promotional-images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Success! Image created with ID: ${result.image.id}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Error: ${result.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        function testValidation() {
+            const resultDiv = document.getElementById('result2');
+            resultDiv.innerHTML = 'Testing validation...';
+            
+            // Test required fields
+            const requiredFields = ['title', 'image_url'];
+            const missingFields = requiredFields.filter(field => !document.querySelector(`#${field}`)?.value);
+            
+            if (missingFields.length === 0) {
+                resultDiv.innerHTML = `<div class="success">✅ All required fields validation working</div>`;
+            } else {
+                resultDiv.innerHTML = `<div class="error">❌ Missing fields: ${missingFields.join(', ')}</div>`;
+            }
+        }
+
+        function testModalState() {
+            const resultDiv = document.getElementById('result3');
+            resultDiv.innerHTML = 'Testing modal state...';
+            
+            // Check if modal elements exist
+            const modal = document.querySelector('[role="dialog"]');
+            const title = document.querySelector('h3');
+            const submitButton = document.querySelector('button[type="submit"]');
+            
+            if (modal && title && submitButton) {
+                resultDiv.innerHTML = `<div class="success">✅ Modal elements found</div>`;
+            } else {
+                resultDiv.innerHTML = `<div class="error">❌ Modal elements not found</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

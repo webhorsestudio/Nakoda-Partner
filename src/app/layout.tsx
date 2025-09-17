@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import ToastProvider from "@/components/ui/ToastProvider";
+import { ToastProvider as CustomToastProvider } from "@/contexts/ToastContext";
+import { ToastContainer } from "@/components/ui/Toast";
 import { AutoFetchProvider } from "@/contexts/AutoFetchContext";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
@@ -22,8 +24,11 @@ export default function RootLayout({
       <body className={inter.className}>
         <AutoFetchProvider>
           <ToastProvider />
-          <ServiceWorkerRegistration />
-          {children}
+          <CustomToastProvider>
+            <ServiceWorkerRegistration />
+            {children}
+            <ToastContainer />
+          </CustomToastProvider>
         </AutoFetchProvider>
       </body>
     </html>

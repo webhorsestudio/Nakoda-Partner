@@ -1,16 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { verifyPartnerToken } from '@/lib/auth';
+import { verifyJWTToken } from '@/utils/authUtils';
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify partner authentication
-    const authResult = await verifyPartnerToken(request);
-    if (!authResult.success) {
+    // First try partner authentication
+    const partnerAuthResult = await verifyPartnerToken(request);
+    
+    if (!partnerAuthResult.success) {
+      // If partner auth fails, check if it's an admin user
+      const token = request.headers.get('authorization')?.replace('Bearer ', '') || 
+                   request.cookies.get('auth-token')?.value;
+      
+      if (token) {
+        const decoded = verifyJWTToken(token);
+        if (decoded && decoded.role === 'admin') {
+          // Admin users should use the admin API endpoints instead
+          return NextResponse.json({ 
+            error: 'Admins should use /api/admin/partners/wallet endpoints' 
+          }, { status: 403 });
+        }
+      }
+      
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const partnerId = authResult.userId;
+    const partnerId = partnerAuthResult.userId;
 
     // Get partner wallet balance
     const { data: partner, error } = await supabase
@@ -42,7 +58,7 @@ export async function GET(request: NextRequest) {
       wallet_status: partner.wallet_status
     });
 
-    // Use the existing wallet_balance field, default to 0 if null
+    // Use the simplified wallet_balance field, default to 0 if null
     const walletBalance = partner.wallet_balance !== null ? parseFloat(partner.wallet_balance) : 0;
 
     return NextResponse.json({
@@ -51,8 +67,6 @@ export async function GET(request: NextRequest) {
         partnerId: partner.id,
         partnerName: partner.name,
         walletBalance: walletBalance,
-        availableBalance: walletBalance, // Same as wallet balance
-        pendingBalance: 0, // No pending balance concept
         walletStatus: partner.wallet_status || 'active',
         lastTransactionAt: partner.last_transaction_at
       }
