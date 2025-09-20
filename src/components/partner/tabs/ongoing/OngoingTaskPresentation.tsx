@@ -36,10 +36,9 @@ interface OngoingTaskPresentationProps {
   // Actions
   onRefresh: () => void;
   onViewDetails: (taskId: string) => void;
-  onStartTask: (taskId: string) => void;
   onCompleteTask: (taskId: string) => void;
   onTaskCompleted?: (taskId: string) => void;
-  onTestComplete?: (taskId: string) => void;
+  onTaskExpired?: (taskId: string) => void;
 }
 
 export default function OngoingTaskPresentation({
@@ -57,30 +56,24 @@ export default function OngoingTaskPresentation({
   onDismissNotification,
   onRefresh,
   onViewDetails,
-  onStartTask,
   onCompleteTask,
   onTaskCompleted,
-  onTestComplete
+  onTaskExpired
 }: OngoingTaskPresentationProps) {
   // Handle expired orders - but don't filter them out, just track them
   const { 
-    handleTaskExpired 
+    handleTaskExpired: handleExpiredFromHook
   } = useExpiredOrders({ 
     tasks: filteredTasks,
     onTaskExpired: (taskId) => {
-      console.log(`Task ${taskId} has expired - showing Task Completed button`);
+      // Call the parent's onTaskExpired handler
+      onTaskExpired?.(taskId);
     }
   });
 
   // Show all tasks (including expired ones with Task Completed button)
   const activeTasks = filteredTasks;
   
-  // Debug logging
-  console.log('OngoingTaskPresentation - activeTasks:', activeTasks.map(t => ({ 
-    id: t.id, 
-    isCompleted: t.isCompleted, 
-    status: t.status 
-  })));
   // Show no orders available state
   if (activeTasks.length === 0 && !isLoading && !error) {
     return (
@@ -226,33 +219,14 @@ export default function OngoingTaskPresentation({
       
       {activeTasks.length > 0 ? (
         <div className="space-y-4">
-          {/* Test buttons for debugging */}
-          {onTestComplete && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-yellow-800 mb-2">Debug Test Buttons</h3>
-              <div className="flex gap-2 flex-wrap">
-                {activeTasks.slice(0, 3).map((task) => (
-                  <button
-                    key={`test-${task.id}`}
-                    onClick={() => onTestComplete(task.id)}
-                    className="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700"
-                  >
-                    Complete Task {task.id.slice(-4)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {activeTasks.map((task) => (
               <OngoingTaskCard
                 key={task.id}
                 task={task}
                 onViewDetails={onViewDetails}
-                onStartTask={onStartTask}
                 onCompleteTask={onCompleteTask}
-                onTaskExpired={handleTaskExpired}
+                onTaskExpired={handleExpiredFromHook}
                 onTaskCompleted={onTaskCompleted}
               />
             ))}

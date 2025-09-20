@@ -87,6 +87,7 @@ export async function GET(
         bitrix24_id,
         order_number,
         currency,
+        mode,
         created_at,
         updated_at
       `)
@@ -151,6 +152,7 @@ export async function GET(
       advanceAmount: advanceAmount,
       balanceAmount: balanceAmount,
       commissionAmount: commissionAmount,
+      mode: order.mode || null,
       
       // Additional fields for order details
       customerEmail: '', // Email field doesn't exist in database

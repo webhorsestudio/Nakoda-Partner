@@ -12,6 +12,8 @@ import {
   OngoingOrderActions
 } from '@/components/partner/tabs/ongoing/order-details';
 import { OngoingOrderDetails } from '@/components/partner/tabs/ongoing/order-details/types';
+import OngoingOrderDetailsSkeleton from '@/components/partner/tabs/ongoing/order-details/OngoingOrderDetailsSkeleton';
+import { toast } from 'react-hot-toast';
 
 export default function OngoingOrderDetailsPage() {
   const params = useParams();
@@ -73,44 +75,25 @@ export default function OngoingOrderDetailsPage() {
       console.log('Task completed:', orderId);
       
       // For now, just show a success message and redirect
-      alert('Task marked as completed!');
+      // Note: This is a placeholder - actual completion should use the TaskCompletionModal
+      toast.success('Task marked as completed!', {
+        duration: 3000,
+        icon: '✅',
+      });
       router.push('/partner?tab=ongoing');
     } catch (error) {
       console.error('Error completing task:', error);
-      alert('Failed to complete task. Please try again.');
+      toast.error('Failed to complete task. Please try again.', {
+        duration: 5000,
+        icon: '❌',
+      });
     }
   };
 
 
   // Loading state
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        {/* Header */}
-        <div className="bg-white border-b border-slate-200 sticky top-0 z-40">
-          <div className="px-4 py-3">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8">
-                <ArrowLeftIcon className="h-5 w-5" />
-              </Button>
-              <h1 className="text-lg font-semibold text-slate-900">Ongoing Order Details</h1>
-            </div>
-          </div>
-        </div>
-
-        {/* Loading Content */}
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="bg-white border border-slate-200 rounded-lg p-6">
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-slate-600">Loading order details...</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <OngoingOrderDetailsSkeleton />;
   }
 
   // Error state
@@ -233,7 +216,8 @@ export default function OngoingOrderDetailsPage() {
               totalAmount: order.totalAmount,
               advanceAmount: order.advanceAmount,
               balanceAmount: order.balanceAmount,
-              commissionAmount: order.commissionAmount
+              commissionAmount: order.commissionAmount,
+              mode: order.mode
             }}
           />
         </div>

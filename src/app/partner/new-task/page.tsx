@@ -6,7 +6,7 @@ import { PartnerHeader, PartnerSidebar, BottomNavigation } from '@/components/pa
 import NewTaskTabWrapper from '@/components/partner/tabs/new-task/NewTaskTabWrapper';
 
 const NewTaskPage = memo(function NewTaskPage() {
-  const { partnerInfo, error, isLoading, logout } = usePartnerAuth();
+  const { error, logout } = usePartnerAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleTabChange = useCallback((tabId: string) => {
@@ -21,17 +21,7 @@ const NewTaskPage = memo(function NewTaskPage() {
     setSidebarOpen(!sidebarOpen);
   }, [sidebarOpen]);
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // Note: Data loading state is now handled by NewTaskTab skeleton
 
   // Show error if any
   if (error) {

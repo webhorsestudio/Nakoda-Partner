@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ReportingHeader,
-  EarningsChart,
   TaskPerformanceTable
 } from './';
 import { usePartnerReporting } from '@/hooks/usePartnerReporting';
@@ -11,21 +10,17 @@ export default function ReportingTab() {
   
   const {
     performanceMetrics,
-    earningsData,
     taskPerformance,
     isLoadingMetrics,
-    isLoadingEarnings,
     isLoadingPerformance,
     metricsError,
-    earningsError,
     performanceError,
-    fetchEarnings,
     refreshAll
   } = usePartnerReporting();
 
   const handleTimeRangeChange = async (range: string) => {
     setSelectedTimeRange(range);
-    await fetchEarnings(range);
+    await refreshAll(range);
   };
 
 
@@ -44,13 +39,13 @@ export default function ReportingTab() {
   }
 
   // Show error state
-  if (metricsError || earningsError || performanceError) {
+  if (metricsError || performanceError) {
     return (
       <div className="space-y-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Data</h3>
           <p className="text-red-600 mb-4">
-            {metricsError || earningsError || performanceError}
+            {metricsError || performanceError}
           </p>
           <button
             onClick={() => refreshAll(selectedTimeRange)}
@@ -74,19 +69,10 @@ export default function ReportingTab() {
         />
       )}
 
-      {/* Charts and Tables Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Earnings Chart */}
-        <div className="lg:col-span-2">
-          <EarningsChart 
-            data={earningsData}
-            timeRange={selectedTimeRange}
-            isLoading={isLoadingEarnings}
-          />
-        </div>
-
+      {/* Tables Section */}
+      <div className="grid grid-cols-1 gap-8">
         {/* Task Performance Table */}
-        <div className="lg:col-span-2">
+        <div>
           <TaskPerformanceTable 
             data={taskPerformance}
             isLoading={isLoadingPerformance}

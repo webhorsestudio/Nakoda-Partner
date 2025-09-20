@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { verifyPartnerToken } from '@/lib/auth';
+import { isTaskExpired } from '@/components/partner/tabs/new-task/utils/timeExpirationUtils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +25,6 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (partnerError || !partner) {
-      console.error('Partner not found:', partnerError);
       return NextResponse.json(
         { error: 'Partner not found or inactive' },
         { status: 404 }
@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
         id,
         bitrix24_id,
         title,
+        mode,
         service_type,
         specification,
         status,
@@ -84,14 +85,13 @@ export async function GET(request: NextRequest) {
     const { data: orders, error: ordersError } = await query;
 
     if (ordersError) {
-      console.error('Error fetching orders:', ordersError);
       return NextResponse.json(
         { error: 'Failed to fetch orders', details: ordersError.message },
         { status: 500 }
       );
     }
 
-    // Transform orders to match Task interface exactly
+    // Transform orders to match Task interface exactly and filter out expired tasks
     const transformedOrders = orders?.map(order => ({
       id: order.id,
       title: order.title || 'Service Request',
@@ -107,10 +107,13 @@ export async function GET(request: NextRequest) {
       createdAt: order.date_created || order.created_at,
       status: order.status || 'pending',
       serviceDate: order.service_date,
-      timeSlot: order.time_slot
-    })) || [];
+      timeSlot: order.time_slot,
+      mode: order.mode || null
+    })).filter(order => {
+      // Filter out expired tasks based on timeslot
+      return !isTaskExpired(order.timeSlot, order.serviceDate);
+    }) || [];
 
-    console.log(`Returning ${transformedOrders.length} orders to partner ${partner.name}`);
     
     return NextResponse.json({
       success: true,
@@ -125,7 +128,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error in realtime-orders API:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
@@ -156,10 +158,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // First, get the order details to check advance amount
+    // First, get the order details to check advance amount and payment mode
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, advance_amount, status, partner_id')
+      .select('id, advance_amount, status, partner_id, mode')
       .eq('id', orderId)
       .single();
 
@@ -193,8 +195,8 @@ export async function POST(request: NextRequest) {
 
     const advanceAmount = parseFloat(order.advance_amount?.toString() || '0');
     const currentBalance = parseFloat(partner.wallet_balance?.toString() || '0');
-
-    // Check if partner has sufficient balance
+    
+    // Check if partner has sufficient balance for all orders
     if (currentBalance < advanceAmount) {
       return NextResponse.json(
         { 
@@ -223,7 +225,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (updateError) {
-      console.error('Error accepting order:', updateError);
       return NextResponse.json(
         { error: 'Failed to accept order', details: updateError.message },
         { status: 500 }
@@ -237,7 +238,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Deduct advance amount from partner wallet
+    // Deduct advance amount from partner wallet for all orders
     const newBalance = currentBalance - advanceAmount;
     const { error: walletUpdateError } = await supabase
       .from('partners')
@@ -249,12 +250,11 @@ export async function POST(request: NextRequest) {
       .eq('id', partnerId);
 
     if (walletUpdateError) {
-      console.error('Error updating wallet balance:', walletUpdateError);
       // Note: In a production system, you might want to rollback the order assignment
       // For now, we'll log the error but still return success
     }
 
-    // Create wallet transaction record
+    // Create wallet transaction record for all orders
     const { error: transactionError } = await supabase
       .from('wallet_transactions')
       .insert({
@@ -276,7 +276,6 @@ export async function POST(request: NextRequest) {
       });
 
     if (transactionError) {
-      console.error('Error creating wallet transaction:', transactionError);
       // Log error but don't fail the request
     }
 
@@ -284,6 +283,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Order accepted successfully',
       order: updatedOrder,
+      paymentMode: order.mode,
       walletUpdate: {
         previousBalance: currentBalance,
         newBalance: newBalance,
@@ -292,7 +292,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error accepting order:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

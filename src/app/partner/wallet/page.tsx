@@ -11,10 +11,39 @@ import { WalletBalance } from '@/components/partner/wallet/WalletBalance';
 export default function WalletPage() {
   const { isClient } = usePartnerAuth();
   const { balance, transactions, isLoading: walletLoading, error: walletError, fetchBalance, fetchTransactions } = usePartnerWallet();
+  const [partnerInfo, setPartnerInfo] = useState<{name: string; email: string; phone: string} | null>(null);
   const [isAddAmountModalOpen, setIsAddAmountModalOpen] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Fetch partner info for payment
+  const fetchPartnerInfo = async () => {
+    try {
+      const token = localStorage.getItem('auth-token');
+      if (!token) return;
+
+      const response = await fetch('/api/partners/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setPartnerInfo({
+            name: data.data.name || 'Partner',
+            email: data.data.email || 'partner@example.com',
+            phone: data.data.phone || '9999999999'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching partner info:', error);
+    }
+  };
 
   useEffect(() => {
     if (isClient) {
@@ -25,7 +54,7 @@ export default function WalletPage() {
         return;
       }
       
-      // Try to fetch wallet data
+      // Try to fetch wallet data and partner info
       Promise.all([fetchBalance(), fetchTransactions()]).catch((error) => {
         console.error('Wallet fetch error:', error);
         // If it's an auth error, redirect to login
@@ -33,6 +62,9 @@ export default function WalletPage() {
           router.push('/login');
         }
       });
+
+      // Fetch partner info for payment
+      fetchPartnerInfo();
     }
   }, [isClient, router, fetchBalance, fetchTransactions]);
 
@@ -140,8 +172,11 @@ export default function WalletPage() {
           </button>
 
           <button
-            onClick={() => {/* TODO: Implement withdraw functionality */}}
-            className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
+            onClick={() => {
+              // TODO: Implement withdraw functionality
+              alert('Withdraw functionality coming soon!');
+            }}
+            className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 opacity-75"
           >
             <div className="flex items-center space-x-3">
               <div className="bg-blue-100 p-2 rounded-lg">
@@ -151,7 +186,7 @@ export default function WalletPage() {
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium text-gray-900">Withdraw</p>
-                <p className="text-xs text-gray-500">Transfer funds</p>
+                <p className="text-xs text-gray-500">Coming soon</p>
               </div>
             </div>
           </button>
@@ -169,6 +204,7 @@ export default function WalletPage() {
             Promise.all([fetchBalance(), fetchTransactions()]);
           }}
           balance={balance || 0}
+          partnerInfo={partnerInfo || undefined}
         />
       </div>
     </div>

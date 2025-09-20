@@ -60,7 +60,7 @@ export default function PartnerSliderPage() {
         title: updateData.title || '',
         subtitle: updateData.subtitle || '',
         button_text: updateData.button_text || 'Learn More',
-        brand_name: updateData.brand_name || 'Nakoda Partner',
+        brand_name: updateData.brand_name || 'Nakoda Urban Services',
         image_url: updateData.image_url || '',
         image_alt: updateData.image_alt || updateData.title || '',
         gradient_from: updateData.gradient_from || 'blue-600',

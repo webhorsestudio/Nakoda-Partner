@@ -2,9 +2,33 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { OngoingFinancialDetailsSectionProps } from './types';
 import { formatCurrency } from '../utils/currencyUtils';
+import PaymentMode from '../../new-task/components/PaymentMode';
 
 export default function OngoingFinancialDetailsSection({ financial }: OngoingFinancialDetailsSectionProps) {
-  const { totalAmount, advanceAmount } = financial;
+  const { totalAmount, advanceAmount, mode } = financial;
+
+  // Calculate balance amount based on payment mode
+  const calculateBalanceAmount = () => {
+    // Check for Cash on Delivery (case insensitive and handle various formats)
+    const isCashOnDelivery = mode && (
+      mode.toLowerCase().includes('cash on delivery') ||
+      mode.toLowerCase().includes('cod') ||
+      mode === 'Cash on Delivery' ||
+      mode === 'cash on delivery' ||
+      mode === 'COD' ||
+      mode === 'cod'
+    );
+    
+    if (isCashOnDelivery) {
+      // For Cash on Delivery: Balance Amount = Total Amount
+      return totalAmount;
+    } else {
+      // For Online: Balance Amount = Total Amount - Advance Amount
+      return totalAmount - advanceAmount;
+    }
+  };
+
+  const calculatedBalanceAmount = calculateBalanceAmount();
 
   return (
     <Card className="w-full">
@@ -25,6 +49,32 @@ export default function OngoingFinancialDetailsSection({ financial }: OngoingFin
             <span className="text-xl font-bold">{formatCurrency(advanceAmount)}</span>
           </div>
         </div>
+
+        {/* Balance Amount - More prominent styling */}
+        <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-blue-900">Balance Amount</span>
+            <span className="text-2xl font-black text-blue-900">{formatCurrency(calculatedBalanceAmount)}</span>
+          </div>
+          <div className="mt-1 text-sm text-blue-700">
+            {(() => {
+              const isCashOnDelivery = mode && (
+                mode.toLowerCase().includes('cash on delivery') ||
+                mode.toLowerCase().includes('cod') ||
+                mode === 'Cash on Delivery' ||
+                mode === 'cash on delivery' ||
+                mode === 'COD' ||
+                mode === 'cod'
+              );
+              return isCashOnDelivery 
+                ? 'To be collected from customer' 
+                : 'Remaining amount after advance';
+            })()}
+          </div>
+        </div>
+
+        {/* Payment Mode */}
+        <PaymentMode mode={mode} />
       </CardContent>
     </Card>
   );

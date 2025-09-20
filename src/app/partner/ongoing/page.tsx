@@ -6,7 +6,7 @@ import { PartnerHeader, PartnerSidebar, BottomNavigation } from '@/components/pa
 import OngoingTaskTab from '@/components/partner/tabs/ongoing/OngoingTaskTab';
 
 export default function OngoingPage() {
-  const { partnerInfo, error, isLoading, logout } = usePartnerAuth();
+  const { partnerInfo, error, logout } = usePartnerAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Calculate coins from total revenue (1 coin = ₹100)
@@ -24,19 +24,7 @@ export default function OngoingPage() {
     setSidebarOpen(!sidebarOpen);
   };
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if any
+  // Show error if any (authentication error)
   if (error) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -46,6 +34,8 @@ export default function OngoingPage() {
       </div>
     );
   }
+
+  // Note: Data loading state is now handled by OngoingTaskPresentation skeleton
 
   return (
     <div className="min-h-screen bg-slate-50 pb-32">

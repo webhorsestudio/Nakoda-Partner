@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatCurrency } from '../utils/currencyUtils';
+import PaymentMode from '../../new-task/components/PaymentMode';
 
 interface OngoingFinancialInfoProps {
   amount: number;
@@ -7,6 +8,7 @@ interface OngoingFinancialInfoProps {
   balanceAmount: number;
   commissionAmount: number;
   status: 'in-progress' | 'completed' | 'cancelled' | 'assigned';
+  mode?: string | null;
 }
 
 export default function OngoingFinancialInfo({ 
@@ -14,7 +16,8 @@ export default function OngoingFinancialInfo({
   advanceAmount, 
   balanceAmount, 
   commissionAmount,
-  status
+  status,
+  mode
 }: OngoingFinancialInfoProps) {
   return (
     <div className="space-y-3">
@@ -28,6 +31,9 @@ export default function OngoingFinancialInfo({
           <p className="text-lg font-medium text-blue-700">{formatCurrency(advanceAmount)}</p>
         </div>
       </div>
+      
+      {/* Payment Mode */}
+      <PaymentMode mode={mode} />
     </div>
   );
 }

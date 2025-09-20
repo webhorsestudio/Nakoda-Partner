@@ -11,6 +11,32 @@ export async function GET(request: NextRequest) {
     }
 
     const partnerId = authResult.userId;
+    const { searchParams } = new URL(request.url);
+    const timeRange = searchParams.get('range') || '30d';
+
+    // Calculate date range
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (timeRange) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '3m':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case '6m':
+        startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+        break;
+      case '1y':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
 
     // Get partner's revenue stats
     const { data: partner, error: partnerError } = await supabase
@@ -36,25 +62,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 });
     }
 
-    // Get all orders for this partner
+    // Get orders for this partner within the time range
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select(`
         id,
         amount,
         status,
+        partner_completion_status,
         service_type,
         created_at
       `)
-      .eq('partner_id', partnerId);
+      .eq('partner_id', partnerId)
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', now.toISOString());
 
     if (ordersError) {
       console.error('Error fetching orders:', ordersError);
       return NextResponse.json({ error: 'Failed to fetch orders data' }, { status: 500 });
     }
 
-    // Calculate revenue stats
-    const completedOrders = orders?.filter(order => order.status === 'completed') || [];
+    // Calculate revenue stats - use partner_completion_status for completed tasks
+    const completedOrders = orders?.filter(order => order.partner_completion_status === 'completed') || [];
     const pendingOrders = orders?.filter(order => order.status === 'pending') || [];
     
     const totalEarnings = completedOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
@@ -62,23 +91,23 @@ export async function GET(request: NextRequest) {
     const commissionEarned = totalEarnings * (partner.commission_percentage || 0.25);
     const averageEarnings = completedOrders.length > 0 ? totalEarnings / completedOrders.length : 0;
 
-    // Calculate growth (simplified - comparing last 30 days vs previous 30 days)
-    const now = new Date();
-    const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const previous30Days = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    // Calculate growth based on time range
+    const timeRangeDays = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '3m' ? 90 : timeRange === '6m' ? 180 : 365;
+    const previousPeriodStart = new Date(now.getTime() - (timeRangeDays * 2) * 24 * 60 * 60 * 1000);
+    const previousPeriodEnd = new Date(now.getTime() - timeRangeDays * 24 * 60 * 60 * 1000);
 
-    const last30DaysOrders = completedOrders.filter(order => 
-      new Date(order.created_at) >= last30Days
+    const currentPeriodOrders = completedOrders.filter(order => 
+      new Date(order.created_at) >= startDate
     );
-    const previous30DaysOrders = completedOrders.filter(order => 
-      new Date(order.created_at) >= previous30Days && new Date(order.created_at) < last30Days
+    const previousPeriodOrders = completedOrders.filter(order => 
+      new Date(order.created_at) >= previousPeriodStart && new Date(order.created_at) < previousPeriodEnd
     );
 
-    const last30DaysRevenue = last30DaysOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
-    const previous30DaysRevenue = previous30DaysOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const currentPeriodRevenue = currentPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+    const previousPeriodRevenue = previousPeriodOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
     
-    const monthlyGrowth = previous30DaysRevenue > 0 
-      ? ((last30DaysRevenue - previous30DaysRevenue) / previous30DaysRevenue) * 100 
+    const monthlyGrowth = previousPeriodRevenue > 0 
+      ? ((currentPeriodRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 100 
       : 0;
 
     // Calculate service breakdown
@@ -105,7 +134,7 @@ export async function GET(request: NextRequest) {
 
     const revenueStats = {
       totalEarnings: Math.round(totalEarnings),
-      totalTasks: orders?.length || 0,
+      totalTasks: completedOrders.length, // Only count completed tasks
       averageEarnings: Math.round(averageEarnings),
       commissionEarned: Math.round(commissionEarned),
       pendingAmount: Math.round(pendingAmount),

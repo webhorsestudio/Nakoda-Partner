@@ -140,6 +140,7 @@ export interface Order {
   completion_images?: string[] | null;
   partner_completion_status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   completion_notes?: string | null;
+  customer_rating?: number | null; // 1-5 star rating
   
   created_at: string;
   updated_at: string;

@@ -17,7 +17,7 @@ export default function JobListings({ totalOrders = 0, onViewAllJobs }: JobListi
         onViewAllJobs={onViewAllJobs}
       />
 
-      {/* Job Cards - Show message if no orders */}
+      {/* Job Cards - Show animated radar when there are ongoing tasks */}
       {totalOrders === 0 ? (
         <Card className="border border-slate-200 bg-white">
           <CardContent className="p-8 text-center">
@@ -29,13 +29,18 @@ export default function JobListings({ totalOrders = 0, onViewAllJobs }: JobListi
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3" role="list" aria-label="Available jobs">
-          {/* This will be populated by the usePartnerOrders hook */}
-          <div className="text-center py-4">
-            <p className="text-slate-600">Jobs will be loaded from the database</p>
-            <p className="text-sm text-slate-500">Total orders: {totalOrders}</p>
-          </div>
-        </div>
+        <Card className="border border-slate-200 bg-white">
+          <CardContent className="p-8 text-center">
+            <div className="relative mx-auto mb-4 w-12 h-12">
+              <RadarIcon className="h-12 w-12 text-blue-500 animate-pulse" />
+              <div className="absolute inset-0 rounded-full border-2 border-blue-200 animate-ping"></div>
+            </div>
+            <h3 className="text-lg font-medium text-slate-900">Looking for New Jobs...</h3>
+            <p className="text-sm text-slate-500 mt-2">
+              You have {totalOrders} ongoing job{totalOrders !== 1 ? 's' : ''}. Click &quot;View all&quot; to manage them.
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

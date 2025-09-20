@@ -31,7 +31,6 @@ export const TASK_STATUS_LABELS = {
 
 // Action button labels
 export const ACTION_LABELS = {
-  START_TASK: 'Start Task',
   COMPLETE_TASK: 'Complete',
   CALL_NOW: 'Call Now',
   VIEW_DETAILS: 'Details',

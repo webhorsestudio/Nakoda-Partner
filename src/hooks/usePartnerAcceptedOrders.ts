@@ -27,6 +27,7 @@ interface PartnerAcceptedOrder {
   advanceAmount: number;
   balanceAmount: number;
   commissionAmount: number;
+  mode?: string | null;
 }
 
 interface UsePartnerAcceptedOrdersReturn {

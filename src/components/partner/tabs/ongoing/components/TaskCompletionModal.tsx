@@ -3,13 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Upload, X, Image as ImageIcon, CheckCircle, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
+import StarRating from '@/components/ui/star-rating';
+import { toast } from 'react-hot-toast';
 
 interface TaskCompletionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { feedback: string; image: File | null }) => void;
+  onSubmit: (data: { customerRating: number; image: File | null }) => void;
   taskId: string;
   isLoading?: boolean;
 }
@@ -21,11 +22,10 @@ export default function TaskCompletionModal({
   taskId,
   isLoading = false
 }: TaskCompletionModalProps) {
-  console.log('TaskCompletionModal - Rendering with props:', { isOpen, taskId, isLoading });
-  const [feedback, setFeedback] = useState('');
+  const [customerRating, setCustomerRating] = useState(0);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [errors, setErrors] = useState<{ feedback?: string; image?: string }>({});
+  const [errors, setErrors] = useState<{ customerRating?: string; image?: string }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,18 +34,31 @@ export default function TaskCompletionModal({
       // Validate file type
       if (!file.type.startsWith('image/')) {
         setErrors(prev => ({ ...prev, image: 'Please select a valid image file' }));
+        toast.error('Please select a valid image file', {
+          duration: 3000,
+          icon: '❌',
+        });
         return;
       }
       
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setErrors(prev => ({ ...prev, image: 'Image size must be less than 5MB' }));
+        toast.error('Image size must be less than 5MB', {
+          duration: 3000,
+          icon: '❌',
+        });
         return;
       }
 
       setSelectedImage(file);
       setImagePreview(URL.createObjectURL(file));
       setErrors(prev => ({ ...prev, image: undefined }));
+      
+      toast.success('Image selected successfully', {
+        duration: 2000,
+        icon: '✅',
+      });
     }
   };
 
@@ -59,13 +72,11 @@ export default function TaskCompletionModal({
   };
 
   const handleSubmit = () => {
-    const newErrors: { feedback?: string; image?: string } = {};
+    const newErrors: { customerRating?: string; image?: string } = {};
 
-    // Validate feedback
-    if (!feedback.trim()) {
-      newErrors.feedback = 'Feedback is required';
-    } else if (feedback.trim().length < 10) {
-      newErrors.feedback = 'Feedback must be at least 10 characters';
+    // Validate customer rating
+    if (customerRating === 0) {
+      newErrors.customerRating = 'Please rate the customer';
     }
 
     // Validate image
@@ -76,12 +87,12 @@ export default function TaskCompletionModal({
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      onSubmit({ feedback: feedback.trim(), image: selectedImage });
+      onSubmit({ customerRating, image: selectedImage });
     }
   };
 
   const handleClose = () => {
-    setFeedback('');
+    setCustomerRating(0);
     setSelectedImage(null);
     setImagePreview(null);
     setErrors({});
@@ -114,35 +125,57 @@ export default function TaskCompletionModal({
             </CardContent>
           </Card>
 
-          {/* Feedback Section */}
+          {/* Customer Rating Section */}
           <div className="space-y-2 sm:space-y-3">
-            <label htmlFor="feedback" className="block text-sm sm:text-base font-medium text-gray-700">
-              Task Feedback <span className="text-red-500">*</span>
+            <label className="block text-sm sm:text-base font-medium text-gray-700">
+              Rate the Customer <span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <textarea
-                id="feedback"
-                placeholder="Please provide detailed feedback about the completed task (minimum 10 characters)..."
-                value={feedback}
-                onChange={(e) => {
-                  setFeedback(e.target.value);
-                  if (errors.feedback) {
-                    setErrors(prev => ({ ...prev, feedback: undefined }));
+            <div className="flex flex-col items-center space-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <StarRating
+                value={customerRating}
+                onChange={(rating) => {
+                  setCustomerRating(rating);
+                  if (errors.customerRating) {
+                    setErrors(prev => ({ ...prev, customerRating: undefined }));
                   }
+                  
+                  // Show rating feedback
+                  const ratingMessages = {
+                    1: 'Poor - Very dissatisfied',
+                    2: 'Fair - Somewhat dissatisfied',
+                    3: 'Good - Satisfied',
+                    4: 'Very Good - Very satisfied',
+                    5: 'Excellent - Extremely satisfied'
+                  };
+                  
+                  toast.success(`Rated ${rating} star${rating !== 1 ? 's' : ''}: ${ratingMessages[rating as keyof typeof ratingMessages]}`, {
+                    duration: 2000,
+                    icon: '⭐',
+                  });
                 }}
-                className={cn(
-                  "w-full min-h-[120px] sm:min-h-[140px] px-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm sm:text-base",
-                  errors.feedback && "border-red-500 focus:border-red-500 focus:ring-red-500"
-                )}
+                size="lg"
+                className="mb-2"
               />
-              <div className="absolute bottom-2 right-2 text-xs text-gray-400">
-                {feedback.length}/10 min
+              <div className="text-center">
+                <p className="text-sm text-gray-600">
+                  {customerRating === 0 && "Click on a star to rate"}
+                  {customerRating === 1 && "Poor - Very dissatisfied"}
+                  {customerRating === 2 && "Fair - Somewhat dissatisfied"}
+                  {customerRating === 3 && "Good - Satisfied"}
+                  {customerRating === 4 && "Very Good - Very satisfied"}
+                  {customerRating === 5 && "Excellent - Extremely satisfied"}
+                </p>
+                {customerRating > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {customerRating} star{customerRating !== 1 ? 's' : ''} rating
+                  </p>
+                )}
               </div>
             </div>
-            {errors.feedback && (
+            {errors.customerRating && (
               <div className="flex items-center gap-2 text-sm text-red-500">
                 <AlertCircle className="w-4 h-4" />
-                {errors.feedback}
+                {errors.customerRating}
               </div>
             )}
           </div>
@@ -232,7 +265,7 @@ export default function TaskCompletionModal({
             </Button>
             <Button 
               onClick={handleSubmit} 
-              disabled={isLoading || !!errors.feedback || !!errors.image || !feedback || !selectedImage}
+              disabled={isLoading || !!errors.customerRating || !!errors.image || customerRating === 0 || !selectedImage}
               className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 order-1 sm:order-2"
             >
               {isLoading ? (

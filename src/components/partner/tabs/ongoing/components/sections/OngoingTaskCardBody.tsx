@@ -41,6 +41,7 @@ export default function OngoingTaskCardBody({ task, onTaskExpired, onTaskComplet
           status={task.status}
           onExpired={() => onTaskExpired?.(task.id)}
           onTaskCompleted={onTaskCompleted}
+          onTaskExpired={onTaskExpired}
           taskId={task.id}
         />
 
@@ -53,6 +54,7 @@ export default function OngoingTaskCardBody({ task, onTaskExpired, onTaskComplet
         balanceAmount={task.balanceAmount}
         commissionAmount={task.commissionAmount}
         status={task.status}
+        mode={task.mode}
       />
     </CardContent>
   );

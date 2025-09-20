@@ -3,12 +3,14 @@ import { ClockIcon, CheckCircleIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { calculateTimeDifference } from '../utils/dateTimeUtils';
 import TaskCompletionModal from './TaskCompletionModal';
+import { toast } from 'react-hot-toast';
 
 interface CountdownTimerProps {
   serviceDate: string;
   serviceTime: string;
   onExpired?: () => void;
   onTaskCompleted?: (taskId: string) => void;
+  onTaskExpired?: (taskId: string) => void;
   taskId?: string;
   className?: string;
 }
@@ -26,6 +28,7 @@ export default function CountdownTimer({
   serviceTime, 
   onExpired,
   onTaskCompleted,
+  onTaskExpired,
   taskId,
   className = ''
 }: CountdownTimerProps) {
@@ -35,19 +38,22 @@ export default function CountdownTimer({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleTaskCompletedClick = () => {
-    console.log('CountdownTimer - Task Completed clicked for task:', taskId);
-    console.log('CountdownTimer - Setting showCompletionModal to true');
     setShowCompletionModal(true);
   };
 
-  const handleModalSubmit = async (data: { feedback: string; image: File | null }) => {
+  const handleModalSubmit = async (data: { customerRating: number; image: File | null }) => {
     setIsSubmitting(true);
+    
+    // Show loading toast
+    const loadingToast = toast.loading('Completing task...', {
+      duration: 0, // Don't auto-dismiss
+    });
+    
     try {
-      console.log('Submitting task completion:', { taskId, feedback: data.feedback, hasImage: !!data.image });
       
       // Prepare form data for API call
       const formData = new FormData();
-      formData.append('feedback', data.feedback);
+      formData.append('customerRating', data.customerRating.toString());
       if (data.image) {
         formData.append('images', data.image);
       }
@@ -64,37 +70,49 @@ export default function CountdownTimer({
         throw new Error(result.error || 'Failed to complete task');
       }
       
-      console.log('Task completion successful:', result);
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
       
-      // Call the original callback
+      // Call the original callback to update parent state
       onTaskCompleted?.(taskId || '');
       
       // Close modal
       setShowCompletionModal(false);
       
-      // Show success message
-      alert('Task completed successfully!');
+      // Show success message with wallet refund info if applicable
+      if (result.data?.walletRefund?.refunded) {
+        const refund = result.data.walletRefund;
+        toast.success(`Task completed successfully! ₹${refund.amount} advance amount refunded to your wallet.`, {
+          duration: 5000,
+          icon: '💰',
+        });
+      } else {
+        toast.success('Task completed successfully!', {
+          duration: 4000,
+          icon: '✅',
+        });
+      }
     } catch (error) {
-      console.error('Error completing task:', error);
-      alert(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+      
+      toast.error(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+        duration: 5000,
+        icon: '❌',
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleModalClose = () => {
-    console.log('CountdownTimer - Closing modal');
     setShowCompletionModal(false);
   };
 
   useEffect(() => {
     const calculateTimeLeft = (): TimeLeft | null => {
       try {
-        // Debug logging
-        console.log('CountdownTimer - serviceDate:', serviceDate, 'serviceTime:', serviceTime);
-        
         if (!serviceDate || !serviceTime) {
-          console.log('CountdownTimer - Missing serviceDate or serviceTime');
           return null;
         }
 
@@ -102,11 +120,8 @@ export default function CountdownTimer({
         const difference = calculateTimeDifference(serviceDate, serviceTime, 2);
         
         if (difference === null) {
-          console.error('CountdownTimer - Failed to calculate time difference');
           return null;
         }
-
-        console.log('CountdownTimer - difference:', difference);
 
         if (difference <= 0) {
           return {
@@ -126,10 +141,8 @@ export default function CountdownTimer({
           total: difference
         };
 
-        console.log('CountdownTimer - result:', result);
         return result;
       } catch (error) {
-        console.error('Error calculating countdown:', error, 'serviceDate:', serviceDate, 'serviceTime:', serviceTime);
         return null;
       }
     };
@@ -138,16 +151,11 @@ export default function CountdownTimer({
       const time = calculateTimeLeft();
       setTimeLeft(time);
 
-      console.log('CountdownTimer - updateTimer:', { 
-        timeTotal: time?.total, 
-        isExpired, 
-        shouldSetExpired: time && time.total <= 0 && !isExpired 
-      });
-
       if (time && time.total <= 0 && !isExpired) {
-        console.log('CountdownTimer - Setting expired state to true');
         setIsExpired(true);
         onExpired?.();
+        // Notify parent components that task has expired
+        onTaskExpired?.(taskId || '');
       }
     };
 
@@ -166,7 +174,6 @@ export default function CountdownTimer({
     
     const difference = calculateTimeDifference(serviceDate, serviceTime, 2);
     if (difference !== null && difference <= 0) {
-      console.log('CountdownTimer - Initial check: timer already expired');
       setIsExpired(true);
     }
   }, [serviceDate, serviceTime]);
@@ -182,17 +189,7 @@ export default function CountdownTimer({
     );
   }
 
-  // Debug logging for button state
-  console.log('CountdownTimer - Rendering check:', { 
-    isExpired, 
-    timeLeftTotal: timeLeft?.total, 
-    shouldShowButton: isExpired || (timeLeft?.total <= 0),
-    timeLeftObject: timeLeft,
-    showCompletionModal
-  });
-
   if (isExpired || timeLeft.total <= 0) {
-    console.log('CountdownTimer - Showing Task Completed button', { isExpired, timeLeftTotal: timeLeft.total });
     return (
       <>
         <Button 

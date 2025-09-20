@@ -1,13 +1,6 @@
 import { OngoingTask } from '../types';
 
 /**
- * Check if a task can be started
- */
-export const canStartTask = (status: OngoingTask['status']): boolean => {
-  return status === 'assigned';
-};
-
-/**
  * Check if a task can be completed
  */
 export const canCompleteTask = (status: OngoingTask['status']): boolean => {

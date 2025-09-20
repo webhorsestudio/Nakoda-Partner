@@ -23,13 +23,14 @@ export interface OngoingTask {
   advanceAmount: number;
   balanceAmount: number;
   commissionAmount: number;
+  mode?: string | null; // Payment mode (COD, online, etc.)
   isCompleted?: boolean; // New field to track completion state
+  isExpired?: boolean; // New field to track expiration state
 }
 
 export interface OngoingTaskCardProps {
   task: OngoingTask;
   onViewDetails: (taskId: string) => void;
-  onStartTask: (taskId: string) => void;
   onCompleteTask: (taskId: string) => void;
   onTaskExpired?: (taskId: string) => void;
   onTaskCompleted?: (taskId: string) => void;

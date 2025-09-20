@@ -45,6 +45,7 @@ export default function PartnerDashboardContent({
             location={location}
             coins={coins}
             walletBalance={walletBalance}
+            onTabChange={onTabChange}
           />
         );
       
@@ -69,6 +70,7 @@ export default function PartnerDashboardContent({
             location={location}
             coins={coins}
             walletBalance={walletBalance}
+            onTabChange={onTabChange}
           />
         );
     }

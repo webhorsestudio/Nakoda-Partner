@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
         created_at,
         amount,
         status,
+        partner_completion_status,
         service_type
       `)
       .eq('partner_id', partnerId)
@@ -62,15 +63,18 @@ export async function GET(request: NextRequest) {
     const revenueMap = new Map<string, { earnings: number; tasks: number; commission: number }>();
 
     orders?.forEach(order => {
-      if (order.status === 'completed') {
-        const date = new Date(order.created_at).toISOString().split('T')[0];
-        const existing = revenueMap.get(date) || { earnings: 0, tasks: 0, commission: 0 };
+      if (order.partner_completion_status === 'completed') {
+        const orderDate = new Date(order.created_at);
+        // Group by day for all time ranges
+        const dateKey = orderDate.toISOString().split('T')[0];
+        
+        const existing = revenueMap.get(dateKey) || { earnings: 0, tasks: 0, commission: 0 };
         
         existing.earnings += order.amount || 0;
         existing.tasks += 1;
         existing.commission += (order.amount || 0) * 0.25; // Assuming 25% commission
         
-        revenueMap.set(date, existing);
+        revenueMap.set(dateKey, existing);
       }
     });
 

@@ -21,6 +21,7 @@ export default function OngoingOrderActions({
               serviceTime={serviceTime}
               onExpired={onTaskExpired}
               onTaskCompleted={onTaskCompleted}
+              onTaskExpired={onTaskExpired}
               taskId={taskId}
               className="text-lg"
             />

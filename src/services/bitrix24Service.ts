@@ -183,7 +183,7 @@ class Bitrix24Service {
   /**
    * Safely truncate string values to fit database column limits
    */
-  private safeTruncate(value: string | undefined, maxLength: number, fieldName: string): string | undefined {
+  private safeTruncate(value: string | undefined | null, maxLength: number, fieldName: string): string | undefined {
     if (!value) return undefined;
     
     if (value.length > maxLength) {
@@ -402,7 +402,19 @@ class Bitrix24Service {
     const orderDate = deal.UF_CRM_1681648036958; // Service date: "2025-08-12T03:00:00+03:00"
     const orderTime = deal.UF_CRM_1681647842342; // Order time: "2918" (time slot)
     const serviceSlotTime = deal.UF_CRM_1681747291577; // Service slot time: "4972", "4974", etc.
-    const mode = deal.UF_CRM_1681648200083; // Commission(%): "25"
+    
+    // Extract mode from title (similar to time extraction)
+    let extractedMode: string | undefined;
+    if (deal.TITLE) {
+      const modeMatch = deal.TITLE.match(/Mode\s*:\s*([^,]+?)(?=,|Order Total|$)/i);
+      if (modeMatch) {
+        const modeValue = modeMatch[1].trim();
+        if (modeValue && modeValue.length > 0) {
+          extractedMode = modeValue;
+        }
+      }
+    }
+    const mode = extractedMode || null;
     
     // New financial and service fields
     const commissionPercentage = deal.UF_CRM_1681648200083; // Commission(%): "25"

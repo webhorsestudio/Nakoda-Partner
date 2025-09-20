@@ -12,21 +12,13 @@ import {
 export default function OngoingTaskCard({ 
   task, 
   onViewDetails, 
-  onStartTask, 
   onCompleteTask,
   onTaskExpired,
   onTaskCompleted
 }: OngoingTaskCardProps) {
-  // Debug logging
-  console.log(`OngoingTaskCard - Task ${task.id}:`, { 
-    isCompleted: task.isCompleted, 
-    status: task.status 
-  });
-
   const cardHandlers = useOngoingTaskCard({ 
     task, 
     onViewDetails, 
-    onStartTask, 
     onCompleteTask 
   });
 
@@ -41,7 +33,6 @@ export default function OngoingTaskCard({
       <OngoingTaskCardFooter 
         task={task}
         onViewDetails={onViewDetails}
-        onStartTask={onStartTask}
         onCompleteTask={onCompleteTask}
       />
     </Card>

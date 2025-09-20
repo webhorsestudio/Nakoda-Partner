@@ -54,15 +54,17 @@ interface UsePartnerRevenueReturn {
   
   // Actions
   fetchRevenueData: (timeRange: string) => Promise<void>;
-  fetchRevenueStats: () => Promise<void>;
-  fetchRecentTransactions: () => Promise<void>;
-  refreshAll: () => Promise<void>;
+  fetchRevenueStats: (timeRange: string) => Promise<void>;
+  fetchRecentTransactions: (timeRange: string) => Promise<void>;
+  refreshAll: (timeRange: string) => Promise<void>;
 }
 
 // Sample data for fallback
 const getSampleRevenueData = (timeRange: string): RevenueData[] => {
-  const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '3m' ? 90 : timeRange === '6m' ? 180 : 365;
   const data: RevenueData[] = [];
+  
+  // Generate daily data for all time ranges
+  const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '3m' ? 90 : timeRange === '6m' ? 180 : 365;
   
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date();
@@ -102,11 +104,11 @@ const getSampleServiceBreakdown = (): ServiceBreakdown[] => [
 ];
 
 const getSampleTransactions = (): Transaction[] => [
-  { id: 1, service: 'Electrical Repair', amount: 2500, status: 'completed', date: '2024-01-07', commission: 625 },
-  { id: 2, service: 'House Cleaning', amount: 1800, status: 'completed', date: '2024-01-06', commission: 450 },
-  { id: 3, service: 'Plumbing Fix', amount: 3200, status: 'pending', date: '2024-01-05', commission: 800 },
-  { id: 4, service: 'AC Service', amount: 2100, status: 'completed', date: '2024-01-04', commission: 525 },
-  { id: 5, service: 'Deep Cleaning', amount: 2900, status: 'completed', date: '2024-01-03', commission: 725 },
+  { id: 1, service: 'Package: Deep Cleaning Service By : ABC Company', amount: 2500, status: 'completed', date: '2024-01-07', commission: 625 },
+  { id: 2, service: 'Package: Electrical Installation Service By : XYZ Services', amount: 1800, status: 'completed', date: '2024-01-06', commission: 450 },
+  { id: 3, service: 'Package: Plumbing Repair Service By : DEF Company', amount: 3200, status: 'pending', date: '2024-01-05', commission: 800 },
+  { id: 4, service: 'Package: HVAC Maintenance Service By : GHI Services', amount: 2100, status: 'completed', date: '2024-01-04', commission: 525 },
+  { id: 5, service: 'Package: Carpentry Work Service By : JKL Woodworks', amount: 2900, status: 'completed', date: '2024-01-03', commission: 725 },
 ];
 
 export function usePartnerRevenue(): UsePartnerRevenueReturn {
@@ -184,7 +186,7 @@ export function usePartnerRevenue(): UsePartnerRevenueReturn {
     }
   }, [getAuthToken]);
 
-  const fetchRevenueStats = useCallback(async () => {
+  const fetchRevenueStats = useCallback(async (timeRange: string = '30d') => {
     setIsLoadingStats(true);
     setStatsError(null);
     
@@ -200,7 +202,7 @@ export function usePartnerRevenue(): UsePartnerRevenueReturn {
         console.log('No auth token found, proceeding with API call anyway');
       }
 
-      const response = await fetch('/api/partners/revenue/stats', {
+      const response = await fetch(`/api/partners/revenue/stats?range=${timeRange}`, {
         method: 'GET',
         headers,
         credentials: 'include',
@@ -229,7 +231,7 @@ export function usePartnerRevenue(): UsePartnerRevenueReturn {
     }
   }, [getAuthToken]);
 
-  const fetchRecentTransactions = useCallback(async () => {
+  const fetchRecentTransactions = useCallback(async (timeRange: string = '30d') => {
     setIsLoadingTransactions(true);
     setTransactionsError(null);
     
@@ -245,7 +247,7 @@ export function usePartnerRevenue(): UsePartnerRevenueReturn {
         console.log('No auth token found, proceeding with API call anyway');
       }
 
-      const response = await fetch('/api/partners/revenue/transactions', {
+      const response = await fetch(`/api/partners/revenue/transactions?range=${timeRange}`, {
         method: 'GET',
         headers,
         credentials: 'include',
@@ -272,11 +274,11 @@ export function usePartnerRevenue(): UsePartnerRevenueReturn {
     }
   }, [getAuthToken]);
 
-  const refreshAll = useCallback(async () => {
+  const refreshAll = useCallback(async (timeRange: string = '30d') => {
     await Promise.all([
-      fetchRevenueData('30d'),
-      fetchRevenueStats(),
-      fetchRecentTransactions()
+      fetchRevenueData(timeRange),
+      fetchRevenueStats(timeRange),
+      fetchRecentTransactions(timeRange)
     ]);
   }, [fetchRevenueData, fetchRevenueStats, fetchRecentTransactions]);
 

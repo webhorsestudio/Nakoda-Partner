@@ -13,6 +13,7 @@ interface OngoingTimeInfoProps {
   status: 'in-progress' | 'completed' | 'cancelled' | 'assigned';
   onExpired?: () => void;
   onTaskCompleted?: (taskId: string) => void;
+  onTaskExpired?: (taskId: string) => void;
   taskId?: string;
 }
 
@@ -26,6 +27,7 @@ export default function OngoingTimeInfo({
   status,
   onExpired,
   onTaskCompleted,
+  onTaskExpired,
   taskId
 }: OngoingTimeInfoProps) {
   // Map time slot codes to human-readable time ranges
@@ -86,6 +88,7 @@ export default function OngoingTimeInfo({
               serviceTime={serviceTime}
               onExpired={onExpired}
               onTaskCompleted={onTaskCompleted}
+              onTaskExpired={onTaskExpired}
               taskId={taskId}
               className="text-sm"
             />

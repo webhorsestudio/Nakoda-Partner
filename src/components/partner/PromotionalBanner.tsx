@@ -157,52 +157,20 @@ export default function PromotionalBanner({ onButtonClick }: PromotionalBannerPr
       onMouseLeave={handleMouseLeave}
     >
       <div className="overflow-hidden rounded-xl shadow-sm border border-gray-100">
-        {/* Main Banner */}
-        <div className={`relative overflow-hidden bg-gradient-to-r ${currentBannerData.gradient_from} ${currentBannerData.gradient_to} p-4 h-28`}>
-          {/* Background Image if available */}
-          {currentBannerData.image_url && (
-            <div 
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20"
-              style={{ backgroundImage: `url(${currentBannerData.image_url})` }}
+        {/* Image Only Display */}
+        <div className="relative overflow-hidden h-28 w-full">
+          {currentBannerData.image_url ? (
+            <img
+              src={currentBannerData.image_url}
+              alt={currentBannerData.image_alt || currentBannerData.title}
+              className="w-full h-full object-cover cursor-pointer"
+              onClick={() => handleButtonClick(currentBannerData.id)}
             />
+          ) : (
+            <div className={`w-full h-full bg-gradient-to-r ${currentBannerData.gradient_from} ${currentBannerData.gradient_to} flex items-center justify-center`}>
+              <span className="text-white text-lg font-medium">No Image</span>
+            </div>
           )}
-          
-          {/* Content */}
-          <div className="relative flex items-center justify-between h-full">
-            {/* Left side - Text */}
-            <div className="flex-1 text-white pr-3">
-              <h2 className="text-lg font-bold mb-1 leading-tight">
-                {currentBannerData.title}
-              </h2>
-              <p className="text-sm opacity-90 mb-3">
-                {currentBannerData.subtitle}
-              </p>
-              {currentBannerData.action_type === 'button' && (
-                <button
-                  onClick={() => handleButtonClick(currentBannerData.id)}
-                  className="bg-white text-gray-800 hover:bg-gray-100 text-sm font-medium px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-transparent transition-colors"
-                >
-                  {currentBannerData.button_text}
-                </button>
-              )}
-              {currentBannerData.action_type === 'link' && currentBannerData.action_url && (
-                <a
-                  href={currentBannerData.action_url}
-                  target={currentBannerData.action_target}
-                  className="inline-block bg-white text-gray-800 hover:bg-gray-100 text-sm font-medium px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-transparent transition-colors"
-                >
-                  {currentBannerData.button_text}
-                </a>
-              )}
-            </div>
-
-            {/* Right side - Brand */}
-            <div className="text-right flex-shrink-0">
-              <p className="text-sm text-white opacity-90 font-medium">
-                {currentBannerData.brand_name}
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 

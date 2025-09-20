@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPinIcon } from "lucide-react";
 import { PromotionalBanner, JobListings, ErrorBoundary, Wallet } from '../index';
+import { usePartnerAcceptedOrders } from '@/hooks/usePartnerAcceptedOrders';
 
 interface HomeTabProps {
   totalOrders?: number;
@@ -9,6 +10,7 @@ interface HomeTabProps {
   location?: string;
   coins?: number;
   walletBalance?: number;
+  onTabChange?: (tabId: string) => void;
 }
 
 export default function HomeTab({ 
@@ -17,8 +19,11 @@ export default function HomeTab({
   partnerName = 'Partner',
   location = 'Location not specified',
   coins = 0,
-  walletBalance = 0
+  walletBalance = 0,
+  onTabChange
 }: HomeTabProps) {
+  // Get the actual count of ongoing tasks
+  const { total: ongoingTasksCount } = usePartnerAcceptedOrders();
 
   return (
     <>
@@ -53,8 +58,8 @@ export default function HomeTab({
       {/* Job Listings */}
       <ErrorBoundary>
         <JobListings
-          totalOrders={totalOrders}
-          onViewAllJobs={() => console.log('View all jobs clicked')}
+          totalOrders={ongoingTasksCount}
+          onViewAllJobs={() => onTabChange?.('ongoing')}
         />
       </ErrorBoundary>
     </>

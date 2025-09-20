@@ -14,6 +14,7 @@ export interface Task {
   status: string;
   serviceDate?: string;
   timeSlot?: string;
+  mode?: string | null;
 }
 
 export interface TaskFiltersProps {

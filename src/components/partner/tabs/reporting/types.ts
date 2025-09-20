@@ -50,11 +50,6 @@ export interface MetricsCardProps {
   color?: 'blue' | 'green' | 'purple' | 'orange' | 'red';
 }
 
-export interface EarningsChartProps {
-  data: EarningsData[];
-  timeRange: string;
-  isLoading?: boolean;
-}
 
 export interface TaskPerformanceTableProps {
   data: TaskPerformance[];

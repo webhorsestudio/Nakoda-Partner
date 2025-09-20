@@ -1,13 +1,31 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { MobileForm, OtpForm, AuthAlert, LoadingSkeleton, ErrorBoundary } from "@/components/auth";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PhoneIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon, CheckIcon } from "@heroicons/react/24/outline";
+
+// Utility function to safely handle string operations
+const safeTrim = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  return '';
+};
+
+const isValidString = (value: unknown): boolean => {
+  return typeof value === 'string' && value.trim().length > 0;
+};
 
 export default function LoginPage() {
   const [isClient, setIsClient] = useState(false);
   const [step, setStep] = useState<"mobile" | "otp">("mobile");
   const [mobile, setMobile] = useState("");
+  const [otp, setOtp] = useState("");
+  const [showOtp, setShowOtp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -54,17 +72,23 @@ export default function LoginPage() {
       setLoading(true);
       setError("");
 
+      // Ensure mobileNumber is a valid string
+      const cleanMobile = safeTrim(mobileNumber);
+      if (!isValidString(cleanMobile)) {
+        throw new Error("Please enter a valid mobile number");
+      }
+
       // First try to validate as admin
       let userType = 'unknown';
       let userData = null;
 
       try {
-        userData = await validateUser(mobileNumber, 'admin');
+        userData = await validateUser(cleanMobile, 'admin');
         userType = 'admin';
       } catch (adminError) {
         // If not admin, try to validate as partner
         try {
-          userData = await validateUser(mobileNumber, 'partner');
+          userData = await validateUser(cleanMobile, 'partner');
           userType = 'partner';
         } catch (partnerError) {
           // If neither admin nor partner, show error
@@ -78,7 +102,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ mobile: mobileNumber }),
+        body: JSON.stringify({ mobile: cleanMobile }),
       });
 
       const data = await response.json();
@@ -100,12 +124,27 @@ export default function LoginPage() {
     }
   };
 
-  const handleMobileSubmit = async (mobileNumber: string) => {
-    setMobile(mobileNumber);
-    await sendOTP(mobileNumber);
+  const handleMobileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Ensure mobile is a valid string
+    if (!isValidString(mobile)) {
+      setError("Please enter a valid mobile number");
+      return;
+    }
+    
+    await sendOTP(safeTrim(mobile));
   };
 
-  const handleOtpSubmit = async (otpValue: string) => {
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Ensure otp is a valid string
+    if (!isValidString(otp)) {
+      setError("Please enter a valid OTP");
+      return;
+    }
+    
     try {
       setLoading(true);
       setError("");
@@ -117,8 +156,8 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          mobile: mobile, 
-          otp: otpValue 
+          mobile: safeTrim(mobile), 
+          otp: safeTrim(otp) 
         }),
       });
 
@@ -162,71 +201,218 @@ export default function LoginPage() {
   };
 
   if (!isClient) {
-    return <LoadingSkeleton />;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <Card>
+            <CardHeader className="space-y-2">
+              <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+              <div className="h-10 bg-gray-200 rounded animate-pulse"></div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-        {/* Background decorative elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-slow"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-400/20 rounded-full blur-3xl"></div>
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 w-full max-w-sm">
+        {/* Logo Section */}
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <Image 
+              src="/images/logo.png" 
+              alt="Nakoda Urban Services" 
+              width={48}
+              height={48}
+              className="h-12 w-auto"
+            />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-800 mb-2">
+            {step === "mobile" ? "Welcome Back" : "Verify Your Phone"}
+          </h1>
+          <p className="text-slate-600 text-sm">
+            {step === "mobile" 
+              ? "Enter your mobile number to get started" 
+              : `We've sent a verification code to ${mobile}`
+            }
+          </p>
         </div>
 
-        {/* Main content */}
-        <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-8">
-          <div className="w-full max-w-md">
-            {/* Logo and Brand Section */}
-            <div className="text-center mb-10 animate-fade-in-up">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-3">
-                Nakoda Partner
-              </h1>
-              <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 mx-auto mt-4 rounded-full"></div>
-            </div>
-
-            {/* Login Card */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-              {/* Card Header */}
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-slate-800 mb-2">
-                  {step === "mobile" ? "Welcome Back" : "Verify OTP"}
-                </h2>
-                <p className="text-slate-600 leading-relaxed">
-                  {step === "mobile" 
-                    ? "Enter your mobile number to login" 
-                    : `We've sent a verification code to ${mobile}`
-                  }
-                </p>
+        {/* Login Card */}
+        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+          <CardContent className="p-6">
+            {/* Error/Success Messages */}
+            {error && (
+              <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200">
+                <p className="text-sm text-red-600">{error}</p>
               </div>
+            )}
 
-              {/* Error/Success Messages */}
-              <div className="mb-6 space-y-3">
-                {error && <AuthAlert type="error" message={error} />}
-                {success && <AuthAlert type="success" message={success} />}
+            {success && (
+              <div className="mb-4 p-3 rounded-md bg-green-50 border border-green-200">
+                <p className="text-sm text-green-600">{success}</p>
               </div>
+            )}
 
-              {/* Forms */}
-              <div className="animate-slide-in-right">
-                {step === "mobile" ? (
-                  <MobileForm
-                    onSubmit={handleMobileSubmit}
-                    loading={loading}
-                  />
-                ) : (
-                  <OtpForm
-                    mobile={mobile}
-                    onSubmit={handleOtpSubmit}
-                    onBack={handleBackToMobile}
-                    loading={loading}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
+            {/* Mobile Form */}
+            {step === "mobile" ? (
+              <form onSubmit={handleMobileSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="mobile" className="text-sm font-medium text-slate-700">
+                    Mobile Number
+                  </label>
+                  <div className="relative">
+                    <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="mobile"
+                      type="tel"
+                      placeholder="Enter your mobile number"
+                      value={mobile}
+                      onChange={(e) => setMobile(String(e.target.value || ''))}
+                      className="pl-10 h-11"
+                      maxLength={10}
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Enter your registered mobile number
+                  </p>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-700"
+                  disabled={loading || !isValidString(mobile)}
+                >
+                  {loading ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Sending OTP...</span>
+                    </div>
+                  ) : (
+                    "Send OTP"
+                  )}
+                </Button>
+              </form>
+            ) : (
+              /* OTP Form */
+              <form onSubmit={handleOtpSubmit} className="space-y-4">
+                {/* Mobile Display */}
+                <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs text-slate-600 mb-1">OTP sent to</p>
+                  <p className="text-sm font-semibold text-slate-800">{mobile}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="otp" className="text-sm font-medium text-slate-700">
+                    Verification Code
+                  </label>
+                  <div className="relative">
+                    <LockClosedIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="otp"
+                      type={showOtp ? "text" : "password"}
+                      placeholder="Enter 6-digit OTP"
+                      value={otp}
+                      onChange={(e) => setOtp(String(e.target.value || ''))}
+                      className="pl-10 pr-10 h-11 text-center text-lg font-mono tracking-widest"
+                      maxLength={6}
+                      disabled={loading}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOtp(!showOtp)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      {showOtp ? (
+                        <EyeSlashIcon className="h-4 w-4" />
+                      ) : (
+                        <EyeIcon className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Enter the 6-digit code sent to your mobile
+                  </p>
+                </div>
+
+                <div className="flex space-x-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleBackToMobile}
+                    disabled={loading}
+                    className="flex-1 h-11"
+                  >
+                    <ArrowLeftIcon className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="flex-1 h-11 bg-blue-600 hover:bg-blue-700"
+                    disabled={loading || !isValidString(otp)}
+                  >
+                    {loading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Verifying...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <CheckIcon className="h-4 w-4 mr-2" />
+                        Verify
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-xs text-slate-500">
+                    Didn&apos;t receive the code?{" "}
+                    <button
+                      type="button"
+                      className="text-blue-600 hover:text-blue-700 font-medium"
+                      onClick={() => {
+                        setStep("mobile");
+                        setOtp("");
+                        setError("");
+                        setSuccess("");
+                      }}
+                    >
+                      Resend OTP
+                    </button>
+                  </p>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Footer */}
+        <div className="text-center mt-6">
+          <p className="text-xs text-slate-500">
+            By continuing, you agree to our{" "}
+            <span className="text-blue-600 hover:text-blue-700 cursor-pointer font-medium">Terms of Service</span>
+            {" "}and{" "}
+            <span className="text-blue-600 hover:text-blue-700 cursor-pointer font-medium">Privacy Policy</span>
+          </p>
         </div>
       </div>
-    </ErrorBoundary>
+    </div>
   );
 }

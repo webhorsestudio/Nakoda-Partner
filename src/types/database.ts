@@ -92,6 +92,11 @@ export interface Database {
           last_activity_time: string | null;
           last_activity_by: string | null;
           last_communication_time: string | null;
+          partner_feedback: string | null;
+          completed_at: string | null;
+          completion_images: string[] | null;
+          partner_completion_status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | null;
+          completion_notes: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -192,6 +197,11 @@ export interface Database {
           last_activity_time?: string | null;
           last_activity_by?: string | null;
           last_communication_time?: string | null;
+          partner_feedback?: string | null;
+          completed_at?: string | null;
+          completion_images?: string[] | null;
+          partner_completion_status?: 'pending' | 'in_progress' | 'completed' | 'cancelled' | null;
+          completion_notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };

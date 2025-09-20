@@ -11,6 +11,7 @@ import {
   ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { usePartnerRevenue } from '@/hooks/usePartnerRevenue';
+import { getCleanServiceTitle } from '../ongoing/utils/titleUtils';
 import { 
   LineChart, 
   Line, 
@@ -69,13 +70,18 @@ export default function RevenuePageContent() {
     statsError,
     transactionsError,
     fetchRevenueData,
+    fetchRevenueStats,
+    fetchRecentTransactions,
     refreshAll
   } = usePartnerRevenue();
 
   // Handle time range changes
   const handleTimeRangeChange = (newTimeRange: string) => {
     setTimeRange(newTimeRange);
+    // Update all data sources with the new time range
     fetchRevenueData(newTimeRange);
+    fetchRevenueStats(newTimeRange);
+    fetchRecentTransactions(newTimeRange);
   };
 
   const timeRangeOptions = [
@@ -212,6 +218,16 @@ export default function RevenuePageContent() {
                     <div className="h-full bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
                       <div className="text-gray-500">Loading chart...</div>
                     </div>
+                  ) : revenueData.length === 0 ? (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-gray-400 mb-2">
+                          <ChartBarIcon className="h-12 w-12 mx-auto" />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-1">No Revenue Data</h3>
+                        <p className="text-gray-500">No revenue data available for the selected time period.</p>
+                      </div>
+                    </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={revenueData}>
@@ -244,9 +260,38 @@ export default function RevenuePageContent() {
               {/* Service Breakdown */}
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Service Breakdown</h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
+                {isLoadingStats ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="h-64 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+                      <div className="text-gray-500">Loading chart...</div>
+                    </div>
+                    <div className="space-y-3">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg animate-pulse">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-4 h-4 bg-gray-200 rounded-full"></div>
+                            <div className="w-24 h-4 bg-gray-200 rounded"></div>
+                          </div>
+                          <div className="text-right">
+                            <div className="w-16 h-4 bg-gray-200 rounded mb-1"></div>
+                            <div className="w-12 h-3 bg-gray-200 rounded"></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : serviceBreakdown.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="text-gray-400 mb-2">
+                      <ChartBarIcon className="h-12 w-12 mx-auto" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">No Service Data</h3>
+                    <p className="text-gray-500">No service breakdown data available for the selected time period.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={serviceBreakdown}
@@ -281,8 +326,9 @@ export default function RevenuePageContent() {
                         </div>
                       </div>
                     ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}
@@ -290,8 +336,35 @@ export default function RevenuePageContent() {
           {activeTab === 'transactions' && (
             <div>
               <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Transactions</h3>
-              <div className="space-y-3">
-                {recentTransactions.map((transaction) => (
+              {isLoadingTransactions ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg animate-pulse">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                        <div>
+                          <div className="w-32 h-4 bg-gray-200 rounded mb-2"></div>
+                          <div className="w-24 h-3 bg-gray-200 rounded"></div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="w-20 h-4 bg-gray-200 rounded mb-2"></div>
+                        <div className="w-16 h-3 bg-gray-200 rounded"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : recentTransactions.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 mb-2">
+                    <CheckCircleIcon className="h-12 w-12 mx-auto" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-1">No Transactions</h3>
+                  <p className="text-gray-500">No transactions found for the selected time period.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentTransactions.map((transaction) => (
                   <div key={transaction.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center space-x-4">
                       <div className={`p-2 rounded-lg ${
@@ -304,7 +377,7 @@ export default function RevenuePageContent() {
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{transaction.service}</p>
+                        <p className="font-medium text-gray-900">{getCleanServiceTitle(transaction.service)}</p>
                         <p className="text-sm text-gray-500">{formatDate(transaction.date)}</p>
                       </div>
                     </div>
@@ -314,7 +387,8 @@ export default function RevenuePageContent() {
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -323,7 +397,22 @@ export default function RevenuePageContent() {
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Earnings vs Tasks</h3>
                 <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
+                  {isLoadingRevenue ? (
+                    <div className="h-full bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+                      <div className="text-gray-500">Loading chart...</div>
+                    </div>
+                  ) : revenueData.length === 0 ? (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-gray-400 mb-2">
+                          <ChartBarIcon className="h-12 w-12 mx-auto" />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-1">No Analytics Data</h3>
+                        <p className="text-gray-500">No analytics data available for the selected time period.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={revenueData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis 
@@ -342,14 +431,25 @@ export default function RevenuePageContent() {
                       <Bar yAxisId="left" dataKey="earnings" fill="#3B82F6" radius={[4, 4, 0, 0]} />
                       <Bar yAxisId="right" dataKey="tasks" fill="#10B981" radius={[4, 4, 0, 0]} />
                     </BarChart>
-                  </ResponsiveContainer>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium text-gray-900 mb-3">Performance Metrics</h4>
-                  <div className="space-y-3">
+                  {isLoadingStats ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex justify-between">
+                          <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
+                          <div className="w-16 h-4 bg-gray-200 rounded animate-pulse"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Average per task</span>
                       <span className="font-semibold">{formatCurrency(revenueStats?.averageEarnings || 0)}</span>
@@ -362,12 +462,23 @@ export default function RevenuePageContent() {
                       <span className="text-gray-600">Weekly growth</span>
                       <span className="font-semibold text-green-600">+{revenueStats?.weeklyGrowth || 0}%</span>
                     </div>
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium text-gray-900 mb-3">Financial Summary</h4>
-                  <div className="space-y-3">
+                  {isLoadingStats ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex justify-between">
+                          <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
+                          <div className="w-16 h-4 bg-gray-200 rounded animate-pulse"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Total revenue</span>
                       <span className="font-semibold">{formatCurrency(revenueStats?.totalEarnings || 0)}</span>
@@ -378,9 +489,10 @@ export default function RevenuePageContent() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Monthly growth</span>
-                      <span className="font-semibold text-green-600">+{revenueStats?.monthlyGrowth}%</span>
+                      <span className="font-semibold text-green-600">+{revenueStats?.monthlyGrowth || 0}%</span>
                     </div>
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

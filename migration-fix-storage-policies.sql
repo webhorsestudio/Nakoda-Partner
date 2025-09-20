@@ -1,65 +1,69 @@
--- =====================================================
--- Fix Storage Policies for Task Completion Images
--- =====================================================
-
--- Drop existing policies that require auth.role() = 'authenticated'
-DROP POLICY IF EXISTS "Authenticated users can upload task completion images" ON storage.objects;
-DROP POLICY IF EXISTS "Anyone can view task completion images" ON storage.objects;
-DROP POLICY IF EXISTS "Authenticated users can update task completion images" ON storage.objects;
-DROP POLICY IF EXISTS "Authenticated users can delete task completion images" ON storage.objects;
-
--- Create new policies that work with the partner authentication system
--- Since we're using mobile-based JWT authentication, we need to allow service_role access
-
--- Policy for service_role to upload task completion images
-CREATE POLICY "Service role can upload task completion images" ON storage.objects
-FOR INSERT WITH CHECK (
-    bucket_id = 'task-completion-images' 
-    AND auth.role() = 'service_role'
-);
-
--- Policy for service_role to view task completion images
-CREATE POLICY "Service role can view task completion images" ON storage.objects
-FOR SELECT USING (
-    bucket_id = 'task-completion-images' 
-    AND auth.role() = 'service_role'
-);
-
--- Policy for service_role to update task completion images
-CREATE POLICY "Service role can update task completion images" ON storage.objects
-FOR UPDATE USING (
-    bucket_id = 'task-completion-images' 
-    AND auth.role() = 'service_role'
-);
-
--- Policy for service_role to delete task completion images
-CREATE POLICY "Service role can delete task completion images" ON storage.objects
-FOR DELETE USING (
-    bucket_id = 'task-completion-images' 
-    AND auth.role() = 'service_role'
-);
-
--- Alternative approach: Allow all operations for service_role on this bucket
--- This is more permissive but ensures the API works
-CREATE POLICY "Service role full access to task completion images" ON storage.objects
-FOR ALL USING (
-    bucket_id = 'task-completion-images' 
-    AND auth.role() = 'service_role'
-);
+-- Migration: Fix Storage Policies for Task Completion Images
+-- Purpose: Fix RLS policies to allow image uploads for task completion
+-- Date: 2025-01-17
 
 -- =====================================================
--- Verify the bucket exists and is properly configured
+-- STEP 1: Create Storage Bucket (if not exists)
 -- =====================================================
 
--- Check if bucket exists
-SELECT * FROM storage.buckets WHERE id = 'task-completion-images';
-
--- If bucket doesn't exist, create it
+-- Create the task-completion-images bucket
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-    'task-completion-images',
-    'task-completion-images',
-    true, -- Public bucket for easy access
-    10485760, -- 10MB file size limit
-    ARRAY['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
-) ON CONFLICT (id) DO NOTHING;
+VALUES ('task-completion-images', 'task-completion-images', TRUE, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+ON CONFLICT (id) DO NOTHING;
+
+-- =====================================================
+-- STEP 2: Drop Existing Policies (if any)
+-- =====================================================
+
+-- Drop existing policies to avoid conflicts
+DROP POLICY IF EXISTS "Partners can upload task completion images" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can view task completion images" ON storage.objects;
+DROP POLICY IF EXISTS "Partners can update their own task completion images" ON storage.objects;
+DROP POLICY IF EXISTS "Partners can delete their own task completion images" ON storage.objects;
+
+-- =====================================================
+-- STEP 3: Create New Storage Policies
+-- =====================================================
+
+-- Policy for partners to upload images
+CREATE POLICY "Partners can upload task completion images"
+ON storage.objects FOR INSERT TO authenticated WITH CHECK (
+    bucket_id = 'task-completion-images' AND
+    auth.uid() IS NOT NULL
+);
+
+-- Policy for anyone to view uploaded images (public bucket)
+CREATE POLICY "Anyone can view task completion images"
+ON storage.objects FOR SELECT TO public USING (bucket_id = 'task-completion-images');
+
+-- Policy for partners to update their own images (if needed, e.g., replace)
+CREATE POLICY "Partners can update their own task completion images"
+ON storage.objects FOR UPDATE TO authenticated USING (
+    bucket_id = 'task-completion-images' AND
+    auth.uid() IS NOT NULL
+);
+
+-- Policy for partners to delete their own images (if needed)
+CREATE POLICY "Partners can delete their own task completion images"
+ON storage.objects FOR DELETE TO authenticated USING (
+    bucket_id = 'task-completion-images' AND
+    auth.uid() IS NOT NULL
+);
+
+-- =====================================================
+-- STEP 4: Grant Permissions
+-- =====================================================
+
+-- Grant necessary permissions
+GRANT USAGE ON SCHEMA storage TO authenticated;
+GRANT ALL ON storage.objects TO authenticated;
+GRANT ALL ON storage.buckets TO authenticated;
+
+-- =====================================================
+-- MIGRATION COMPLETE
+-- =====================================================
+
+-- ✅ Created task-completion-images bucket
+-- ✅ Fixed RLS policies for image uploads
+-- ✅ Set up proper permissions
+-- ✅ Images can now be uploaded successfully

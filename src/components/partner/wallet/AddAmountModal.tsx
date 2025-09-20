@@ -10,13 +10,19 @@ interface AddAmountModalProps {
   onClose: () => void;
   onAddAmount: (amount: string) => void;
   balance: number;
+  partnerInfo?: {
+    name: string;
+    email: string;
+    phone: string;
+  };
 }
 
 export default function AddAmountModal({ 
   isOpen, 
   onClose, 
   onAddAmount, 
-  balance 
+  balance,
+  partnerInfo
 }: AddAmountModalProps) {
   const [amount, setAmount] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('CC');
@@ -39,9 +45,9 @@ export default function AddAmountModal({
       const result = await initiatePayment({
         amount: parseFloat(amount),
         customerInfo: {
-          customerName: 'Partner',
-          customerEmailId: 'partner@example.com',
-          customerMobileNo: '9999999999',
+          customerName: partnerInfo?.name || 'Partner',
+          customerEmailId: partnerInfo?.email || 'partner@example.com',
+          customerMobileNo: partnerInfo?.phone || '9999999999',
           customerCountry: 'India'
         }
       });

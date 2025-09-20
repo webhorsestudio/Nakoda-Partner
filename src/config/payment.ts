@@ -12,12 +12,12 @@ export const paymentConfig: PaymentConfig = {
     privateKey: '', // Not required for basic integration
   },
   production: {
-    baseUrl: process.env.AXIS_PG_PRODUCTION_URL || 'https://axispg.freecharge.in',
-    merchantId: process.env.AXIS_PG_PRODUCTION_MERCHANT_ID || 'YOUR_MERCHANT_ID', // You need to get this from Axis PG
-    clientId: process.env.AXIS_PG_PRODUCTION_MERCHANT_ID || 'YOUR_MERCHANT_ID', // clientId is same as merchantId
-    merchantKey: process.env.AXIS_PG_PRODUCTION_MERCHANT_KEY || 'YOUR_PRODUCTION_KEY',
-    publicKey: '', // Not required for basic integration
-    privateKey: '', // Not required for basic integration
+    baseUrl: process.env.AXIS_PG_PRODUCTION_URL || 'https://checkout.freecharge.in',
+    merchantId: process.env.AXIS_PG_PRODUCTION_MERCHANT_ID || 'MERec40511352',
+    clientId: process.env.AXIS_PG_PRODUCTION_CLIENT_ID || 'MERec40511352',
+    merchantKey: process.env.AXIS_PG_PRODUCTION_MERCHANT_KEY || 'W3gJPVkKNg3GO8aFC6aOz33/+0MYOBMxLbrqWmiYQ/s=',
+    publicKey: process.env.AXIS_PG_PRODUCTION_PUBLIC_KEY || '', // Required for JWT+JWE encryption
+    privateKey: process.env.AXIS_PG_PRODUCTION_PRIVATE_KEY || '', // Required for JWT+JWE encryption
   },
 };
 

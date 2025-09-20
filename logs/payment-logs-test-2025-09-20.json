@@ -1,0 +1,197 @@
+{
+  "exportedAt": "2025-09-20T03:08:31.896Z",
+  "totalLogs": 10,
+  "logs": [
+    {
+      "type": "SUCCESS",
+      "level": "INFO",
+      "message": "Payment completed successfully",
+      "requestId": "TXN_TEST_SUCCESS",
+      "data": {
+        "transactionId": "TXN_TEST_SUCCESS",
+        "amount": 100,
+        "status": "SUCCESS"
+      },
+      "timestamp": "2025-09-20T03:08:30.877Z"
+    },
+    {
+      "type": "RESPONSE",
+      "level": "INFO",
+      "message": "Payment gateway response received",
+      "requestId": "TXN_TEST_SUCCESS",
+      "data": {
+        "status": 200,
+        "statusText": "OK",
+        "responseLength": 235,
+        "responsePreview": "<!DOCTYPE html><html><head><title>Payment Gateway</title></head><body><form action=\"https://checkout.freecharge.in/payment/v1/checkout\" method=\"POST\"><input type=\"hidden\" name=\"merchantId\" value=\"MERec40511352\">...</form></body></html>",
+        "hasSessionExpired": false,
+        "hasError": false,
+        "hasForm": true,
+        "hasPayment": true
+      },
+      "timestamp": "2025-09-20T03:08:30.874Z"
+    },
+    {
+      "type": "REQUEST",
+      "level": "INFO",
+      "message": "Payment checkout request initiated",
+      "requestId": "TXN_TEST_SUCCESS",
+      "data": {
+        "merchantId": "MERec40511352",
+        "merchantTxnId": "TXN_TEST_SUCCESS",
+        "amount": 100,
+        "currency": "INR",
+        "timestamp": 1758337707758,
+        "callbackUrl": "https://your-domain.com/api/payment/callback",
+        "customerInfo": {
+          "customerId": "123",
+          "customerName": "Test User",
+          "customerEmailId": "test@example.com",
+          "customerMobileNo": "9999999999"
+        },
+        "signature": "GENERATED"
+      },
+      "timestamp": "2025-09-20T03:08:30.871Z"
+    },
+    {
+      "type": "ERROR",
+      "level": "ERROR",
+      "message": "Payment gateway error in Amount validation",
+      "requestId": "TXN_TEST_VALIDATION_ERROR",
+      "data": {
+        "error": {
+          "name": "Error",
+          "message": "Amount must be at least ₹1",
+          "stack": "Error: Amount must be at least ₹1\n    at Object.<anonymous> (C:\\Users\\Webhorse Studio\\Desktop\\Nakoda\\partner\\nakoda-partner\\scripts\\test-payment-logging.js:257:12)\n    at Module._compile (node:internal/modules/cjs/loader:1565:14)\n    at Object..js (node:internal/modules/cjs/loader:1708:10)\n    at Module.load (node:internal/modules/cjs/loader:1318:32)\n    at Function._load (node:internal/modules/cjs/loader:1128:12)\n    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:219:24)\n    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)\n    at node:internal/main/run_main_module:36:49"
+        },
+        "context": "Amount validation"
+      },
+      "timestamp": "2025-09-20T03:08:29.854Z"
+    },
+    {
+      "type": "REQUEST",
+      "level": "INFO",
+      "message": "Payment checkout request initiated",
+      "requestId": "TXN_TEST_VALIDATION_ERROR",
+      "data": {
+        "merchantId": "MERec40511352",
+        "merchantTxnId": "TXN_TEST_VALIDATION_ERROR",
+        "amount": -50,
+        "currency": "INR",
+        "timestamp": 1758337707758,
+        "callbackUrl": "https://your-domain.com/api/payment/callback",
+        "customerInfo": {
+          "customerId": "123",
+          "customerName": "Test User",
+          "customerEmailId": "test@example.com",
+          "customerMobileNo": "9999999999"
+        },
+        "signature": "GENERATED"
+      },
+      "timestamp": "2025-09-20T03:08:29.850Z"
+    },
+    {
+      "type": "ERROR",
+      "level": "ERROR",
+      "message": "Payment gateway error in API call",
+      "requestId": "TXN_TEST_NETWORK_ERROR",
+      "data": {
+        "error": {
+          "name": "Error",
+          "message": "Failed to fetch",
+          "stack": "Error: Failed to fetch\n    at Object.<anonymous> (C:\\Users\\Webhorse Studio\\Desktop\\Nakoda\\partner\\nakoda-partner\\scripts\\test-payment-logging.js:236:12)\n    at Module._compile (node:internal/modules/cjs/loader:1565:14)\n    at Object..js (node:internal/modules/cjs/loader:1708:10)\n    at Module.load (node:internal/modules/cjs/loader:1318:32)\n    at Function._load (node:internal/modules/cjs/loader:1128:12)\n    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:219:24)\n    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)\n    at node:internal/main/run_main_module:36:49"
+        },
+        "context": "API call"
+      },
+      "timestamp": "2025-09-20T03:08:28.832Z"
+    },
+    {
+      "type": "REQUEST",
+      "level": "INFO",
+      "message": "Payment checkout request initiated",
+      "requestId": "TXN_TEST_NETWORK_ERROR",
+      "data": {
+        "merchantId": "MERec40511352",
+        "merchantTxnId": "TXN_TEST_NETWORK_ERROR",
+        "amount": 100,
+        "currency": "INR",
+        "timestamp": 1758337707758,
+        "callbackUrl": "https://your-domain.com/api/payment/callback",
+        "customerInfo": {
+          "customerId": "123",
+          "customerName": "Test User",
+          "customerEmailId": "test@example.com",
+          "customerMobileNo": "9999999999"
+        },
+        "signature": "GENERATED"
+      },
+      "timestamp": "2025-09-20T03:08:28.825Z"
+    },
+    {
+      "type": "ERROR",
+      "level": "ERROR",
+      "message": "Session expired error detected",
+      "requestId": "TXN_TEST_SESSION_EXPIRED",
+      "data": {
+        "requestTimestamp": 1758337707758,
+        "currentTimestamp": 1758337707806,
+        "timeDifference": 48,
+        "responsePreview": "<!DOCTYPE html><html><head><title>Session Expired</title></head><body><h1>Session Expired</h1><p>Your session has expired. Please try again later.</p></body></html>",
+        "possibleCauses": [
+          "Timestamp in future",
+          "Timestamp too old",
+          "Invalid signature",
+          "Invalid merchant credentials",
+          "Callback URL not accessible"
+        ],
+        "requestData": {
+          "merchantId": "MERec40511352",
+          "merchantTxnId": "TXN_TEST_SESSION_EXPIRED",
+          "amount": 100,
+          "timestamp": 1758337707758,
+          "signature": "GENERATED"
+        }
+      },
+      "timestamp": "2025-09-20T03:08:27.806Z"
+    },
+    {
+      "type": "RESPONSE",
+      "level": "INFO",
+      "message": "Payment gateway response received",
+      "requestId": "TXN_TEST_SESSION_EXPIRED",
+      "data": {
+        "status": 200,
+        "statusText": "OK",
+        "responseLength": 164,
+        "responsePreview": "<!DOCTYPE html><html><head><title>Session Expired</title></head><body><h1>Session Expired</h1><p>Your session has expired. Please try again later.</p></body></html>",
+        "hasSessionExpired": true,
+        "hasError": false,
+        "hasForm": false,
+        "hasPayment": false
+      },
+      "timestamp": "2025-09-20T03:08:27.803Z"
+    },
+    {
+      "type": "REQUEST",
+      "level": "INFO",
+      "message": "Payment checkout request initiated",
+      "requestId": "TXN_TEST_SESSION_EXPIRED",
+      "data": {
+        "merchantId": "MERec40511352",
+        "merchantTxnId": "TXN_TEST_SESSION_EXPIRED",
+        "amount": 100,
+        "currency": "INR",
+        "timestamp": 1758337707758,
+        "callbackUrl": "https://your-domain.com/api/payment/callback",
+        "customerInfo": {
+          "customerId": "123",
+          "customerName": "Test User",
+          "customerEmailId": "test@example.com",
+          "customerMobileNo": "9999999999"
+        },
+        "signature": "GENERATED"
+      },
+      "timestamp": "2025-09-20T03:08:27.792Z"
+    }
+  ]
+}

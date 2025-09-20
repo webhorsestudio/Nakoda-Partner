@@ -4,24 +4,18 @@ import { OngoingTask } from '../types';
 interface UseOngoingTaskCardProps {
   task: OngoingTask;
   onViewDetails: (taskId: string) => void;
-  onStartTask: (taskId: string) => void;
   onCompleteTask: (taskId: string) => void;
 }
 
 export function useOngoingTaskCard({ 
   task, 
   onViewDetails, 
-  onStartTask, 
   onCompleteTask 
 }: UseOngoingTaskCardProps) {
   
   const handleViewDetails = useCallback(() => {
     onViewDetails(task.id);
   }, [task.id, onViewDetails]);
-
-  const handleStartTask = useCallback(() => {
-    onStartTask(task.id);
-  }, [task.id, onStartTask]);
 
   const handleCompleteTask = useCallback(() => {
     onCompleteTask(task.id);
@@ -35,7 +29,6 @@ export function useOngoingTaskCard({
 
   return {
     handleViewDetails,
-    handleStartTask,
     handleCompleteTask,
     handleCallNow,
     // Task data

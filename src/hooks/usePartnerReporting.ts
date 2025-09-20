@@ -11,12 +11,6 @@ export interface PerformanceMetrics {
   onTimeCompletion: number;
 }
 
-export interface EarningsData {
-  date: string;
-  earnings: number;
-  tasks: number;
-  commission: number;
-}
 
 export interface TaskPerformance {
   serviceType: string;
@@ -29,37 +23,30 @@ export interface TaskPerformance {
 export interface UsePartnerReportingReturn {
   // Data
   performanceMetrics: PerformanceMetrics | null;
-  earningsData: EarningsData[];
   taskPerformance: TaskPerformance[];
   
   // Loading states
   isLoadingMetrics: boolean;
-  isLoadingEarnings: boolean;
   isLoadingPerformance: boolean;
   
   // Error states
   metricsError: string | null;
-  earningsError: string | null;
   performanceError: string | null;
   
   // Actions
   fetchMetrics: () => Promise<void>;
-  fetchEarnings: (timeRange: string) => Promise<void>;
-  fetchPerformance: () => Promise<void>;
+  fetchPerformance: (timeRange: string) => Promise<void>;
   refreshAll: (timeRange?: string) => Promise<void>;
 }
 
 export function usePartnerReporting(): UsePartnerReportingReturn {
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
-  const [earningsData, setEarningsData] = useState<EarningsData[]>([]);
   const [taskPerformance, setTaskPerformance] = useState<TaskPerformance[]>([]);
   
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
-  const [isLoadingEarnings, setIsLoadingEarnings] = useState(false);
   const [isLoadingPerformance, setIsLoadingPerformance] = useState(false);
   
   const [metricsError, setMetricsError] = useState<string | null>(null);
-  const [earningsError, setEarningsError] = useState<string | null>(null);
   const [performanceError, setPerformanceError] = useState<string | null>(null);
 
   // Get authentication token from localStorage or cookies
@@ -91,17 +78,6 @@ export function usePartnerReporting(): UsePartnerReportingReturn {
     onTimeCompletion: 93.3
   });
 
-  const getSampleEarnings = (timeRange: string): EarningsData[] => {
-    const days = timeRange === '7d' ? 7 : 30;
-    const baseAmount = timeRange === '7d' ? 2500 : timeRange === '30d' ? 12500 : 45000;
-    
-    return Array.from({ length: days }, (_, i) => ({
-      date: new Date(Date.now() - (days - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      earnings: Math.random() * (baseAmount / days) + 50,
-      tasks: Math.floor(Math.random() * 5) + 1,
-      commission: Math.random() * (baseAmount / days) * 0.1 + 5
-    }));
-  };
 
   const getSampleTaskPerformance = (): TaskPerformance[] => [
     {
@@ -127,7 +103,7 @@ export function usePartnerReporting(): UsePartnerReportingReturn {
     }
   ];
 
-  const fetchMetrics = useCallback(async () => {
+  const fetchMetrics = useCallback(async (timeRange: string = '30d') => {
     setIsLoadingMetrics(true);
     setMetricsError(null);
     
@@ -144,7 +120,7 @@ export function usePartnerReporting(): UsePartnerReportingReturn {
         console.log('No auth token found, proceeding with API call anyway');
       }
 
-      const response = await fetch('/api/partners/reporting/metrics', {
+      const response = await fetch(`/api/partners/reporting/metrics?range=${timeRange}`, {
         method: 'GET',
         headers,
         credentials: 'include',
@@ -171,51 +147,8 @@ export function usePartnerReporting(): UsePartnerReportingReturn {
     }
   }, []);
 
-  const fetchEarnings = useCallback(async (timeRange: string = '30d') => {
-    setIsLoadingEarnings(true);
-    setEarningsError(null);
-    
-    try {
-      const token = getAuthToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      } else {
-        // For demo purposes, we'll still try the API call without auth
-        console.log('No auth token found, proceeding with API call anyway');
-      }
 
-      const response = await fetch(`/api/partners/reporting/earnings?range=${timeRange}`, {
-        method: 'GET',
-        headers,
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setEarningsData(result.data);
-      } else {
-        throw new Error(result.error || 'Failed to fetch earnings data');
-      }
-    } catch (error) {
-      console.error('Error fetching earnings data:', error);
-      setEarningsError(error instanceof Error ? error.message : 'Failed to fetch earnings data');
-      // Use sample data as fallback
-      setEarningsData(getSampleEarnings(timeRange));
-    } finally {
-      setIsLoadingEarnings(false);
-    }
-  }, []);
-
-  const fetchPerformance = useCallback(async () => {
+  const fetchPerformance = useCallback(async (timeRange: string = '30d') => {
     setIsLoadingPerformance(true);
     setPerformanceError(null);
     
@@ -232,7 +165,7 @@ export function usePartnerReporting(): UsePartnerReportingReturn {
         console.log('No auth token found, proceeding with API call anyway');
       }
 
-      const response = await fetch('/api/partners/reporting/performance', {
+      const response = await fetch(`/api/partners/reporting/performance?range=${timeRange}`, {
         method: 'GET',
         headers,
         credentials: 'include',
@@ -261,11 +194,10 @@ export function usePartnerReporting(): UsePartnerReportingReturn {
 
   const refreshAll = useCallback(async (timeRange: string = '30d') => {
     await Promise.all([
-      fetchMetrics(),
-      fetchEarnings(timeRange),
-      fetchPerformance()
+      fetchMetrics(timeRange),
+      fetchPerformance(timeRange)
     ]);
-  }, [fetchMetrics, fetchEarnings, fetchPerformance]);
+  }, [fetchMetrics, fetchPerformance]);
 
   // Initial load
   useEffect(() => {
@@ -275,22 +207,18 @@ export function usePartnerReporting(): UsePartnerReportingReturn {
   return {
     // Data
     performanceMetrics,
-    earningsData,
     taskPerformance,
     
     // Loading states
     isLoadingMetrics,
-    isLoadingEarnings,
     isLoadingPerformance,
     
     // Error states
     metricsError,
-    earningsError,
     performanceError,
     
     // Actions
     fetchMetrics,
-    fetchEarnings,
     fetchPerformance,
     refreshAll,
   };

@@ -4,10 +4,13 @@ import { useTaskFiltering } from '@/hooks/useTaskFiltering';
 import { useTaskStatistics } from '@/hooks/useTaskStatistics';
 import { useTaskActions } from '@/hooks/useTaskActions';
 import OngoingTaskPresentation from './OngoingTaskPresentation';
+import { toast } from 'react-hot-toast';
 
 export default function OngoingTaskContainer() {
   // State to track completed tasks
   const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set());
+  // State to track expired tasks
+  const [expiredTaskIds, setExpiredTaskIds] = useState<Set<string>>(new Set());
 
   // Data fetching
   const {
@@ -21,21 +24,18 @@ export default function OngoingTaskContainer() {
     dismissNewOrdersNotification
   } = usePartnerAcceptedOrders();
 
-  // Add completion state to tasks first - memoized to prevent unnecessary re-renders
+  // Add completion and expiration state to tasks first - memoized to prevent unnecessary re-renders
   const tasksWithCompletionState = useMemo(() => {
     return orders.map(task => ({
       ...task,
-      isCompleted: completedTaskIds.has(task.id)
+      isCompleted: completedTaskIds.has(task.id),
+      isExpired: expiredTaskIds.has(task.id)
     }));
-  }, [orders, completedTaskIds]);
-  
-  // Debug logging
-  console.log('Completed task IDs:', Array.from(completedTaskIds));
-  console.log('Tasks with completion state:', tasksWithCompletionState.map(t => ({ id: t.id, isCompleted: t.isCompleted })));
+  }, [orders, completedTaskIds, expiredTaskIds]);
   
   // Track completion state changes
   useEffect(() => {
-    console.log('Completion state changed:', Array.from(completedTaskIds));
+    // Completion state updated
   }, [completedTaskIds]);
 
   // Business logic hooks - use tasks with completion state
@@ -47,27 +47,41 @@ export default function OngoingTaskContainer() {
   } = useTaskFiltering({ tasks: tasksWithCompletionState });
 
   const statistics = useTaskStatistics({ tasks: tasksWithCompletionState });
-  const { handleViewDetails, handleStartTask, handleCompleteTask } = useTaskActions();
+  const { handleViewDetails, handleCompleteTask } = useTaskActions();
 
   // Handle task completion
   const handleTaskCompleted = (taskId: string) => {
-    console.log('Task completed:', taskId);
     // Mark task as completed in local state
     setCompletedTaskIds(prev => {
       const newSet = new Set([...prev, taskId]);
-      console.log('Updated completed task IDs:', Array.from(newSet));
       return newSet;
     });
-    // TODO: Implement API call to mark task as completed
-    // For now, just show a success message
-    alert('Task marked as completed!');
+    
+    // Show notification that order will be removed from ongoing list
+    toast.success('Order completed! Removing from ongoing tasks...', {
+      duration: 3000,
+      icon: '✅',
+    });
+    
+    // Refresh the orders list to remove the completed order
+    // Add a small delay to ensure database update has been processed
+    setTimeout(() => {
+      refreshOrders();
+    }, 1000); // 1 second delay
+    
+    // Note: API call is handled in CountdownTimer component
+    // This function is called after successful API completion
   };
 
-  // Test function to manually complete a task (for debugging)
-  const testCompleteTask = (taskId: string) => {
-    console.log('Test completing task:', taskId);
-    setCompletedTaskIds(prev => new Set([...prev, taskId]));
+  // Handle task expiration
+  const handleTaskExpired = (taskId: string) => {
+    // Mark task as expired in local state
+    setExpiredTaskIds(prev => {
+      const newSet = new Set([...prev, taskId]);
+      return newSet;
+    });
   };
+
 
   return (
     <OngoingTaskPresentation
@@ -94,10 +108,9 @@ export default function OngoingTaskContainer() {
       // Actions
       onRefresh={refreshOrders}
       onViewDetails={handleViewDetails}
-      onStartTask={handleStartTask}
       onCompleteTask={handleCompleteTask}
       onTaskCompleted={handleTaskCompleted}
-      onTestComplete={testCompleteTask}
+      onTaskExpired={handleTaskExpired}
     />
   );
 }

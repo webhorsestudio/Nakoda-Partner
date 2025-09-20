@@ -2,12 +2,23 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StarIcon, TrendingUpIcon } from 'lucide-react';
 import { TaskPerformanceTableProps } from './types';
+import { getCleanServiceTitle } from '../ongoing/utils/titleUtils';
 
 export default function TaskPerformanceTable({ data, isLoading = false }: TaskPerformanceTableProps) {
   const getCompletionRate = (completed: number, total: number) => {
-    if (total === 0) return 0;
-    return Math.round((completed / total) * 100);
+    const completedNum = Number(completed) || 0;
+    const totalNum = Number(total) || 0;
+    if (totalNum === 0) return 0;
+    const rate = (completedNum / totalNum) * 100;
+    return isNaN(rate) ? 0 : Math.round(rate);
   };
+
+  // Ensure data is always an array and filter out invalid items
+  const validData = Array.isArray(data) ? data.filter(item => 
+    item && 
+    typeof item === 'object' && 
+    item.serviceType
+  ) : [];
 
   return (
     <Card>
@@ -24,8 +35,32 @@ export default function TaskPerformanceTable({ data, isLoading = false }: TaskPe
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="h-64 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="space-y-4">
+            {/* Table Header Skeleton */}
+            <div className="grid grid-cols-6 gap-4 pb-3 border-b border-slate-200">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="w-full h-4 bg-slate-200 rounded animate-pulse"></div>
+              ))}
+            </div>
+            {/* Table Rows Skeleton */}
+            {[1, 2, 3, 4].map((row) => (
+              <div key={row} className="grid grid-cols-6 gap-4 py-3">
+                {[1, 2, 3, 4, 5, 6].map((col) => (
+                  <div key={col} className="w-full h-4 bg-slate-200 rounded animate-pulse"></div>
+                ))}
+              </div>
+            ))}
+            {/* Summary Skeleton */}
+            <div className="mt-6 pt-4 border-t border-slate-200">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i}>
+                    <div className="w-16 h-6 bg-slate-200 rounded animate-pulse mx-auto mb-1"></div>
+                    <div className="w-20 h-3 bg-slate-200 rounded animate-pulse mx-auto"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         ) : (
           <>
@@ -42,16 +77,16 @@ export default function TaskPerformanceTable({ data, isLoading = false }: TaskPe
                   </tr>
                 </thead>
                 <tbody>
-                  {data.map((item, index) => (
+                  {validData.map((item, index) => (
                     <tr key={index} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="py-3 px-4">
-                        <div className="font-medium text-slate-900">{item.serviceType}</div>
+                        <div className="font-medium text-slate-900">{getCleanServiceTitle(item.serviceType)}</div>
                       </td>
                       <td className="py-3 px-4 text-center text-slate-600">
-                        {item.totalTasks}
+                        {Number(item.totalTasks) || 0}
                       </td>
                       <td className="py-3 px-4 text-center text-slate-600">
-                        {item.completedTasks}
+                        {Number(item.completedTasks) || 0}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -70,13 +105,13 @@ export default function TaskPerformanceTable({ data, isLoading = false }: TaskPe
                         <div className="flex items-center justify-center gap-1">
                           <StarIcon className="w-4 h-4 text-yellow-500 fill-current" />
                           <span className="text-sm font-medium text-slate-900">
-                            {item.averageRating}
+                            {Number(item.averageRating) || 0}
                           </span>
                         </div>
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="font-medium text-slate-900">
-                          ₹{item.totalEarnings.toLocaleString()}
+                          ₹{(Number(item.totalEarnings) || 0).toLocaleString()}
                         </div>
                       </td>
                     </tr>
@@ -90,25 +125,34 @@ export default function TaskPerformanceTable({ data, isLoading = false }: TaskPe
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                 <div>
                   <div className="text-lg font-bold text-slate-900">
-                    {data.reduce((sum, item) => sum + item.totalTasks, 0)}
+                    {validData.reduce((sum, item) => sum + (Number(item.totalTasks) || 0), 0)}
                   </div>
                   <div className="text-xs text-slate-500">Total Tasks</div>
                 </div>
                 <div>
                   <div className="text-lg font-bold text-slate-900">
-                    {data.reduce((sum, item) => sum + item.completedTasks, 0)}
+                    {validData.reduce((sum, item) => sum + (Number(item.completedTasks) || 0), 0)}
                   </div>
                   <div className="text-xs text-slate-500">Completed</div>
                 </div>
                 <div>
                   <div className="text-lg font-bold text-slate-900">
-                    {data.length > 0 ? Math.round(data.reduce((sum, item) => sum + item.averageRating, 0) / data.length * 10) / 10 : 0}
+                    {(() => {
+                      const validRatings = validData.filter(item => 
+                        item.averageRating != null && 
+                        !isNaN(Number(item.averageRating)) && 
+                        Number(item.averageRating) > 0
+                      );
+                      if (validRatings.length === 0) return '0';
+                      const avgRating = validRatings.reduce((sum, item) => sum + Number(item.averageRating), 0) / validRatings.length;
+                      return isNaN(avgRating) ? '0' : Math.round(avgRating * 10) / 10;
+                    })()}
                   </div>
                   <div className="text-xs text-slate-500">Avg Rating</div>
                 </div>
                 <div>
                   <div className="text-lg font-bold text-slate-900">
-                    ₹{data.reduce((sum, item) => sum + item.totalEarnings, 0).toLocaleString()}
+                    ₹{validData.reduce((sum, item) => sum + (Number(item.totalEarnings) || 0), 0).toLocaleString()}
                   </div>
                   <div className="text-xs text-slate-500">Total Earnings</div>
                 </div>

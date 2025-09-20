@@ -46,9 +46,13 @@ export async function GET(request: NextRequest) {
         created_at,
         order_number,
         mobile_number,
-        partner_id
+        partner_id,
+        mode,
+        partner_completion_status
       `)
       .eq('partner_id', partnerId) // Only orders assigned to this partner
+      .neq('status', 'completed') // Exclude completed orders from ongoing tasks
+      .neq('partner_completion_status', 'completed') // Also exclude partner-completed orders
       .order('created_at', { ascending: false }) // Latest first
       .limit(limit)
       .range((page - 1) * limit, page * limit - 1);
@@ -77,7 +81,9 @@ export async function GET(request: NextRequest) {
     let countQuery = supabase
       .from('orders')
       .select('id', { count: 'exact' })
-      .eq('partner_id', partnerId);
+      .eq('partner_id', partnerId)
+      .neq('status', 'completed') // Exclude completed orders from ongoing tasks
+      .neq('partner_completion_status', 'completed'); // Also exclude partner-completed orders
 
     if (status !== 'all') {
       countQuery = countQuery.eq('status', status);
@@ -129,7 +135,8 @@ export async function GET(request: NextRequest) {
         customerAddress: order.address || '',
         advanceAmount: advanceAmount,
         balanceAmount: balanceAmount,
-        commissionAmount: commissionAmount
+        commissionAmount: commissionAmount,
+        mode: order.mode || null
       };
     }) || [];
 

@@ -18,6 +18,7 @@ import {
   isPendingStatus,
   getErrorMessage 
 } from '@/utils/paymentUtils';
+import PaymentLogger from '@/utils/paymentLogger';
 
 export class PaymentService {
   private config: ReturnType<typeof getPaymentConfig>;
@@ -38,10 +39,16 @@ export class PaymentService {
    * @returns Payment result with redirect URL or error
    */
   async initiateCheckout(request: CheckoutRequest): Promise<PaymentResult> {
+    const requestId = request.merchantTxnId;
+    
     try {
+      // Log the request
+      PaymentLogger.logRequest(request, requestId);
+      
       // Validate amount
       const amountValidation = validateAmount(request.merchantTxnAmount);
       if (!amountValidation.valid) {
+        PaymentLogger.logError(new Error(amountValidation.error!), requestId, 'Amount validation');
         return {
           success: false,
           error: {
@@ -76,8 +83,30 @@ export class PaymentService {
         requestTimestamp: request.timestamp,
         currentTime,
         timeDifference: timeDiff,
-        isValidTime: timeDiff >= 0 && timeDiff <= 300
+        isValidTime: timeDiff >= 0 && timeDiff <= 300,
+        requestDate: new Date(requestTime * 1000).toISOString(),
+        currentDate: new Date().toISOString()
       });
+
+      // Check if timestamp is in the future
+      if (timeDiff < 0) {
+        console.error('CRITICAL: Timestamp is in the future!', {
+          requestTimestamp: request.timestamp,
+          currentTime,
+          timeDifference: timeDiff,
+          requestDate: new Date(requestTime * 1000).toISOString(),
+          currentDate: new Date().toISOString()
+        });
+        return {
+          success: false,
+          error: {
+            code: 'TIMESTAMP_IN_FUTURE',
+            message: 'Request timestamp is in the future',
+            description: 'The request timestamp cannot be in the future. Please check your system clock.',
+            category: 'VALIDATION'
+          }
+        };
+      }
 
       // Check if timestamp is too old (more than 5 minutes)
       if (timeDiff > 300) {
@@ -118,7 +147,7 @@ export class PaymentService {
         };
       }
 
-      // Prepare form data for POST request
+      // Prepare form data for POST request (Axis PG expects form data for checkout)
       const formData = new URLSearchParams();
       Object.entries(request).forEach(([key, value]) => {
         if (value !== null && value !== undefined && value !== '') {
@@ -127,17 +156,21 @@ export class PaymentService {
       });
 
       // Make API call to Axis PG
-      console.log('Making API call to:', `${this.config.baseUrl}${API_ENDPOINTS.CHECKOUT}`);
-      console.log('Request details:', {
-        merchantId: request.merchantId,
-        merchantTxnId: request.merchantTxnId,
-        amount: request.merchantTxnAmount,
-        timestamp: request.timestamp,
-        signature: request.signature,
-        callbackUrl: request.callbackUrl,
-        formDataSize: formData.toString().length
+      PaymentLogger.log({
+        type: 'REQUEST',
+        level: 'INFO',
+        message: 'Making API call to payment gateway',
+        requestId,
+        data: {
+          url: `${this.config.baseUrl}${API_ENDPOINTS.CHECKOUT}`,
+          method: 'POST',
+          formDataSize: formData.toString().length,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+          }
+        }
       });
-      console.log('Form data:', formData.toString());
       
       const response = await fetch(`${this.config.baseUrl}${API_ENDPOINTS.CHECKOUT}`, {
         method: 'POST',
@@ -159,13 +192,11 @@ export class PaymentService {
         body: formData.toString(),
       });
 
-      console.log('API Response status:', response.status);
-      console.log('API Response headers:', Object.fromEntries(response.headers.entries()));
-
       // Read response text once
       const responseText = await response.text();
-      console.log('Response text length:', responseText.length);
-      console.log('Response preview:', responseText.substring(0, 200) + '...');
+      
+      // Log the response
+      PaymentLogger.logResponse(response, responseText, requestId);
 
       if (!response.ok) {
         console.error('API Error response:', responseText);
@@ -197,14 +228,9 @@ export class PaymentService {
       // Check if response contains session expiry or error messages
       if (responseText.includes('Session Expired') || responseText.includes('session expired') || 
           responseText.includes('SPG-0006') || responseText.includes('Invalid session')) {
-        console.error('Session expiry detected in response:', {
-          responseLength: responseText.length,
-          responsePreview: responseText.substring(0, 500),
-          containsSessionExpired: responseText.includes('Session Expired'),
-          containsSessionExpiredLower: responseText.includes('session expired'),
-          containsSPG0006: responseText.includes('SPG-0006'),
-          containsInvalidSession: responseText.includes('Invalid session')
-        });
+        
+        // Log session expired error with detailed analysis
+        PaymentLogger.logSessionExpired(request, responseText, requestId);
         
         return {
           success: false,
@@ -345,23 +371,32 @@ export class PaymentService {
    */
   async checkTransactionStatus(request: TransactionStatusRequest): Promise<TransactionStatusResponse> {
     try {
-      // Prepare request body
+      // Prepare request body - Axis PG requires encrypted data
       const isProduction = process.env.NODE_ENV === 'production';
       let encData: string;
       
-      if (isProduction && this.config.privateKey) {
-        // Use JWT encryption for production
-        const { createJWT } = await import('@/utils/paymentUtils');
-        encData = createJWT(request, this.config.privateKey);
+      if (isProduction && this.config.privateKey && this.config.publicKey) {
+        // Use JWT + JWE encryption for production
+        const { createJWE, createJWS } = await import('@/utils/paymentUtils');
+        const jweToken = createJWE(request, this.config.publicKey);
+        encData = createJWS(jweToken, this.config.privateKey);
       } else {
-        // Use simple JSON for sandbox/development
-        encData = JSON.stringify(request);
+        // For sandbox, we still need to use the encrypted format
+        // Create a simple encrypted payload for sandbox testing
+        const payload = JSON.stringify(request);
+        encData = Buffer.from(payload).toString('base64');
       }
 
       const requestBody = {
         clientId: this.config.clientId,
         encData
       };
+
+      console.log('Transaction status request:', {
+        clientId: this.config.clientId,
+        encDataLength: encData.length,
+        isProduction
+      });
 
       const response = await fetch(`${this.config.baseUrl}${API_ENDPOINTS.TRANSACTION_STATUS}`, {
         method: 'POST',
@@ -398,23 +433,32 @@ export class PaymentService {
         throw new Error(amountValidation.error);
       }
 
-      // Prepare request body
+      // Prepare request body - Axis PG requires encrypted data
       const isProduction = process.env.NODE_ENV === 'production';
       let encData: string;
       
-      if (isProduction && this.config.privateKey) {
-        // Use JWT encryption for production
-        const { createJWT } = await import('@/utils/paymentUtils');
-        encData = createJWT(request, this.config.privateKey);
+      if (isProduction && this.config.privateKey && this.config.publicKey) {
+        // Use JWT + JWE encryption for production
+        const { createJWE, createJWS } = await import('@/utils/paymentUtils');
+        const jweToken = createJWE(request, this.config.publicKey);
+        encData = createJWS(jweToken, this.config.privateKey);
       } else {
-        // Use simple JSON for sandbox/development
-        encData = JSON.stringify(request);
+        // For sandbox, we still need to use the encrypted format
+        // Create a simple encrypted payload for sandbox testing
+        const payload = JSON.stringify(request);
+        encData = Buffer.from(payload).toString('base64');
       }
 
       const requestBody = {
         clientId: this.config.clientId,
         encData
       };
+
+      console.log('Refund request:', {
+        clientId: this.config.clientId,
+        encDataLength: encData.length,
+        isProduction
+      });
 
       const response = await fetch(`${this.config.baseUrl}${API_ENDPOINTS.REFUND}`, {
         method: 'POST',

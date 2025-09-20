@@ -11,6 +11,7 @@ interface TaskActionsProps {
   onAcceptTask: (taskId: string) => void;
   onViewDetails: (taskId: string) => void;
   advanceAmount: number;
+  mode?: string | null;
 }
 
 export default function TaskActions({ 
@@ -25,6 +26,7 @@ export default function TaskActions({
   const router = useRouter();
 
   const handleAcceptTask = async () => {
+    // Check wallet balance for all orders
     // If wallet is still loading, don't proceed
     if (walletLoading) {
       return;
@@ -35,8 +37,7 @@ export default function TaskActions({
       try {
         await fetchBalance();
         return; // Will retry after balance is loaded
-      } catch (error) {
-        console.error('Error fetching balance:', error);
+      } catch {
         return;
       }
     }

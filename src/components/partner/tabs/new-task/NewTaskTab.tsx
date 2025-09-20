@@ -39,7 +39,6 @@ function NewTaskTab() {
       await acceptOrder(taskId);
       // Success - keep the optimistic update
     } catch (error) {
-      console.error('Error accepting task:', error);
       // Revert optimistic update
       setAcceptedOrders(prev => {
         const newSet = new Set(prev);

@@ -8,19 +8,14 @@
  * @returns Cleaned service title
  */
 export const getCleanServiceTitle = (description: string): string => {
-  console.log('🔍 ===== ONGOING TASK CARD DEBUG =====');
-  console.log('🔍 Original description:', description);
-  
   // Look for "Package:" in the description (case insensitive, flexible spacing)
   // Handle various formats: "Package: text", "Package : text", "Package: text,", etc.
   let packageMatch = description.match(/Package\s*:\s*([^,]+)/i);
-  console.log('🔍 Package match:', packageMatch);
   
   // If no match with "Package:", try other patterns
   if (!packageMatch) {
     // Try to find text after "Package" without colon
     packageMatch = description.match(/Package\s+([^,]+)/i);
-    console.log('🔍 Package match (no colon):', packageMatch);
   }
   
   // If still no match, try to find any text that looks like a service
@@ -29,32 +24,24 @@ export const getCleanServiceTitle = (description: string): string => {
     packageMatch = description.match(/([^,]*Cleaning[^,]*)/i) || 
                   description.match(/([^,]*Service[^,]*)/i) ||
                   description.match(/([^,]*Maintenance[^,]*)/i);
-    console.log('🔍 Service match:', packageMatch);
   }
   
   if (packageMatch) {
     let packageText = packageMatch[1].trim();
-    console.log('🔍 Extracted package text:', packageText);
     
     // Remove "By :" patterns first
     packageText = packageText.replace(/By\s*:\s*/i, '').trim();
-    console.log('🔍 After removing "By :":', packageText);
     
     // Use fallback patterns to remove common company names
-    console.log('🔍 Using fallback partner name removal patterns');
-    console.log('🔍 Package text before fallback:', packageText);
     
     packageText = removeFallbackPatterns(packageText);
-    console.log('🔍 Package text after fallback:', packageText);
     
     // Clean up extra spaces
     packageText = packageText.replace(/\s+/g, ' ').trim();
     
-    console.log('🔍 Final clean package text:', packageText);
     return packageText;
   }
   
-  console.log('🔍 No package found, returning original description');
   // If no package found, return the original description
   return description;
 };
@@ -84,7 +71,7 @@ const removeFallbackPatterns = (text: string): string => {
     const beforeReplace = text;
     text = text.replace(pattern, ' ').trim();
     if (beforeReplace !== text) {
-      console.log(`🔍 Removed fallback pattern:`, beforeReplace, '->', text);
+      break; // Stop after first successful removal
     }
   }
   

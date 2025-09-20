@@ -4,6 +4,7 @@ import { formatCurrency } from '../utils/currencyUtils';
 interface FinancialInfoProps {
   amount: number;
   advanceAmount: number;
+  mode?: string | null;
 }
 
 export default function FinancialInfo({ amount, advanceAmount }: FinancialInfoProps) {
@@ -16,7 +17,9 @@ export default function FinancialInfo({ amount, advanceAmount }: FinancialInfoPr
         </div>
         <div className="text-right">
           <p className="text-xs text-muted-foreground">Advance</p>
-          <p className="text-lg font-medium text-blue-700">{formatCurrency(advanceAmount)}</p>
+          <p className="text-lg font-medium text-blue-700">
+            {formatCurrency(advanceAmount)}
+          </p>
         </div>
       </div>
     </div>

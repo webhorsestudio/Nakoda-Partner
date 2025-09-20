@@ -11,6 +11,32 @@ export async function GET(request: NextRequest) {
     }
 
     const partnerId = authResult.userId;
+    const { searchParams } = new URL(request.url);
+    const timeRange = searchParams.get('range') || '30d';
+
+    // Calculate date range
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (timeRange) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '3m':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case '6m':
+        startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+        break;
+      case '1y':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
 
     // Get partner's performance metrics
     const { data: partner, error: partnerError } = await supabase
@@ -45,7 +71,7 @@ export async function GET(request: NextRequest) {
       .from('orders')
       .select('id, status, created_at, amount')
       .eq('partner_id', partnerId)
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 30 days
+      .gte('created_at', startDate.toISOString()) // Use calculated start date
       .order('created_at', { ascending: false });
 
     if (ordersError) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { partnerService } from "@/services/partnerService";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const stats = await partnerService.getPartnerStats();
 

@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { ServiceDashboardStats } from '@/types/services';
 
 // GET /api/services/stats - Get services dashboard statistics
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     console.log('📊 Fetching services dashboard statistics');
 

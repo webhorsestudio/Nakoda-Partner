@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 
 interface UseTaskActionsReturn {
   handleViewDetails: (taskId: string) => void;
-  handleStartTask: (taskId: string) => void;
   handleCompleteTask: (taskId: string) => void;
 }
 
@@ -13,28 +12,16 @@ export function useTaskActions(): UseTaskActionsReturn {
     window.location.href = `/partner/ongoing-order/${taskId}`;
   }, []);
 
-  const handleStartTask = useCallback((taskId: string) => {
-    console.log('Starting task:', taskId);
-    // TODO: Implement start task logic
-    // This could include:
-    // - API call to update task status to 'in-progress'
-    // - Update local state
-    // - Show confirmation message
-  }, []);
-
   const handleCompleteTask = useCallback((taskId: string) => {
     console.log('Completing task:', taskId);
-    // TODO: Implement complete task logic
-    // This could include:
-    // - API call to update task status to 'completed'
-    // - Update local state
-    // - Show completion confirmation
-    // - Navigate to completion page or show success message
+    // This function is called when the Complete Task button is clicked
+    // The actual completion logic is handled by the CountdownTimer component
+    // which shows the TaskCompletionModal and handles the API call
+    // This is just a placeholder - the real logic is in the modal
   }, []);
 
   return {
     handleViewDetails,
-    handleStartTask,
     handleCompleteTask
   };
 }

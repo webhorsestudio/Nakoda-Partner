@@ -6,7 +6,13 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:payment-logs": "node scripts/test-payment-logging.js",
+    "demo:payment-logs": "node scripts/payment-gateway-demo.js",
+    "test:payment-session-expired": "node scripts/test-payment-logging.js sessionExpired",
+    "test:payment-network-error": "node scripts/test-payment-logging.js networkError",
+    "test:payment-validation-error": "node scripts/test-payment-logging.js validationError",
+    "test:payment-success": "node scripts/test-payment-logging.js successFlow"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",

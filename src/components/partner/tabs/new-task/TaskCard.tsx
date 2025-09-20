@@ -9,7 +9,8 @@ import {
   LocationInfo, 
   TimeInfo, 
   FinancialInfo, 
-  TaskActions 
+  TaskActions,
+  PaymentMode
 } from './components';
 
 export default function TaskCard({ task, onAcceptTask, onViewDetails, isAccepting = false }: TaskCardProps) {
@@ -40,8 +41,11 @@ export default function TaskCard({ task, onAcceptTask, onViewDetails, isAcceptin
 
         <FinancialInfo 
           amount={task.amount} 
-          advanceAmount={task.advanceAmount} 
+          advanceAmount={task.advanceAmount}
+          mode={task.mode}
         />
+
+        <PaymentMode mode={task.mode} />
       </CardContent>
 
                   <CardFooter className="pt-0">
@@ -51,6 +55,7 @@ export default function TaskCard({ task, onAcceptTask, onViewDetails, isAcceptin
                       onAcceptTask={onAcceptTask}
                       onViewDetails={onViewDetails}
                       advanceAmount={task.advanceAmount}
+                      mode={task.mode}
                     />
                   </CardFooter>
     </Card>

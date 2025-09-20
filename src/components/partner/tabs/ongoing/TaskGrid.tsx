@@ -6,7 +6,6 @@ import EmptyState from './EmptyState';
 interface TaskGridProps {
   tasks: OngoingTask[];
   onViewDetails: (taskId: string) => void;
-  onStartTask: (taskId: string) => void;
   onCompleteTask: (taskId: string) => void;
   className?: string;
 }
@@ -14,7 +13,6 @@ interface TaskGridProps {
 export default function TaskGrid({ 
   tasks, 
   onViewDetails, 
-  onStartTask, 
   onCompleteTask,
   className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
 }: TaskGridProps) {
@@ -29,7 +27,6 @@ export default function TaskGrid({
           key={task.id}
           task={task}
           onViewDetails={onViewDetails}
-          onStartTask={onStartTask}
           onCompleteTask={onCompleteTask}
         />
       ))}

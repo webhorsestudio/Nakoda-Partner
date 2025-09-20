@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { WalletBalance, BankAccount } from '@/types/wallet';
+// Simplified wallet balance interface
+interface WalletBalance {
+  available: number;
+}
 import { formatCurrency, validateWithdrawAmount } from '@/utils/walletUtils';
 
 interface WithdrawModalProps {
@@ -9,7 +12,7 @@ interface WithdrawModalProps {
   onClose: () => void;
   onWithdraw: (amount: string, bankAccount: string) => void;
   balance: WalletBalance;
-  bankAccounts: BankAccount[];
+  bankAccounts?: Array<{ id: string; accountNumber: string; bankName: string; }>;
 }
 
 export default function WithdrawModal({ 
@@ -107,18 +110,24 @@ export default function WithdrawModal({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Bank Account
             </label>
-            <select 
-              value={selectedBankAccount}
-              onChange={(e) => setSelectedBankAccount(e.target.value)}
-              className="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base"
-            >
-              <option value="">Select bank account</option>
-              {bankAccounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.accountNumber} - {account.bankName}
-                </option>
-              ))}
-            </select>
+            {bankAccounts && bankAccounts.length > 0 ? (
+              <select 
+                value={selectedBankAccount}
+                onChange={(e) => setSelectedBankAccount(e.target.value)}
+                className="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-base"
+              >
+                <option value="">Select bank account</option>
+                {bankAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.accountNumber} - {account.bankName}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full px-3 py-3 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
+                No bank accounts added. Please add a bank account first.
+              </div>
+            )}
           </div>
 
           {/* Withdrawal Note */}

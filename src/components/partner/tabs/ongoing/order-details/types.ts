@@ -23,6 +23,7 @@ export interface OngoingOrderDetails {
   advanceAmount: number;
   balanceAmount: number;
   commissionAmount: number;
+  mode?: string | null; // Payment mode (COD, online, etc.)
   
   // Additional fields for order details
   customerEmail?: string;
@@ -99,6 +100,7 @@ export interface OngoingFinancialDetailsSectionProps {
     advanceAmount: number;
     balanceAmount: number;
     commissionAmount: number;
+    mode?: string | null;
   };
 }
 

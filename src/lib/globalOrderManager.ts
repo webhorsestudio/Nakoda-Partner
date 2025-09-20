@@ -15,6 +15,8 @@ interface Task {
   estimatedDuration: string;
   createdAt: string;
   status: string;
+  serviceDate?: string;
+  timeSlot?: string;
 }
 
 interface PartnerInfo {
@@ -51,6 +53,7 @@ class GlobalOrderManager {
 
   private listeners: Set<OrderStateListener> = new Set();
   private intervalId: NodeJS.Timeout | null = null;
+  private expirationCheckIntervalId: NodeJS.Timeout | null = null;
   private isInitialized = false;
   private previousOrdersCount = 0;
 
@@ -199,6 +202,9 @@ class GlobalOrderManager {
     // Set up auto-refresh
     this.setRefreshInterval(refreshInterval);
 
+    // Set up time-based expiration checking (every minute)
+    this.setExpirationCheckInterval(60000);
+
     // Set up visibility change listener
     if (typeof window !== 'undefined') {
       const handleVisibilityChange = () => {
@@ -225,6 +231,48 @@ class GlobalOrderManager {
       }, interval);
       console.log(`✅ Global Order Manager: Auto-refresh set to ${interval}ms`);
     }
+  }
+
+  // Set expiration check interval
+  setExpirationCheckInterval(interval: number): void {
+    if (this.expirationCheckIntervalId) {
+      clearInterval(this.expirationCheckIntervalId);
+    }
+
+    if (interval > 0) {
+      this.expirationCheckIntervalId = setInterval(() => {
+        console.log('⏰ Global Order Manager: Checking for expired tasks...');
+        this.checkAndRemoveExpiredTasks();
+      }, interval);
+      console.log(`✅ Global Order Manager: Expiration check set to ${interval}ms`);
+    }
+  }
+
+  // Check and remove expired tasks
+  private checkAndRemoveExpiredTasks(): void {
+    if (this.state.orders.length === 0) return;
+
+    // Import the utility function dynamically to avoid circular dependencies
+    import('@/components/partner/tabs/new-task/utils/timeExpirationUtils').then(({ isTaskExpired }) => {
+      const nonExpiredOrders = this.state.orders.filter(order => {
+        const expired = isTaskExpired(order.timeSlot, order.serviceDate);
+        if (expired) {
+          console.log(`⏰ Global Order Manager: Removing expired task ${order.id} (${order.timeSlot})`);
+        }
+        return !expired;
+      });
+
+      // Only update if there are changes
+      if (nonExpiredOrders.length !== this.state.orders.length) {
+        this.updateState({
+          orders: nonExpiredOrders,
+          total: nonExpiredOrders.length,
+        });
+        console.log(`✅ Global Order Manager: Removed ${this.state.orders.length - nonExpiredOrders.length} expired tasks`);
+      }
+    }).catch(error => {
+      console.error('❌ Global Order Manager: Error checking expired tasks:', error);
+    });
   }
 
   // Manual refresh
@@ -291,6 +339,10 @@ class GlobalOrderManager {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+    if (this.expirationCheckIntervalId) {
+      clearInterval(this.expirationCheckIntervalId);
+      this.expirationCheckIntervalId = null;
     }
     this.listeners.clear();
     this.isInitialized = false;

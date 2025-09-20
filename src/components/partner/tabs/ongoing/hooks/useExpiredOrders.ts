@@ -26,7 +26,6 @@ export function useExpiredOrders({ tasks, onTaskExpired }: UseExpiredOrdersProps
       
       return now > endDateTime;
     } catch (error) {
-      console.error('Error checking task expiration:', error);
       return false;
     }
   }, []);

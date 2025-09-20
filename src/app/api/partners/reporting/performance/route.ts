@@ -11,6 +11,32 @@ export async function GET(request: NextRequest) {
     }
 
     const partnerId = authResult.userId;
+    const { searchParams } = new URL(request.url);
+    const timeRange = searchParams.get('range') || '30d';
+
+    // Calculate date range
+    const now = new Date();
+    let startDate: Date;
+    
+    switch (timeRange) {
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '3m':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case '6m':
+        startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+        break;
+      case '1y':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
 
     // Get partner's service type
     const { data: partner, error: partnerError } = await supabase
@@ -24,7 +50,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch partner data' }, { status: 500 });
     }
 
-    // Get all orders for this partner
+    // Get orders for this partner within the time range
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select(`
@@ -34,7 +60,9 @@ export async function GET(request: NextRequest) {
         amount,
         created_at
       `)
-      .eq('partner_id', partnerId);
+      .eq('partner_id', partnerId)
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', now.toISOString());
 
     if (ordersError) {
       console.error('Error fetching orders:', ordersError);

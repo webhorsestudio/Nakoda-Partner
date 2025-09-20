@@ -11,8 +11,6 @@ export default function OrderDetails({ orderId, onClose, onAcceptOrder }: OrderD
   // In a real app, you would fetch order details by orderId
   const order = sampleOrderDetails;
   
-  console.log('OrderDetails component rendered with orderId:', orderId);
-  
   const handleAcceptOrder = (orderId: string) => {
     onAcceptOrder(orderId);
     onClose(); // Close the details view after accepting

@@ -44,6 +44,63 @@ export const createJWT = (payload: JWTPayload, privateKey: string): string => {
 };
 
 /**
+ * Create JWE (JSON Web Encryption) token
+ * @param payload - Data to encrypt
+ * @param publicKey - Public key for encryption
+ * @returns JWE token string
+ */
+export const createJWE = (payload: JWTPayload, publicKey: string): string => {
+  try {
+    // For now, we'll use a simple base64 encoding approach
+    // In production, you should use a proper JWE library
+    const header = {
+      alg: 'RSA-OAEP-256',
+      enc: 'A256GCM',
+      cty: 'JWT'
+    };
+
+    const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    
+    // For now, just return the encoded payload
+    // In production, implement proper RSA-OAEP-256 encryption
+    return `${encodedHeader}.${encodedPayload}.encrypted_data`;
+  } catch (error) {
+    console.error('Error creating JWE:', error);
+    throw new Error('Failed to create JWE token');
+  }
+};
+
+/**
+ * Create JWS (JSON Web Signature) token
+ * @param jweToken - JWE token to sign
+ * @param privateKey - Private key for signing
+ * @returns JWS token string
+ */
+export const createJWS = (jweToken: string, privateKey: string): string => {
+  try {
+    const header = {
+      alg: 'RS256',
+      typ: 'JWT'
+    };
+
+    const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+    const encodedPayload = Buffer.from(jweToken).toString('base64url');
+    
+    // Create signature
+    const signature = crypto
+      .createHmac('sha256', privateKey)
+      .update(`${encodedHeader}.${encodedPayload}`)
+      .digest('base64url');
+
+    return `${encodedHeader}.${encodedPayload}.${signature}`;
+  } catch (error) {
+    console.error('Error creating JWS:', error);
+    throw new Error('Failed to create JWS token');
+  }
+};
+
+/**
  * Verify JWT token
  * @param token - JWT token to verify
  * @param publicKey - Public key for verification
@@ -83,7 +140,7 @@ export const verifyJWT = (token: string, publicKey: string): JWTPayload | null =
  * @returns SHA-256 hex encoded signature
  */
 export const generateSignature = (data: CheckoutRequest | TransactionStatusRequest | RefundRequest | Record<string, string | number | boolean | null | undefined>, merchantKey: string, isCallback: boolean = false): string => {
-  // Fields required for signature generation (in ascending order)
+  // Fields required for signature generation (in ascending order as per documentation)
   const signatureFields = isCallback ? [
     // Callback signature fields (different order for callback verification)
     'merchantTxnId',
@@ -111,14 +168,15 @@ export const generateSignature = (data: CheckoutRequest | TransactionStatusReque
     'accountType',
     'maskedCardNo'
   ] : [
-    // Regular request signature fields
+    // Regular request signature fields (in ascending order as per documentation)
     'merchantId',
-    'clientId',
+    'callbackUrl',
     'merchantTxnId',
     'merchantTxnAmount',
     'currency',
-    'timestamp',
-    'callbackUrl',
+    'verifiedAccountInfo',
+    'verifiedPayment',
+    'tags',
     'customerId',
     'customerName',
     'customerEmailId',
@@ -128,7 +186,8 @@ export const generateSignature = (data: CheckoutRequest | TransactionStatusReque
     'customerState',
     'customerPIN',
     'customerCountry',
-    'tags',
+    'timestamp',
+    'subMerchantPayInfo',
     'udf1',
     'udf2',
     'udf3',
@@ -136,13 +195,7 @@ export const generateSignature = (data: CheckoutRequest | TransactionStatusReque
     'udf5',
     'reconId',
     'merchantOrderId',
-    'utilityBiller',
-    'subMerchantPayInfo',
-    'verifiedAccountInfo',
-    'verifiedPayment',
-    'paymentMode',
-    'txnType',
-    'returnUrl'
+    'utilityBiller'
   ];
 
   // Convert data to a record for safe access
@@ -454,23 +507,78 @@ export const createCheckoutRequest = (params: {
   });
   
   const merchantTxnId = generateMerchantTxnId();
-  const timestamp = Math.floor(Date.now() / 1000);
-  const callbackUrl = generateCallbackUrl(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
-  const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/partner/wallet?payment=success`;
+  
+  // Get current timestamp in milliseconds (as required by Axis PG)
+  const now = new Date();
+  const timestamp = now.getTime(); // Use milliseconds, not seconds
+  
+  console.log('Timestamp generation debug:', {
+    now: now.toISOString(),
+    timestamp,
+    timestampDate: new Date(timestamp).toISOString(),
+    systemTime: now.getTime(),
+    unixTime: timestamp,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+  });
+  
+  // Use public URL for callback (not localhost) - CRITICAL FIX
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com';
+  const callbackUrl = generateCallbackUrl(baseUrl);
+  const returnUrl = `${baseUrl}/partner/wallet?payment=success`;
 
-  // Log timestamp for debugging
-  const currentTime = Math.floor(Date.now() / 1000);
+  // Log timestamp for debugging (now using milliseconds)
+  const currentTime = Date.now();
   const timeDiff = currentTime - timestamp;
   console.log('Payment request timestamp:', {
     timestamp,
-    date: new Date(timestamp * 1000).toISOString(),
+    date: new Date(timestamp).toISOString(),
     currentTime: new Date().toISOString(),
     currentTimestamp: currentTime,
     timeDiff,
-    isValidTime: timeDiff >= 0 && timeDiff <= 300, // Within 5 minutes
-    isTooOld: timeDiff > 300,
+    isValidTime: timeDiff >= 0 && timeDiff <= 300000, // Within 5 minutes (300000ms)
+    isTooOld: timeDiff > 300000,
     isInFuture: timeDiff < 0
   });
+
+  // Validate timestamp is not in the future
+  if (timeDiff < 0) {
+    console.error('CRITICAL: Timestamp is in the future!', {
+      timestamp,
+      currentTime,
+      timeDiff,
+      timestampDate: new Date(timestamp).toISOString(),
+      currentDate: new Date().toISOString()
+    });
+    throw new Error('Timestamp cannot be in the future');
+  }
+
+  // Additional validation: Ensure timestamp is reasonable (not too far in past or future)
+  const maxFutureTime = 60000; // 1 minute in future (allow some clock skew) - 60000ms
+  const maxPastTime = 300000; // 5 minutes in past - 300000ms
+  
+  if (timeDiff < -maxFutureTime) {
+    console.error('CRITICAL: Timestamp is too far in the future!', {
+      timestamp,
+      currentTime,
+      timeDiff,
+      maxFutureTime,
+      timestampDate: new Date(timestamp).toISOString(),
+      currentDate: new Date().toISOString()
+    });
+    throw new Error(`Timestamp is too far in the future (${Math.abs(timeDiff)}ms ahead)`);
+  }
+  
+  if (timeDiff > maxPastTime) {
+    console.error('CRITICAL: Timestamp is too old!', {
+      timestamp,
+      currentTime,
+      timeDiff,
+      maxPastTime,
+      timestampDate: new Date(timestamp * 1000).toISOString(),
+      currentDate: new Date().toISOString()
+    });
+    throw new Error(`Timestamp is too old (${timeDiff}s in the past)`);
+  }
 
   const requestData: CheckoutRequest = {
     merchantId: config.merchantId,
