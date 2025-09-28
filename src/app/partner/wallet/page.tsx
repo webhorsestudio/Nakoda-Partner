@@ -9,7 +9,7 @@ import { WalletTransactions } from '@/components/partner/wallet/WalletTransactio
 import { WalletBalance } from '@/components/partner/wallet/WalletBalance';
 
 export default function WalletPage() {
-  const { isClient } = usePartnerAuth();
+  const { isClient, partnerInfo: authPartnerInfo } = usePartnerAuth();
   const { balance, transactions, isLoading: walletLoading, error: walletError, fetchBalance, fetchTransactions } = usePartnerWallet();
   const [partnerInfo, setPartnerInfo] = useState<{name: string; email: string; phone: string} | null>(null);
   const [isAddAmountModalOpen, setIsAddAmountModalOpen] = useState(false);
@@ -204,6 +204,7 @@ export default function WalletPage() {
             Promise.all([fetchBalance(), fetchTransactions()]);
           }}
           balance={balance || 0}
+          partnerId={authPartnerInfo?.id?.toString() || ''}
           partnerInfo={partnerInfo || undefined}
         />
       </div>

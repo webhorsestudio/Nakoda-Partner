@@ -53,15 +53,16 @@ export default function OngoingTaskActions({
           duration: 0,
         });
 
-        // Call the masked calling API
-        const response = await fetch('/api/partners/call/initiate', {
+        // Call the new /api/call-customer endpoint with required format
+        const response = await fetch('/api/call-customer', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            customerPhone,
-            orderId: taskId
+            orderId: taskId,
+            partnerNumber: '919326499348', // This should come from partner data
+            customerNumber: customerPhone
           })
         });
 
@@ -71,19 +72,12 @@ export default function OngoingTaskActions({
         toast.dismiss(loadingToast);
 
         if (result.success) {
-          if (result.data?.virtualNumber === 'DIRECT_CALL') {
-            toast.success('Call initiated! Please check your phone for the call.', {
-              duration: 5000,
-              icon: '📞',
-            });
-          } else {
-            toast.success('Call initiated! You will receive a call shortly.', {
-              duration: 5000,
-              icon: '📞',
-            });
-          }
+          toast.success('Call initiated! You will receive a call shortly.', {
+            duration: 5000,
+            icon: '📞',
+          });
         } else {
-          toast.error(result.message || 'Failed to initiate call', {
+          toast.error(result.error || 'Failed to initiate call', {
             duration: 5000,
             icon: '❌',
           });

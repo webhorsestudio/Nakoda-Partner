@@ -3,15 +3,14 @@ export const ACEFONE_CONFIG = {
   // API Endpoints
   BASE_URL: 'https://api.acefone.in/v1',
   AUTH_URL: 'https://api.acefone.in/v1/auth/login',
-  CALL_URL: 'https://api.acefone.in/v1/click_to_call',
+  CALL_URL: 'https://api.acefone.in/v1/voice/click_to_call', // Voice API - Initiate Click to Call
   
   // Your DID Number for India
   DID_NUMBER: '08065343250',
   
   // API Credentials (from environment variables)
   API_TOKEN: process.env.ACEFONE_API_TOKEN || '',
-  USERNAME: process.env.ACEFONE_USERNAME || '',
-  PASSWORD: process.env.ACEFONE_PASSWORD || '',
+  SECRET_KEY: process.env.ACEFONE_SECRET_KEY || '',
   
   // Call Configuration
   CALL_SETTINGS: {

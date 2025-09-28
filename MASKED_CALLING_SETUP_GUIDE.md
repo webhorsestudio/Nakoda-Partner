@@ -24,8 +24,7 @@ Add these to your `.env.local` file:
 ```bash
 # Acefone API Configuration
 ACEFONE_API_TOKEN=your_acefone_api_token_here
-ACEFONE_USERNAME=your_acefone_username_here
-ACEFONE_PASSWORD=your_acefone_password_here
+ACEFONE_SECRET_KEY=your_acefone_secret_key_here
 ```
 
 ### **2. Test Configuration**
@@ -44,9 +43,9 @@ This will show you:
 ### **3. Get Acefone Credentials**
 
 1. **Sign up** at [Acefone](https://acefone.co.uk)
-2. **Navigate to Services** → **API Token**
-3. **Generate API Token** and copy it
-4. **Get Username/Password** from your account settings
+2. **Navigate to API Settings** → **Generate Credentials**
+3. **Get API Token** (Access Key) from your account dashboard
+4. **Get Secret Key** from your account dashboard
 5. **Add your DID number** `08065343250` to your account
 
 ### **4. Database Migration**

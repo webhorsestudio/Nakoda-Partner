@@ -3,13 +3,14 @@ import { PlusIcon, XIcon, CreditCardIcon, SmartphoneIcon, BuildingIcon } from 'l
 import { Button } from '@/components/ui/button';
 import { WalletBalance } from '@/components/partner/wallet/WalletBalance';
 import { formatCurrency, validateAmount } from '@/utils/walletUtils';
-import { usePayment } from '@/hooks/usePayment';
+import { useRazorpay } from '@/hooks/useRazorpay';
 
 interface AddAmountModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddAmount: (amount: string) => void;
   balance: number;
+  partnerId: string;
   partnerInfo?: {
     name: string;
     email: string;
@@ -22,6 +23,7 @@ export default function AddAmountModal({
   onClose, 
   onAddAmount, 
   balance,
+  partnerId,
   partnerInfo
 }: AddAmountModalProps) {
   const [amount, setAmount] = useState('');
@@ -33,7 +35,7 @@ export default function AddAmountModal({
   const [paymentFormHtml, setPaymentFormHtml] = useState<string | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   
-  const { initiatePayment, isLoading, error: paymentError, clearError } = usePayment();
+  const { initiatePayment, isLoading, error: paymentError, clearError } = useRazorpay();
 
   const handleSubmit = async () => {
     if (!validateAmount(amount)) return;
@@ -44,34 +46,32 @@ export default function AddAmountModal({
     try {
       const result = await initiatePayment({
         amount: parseFloat(amount),
+        partnerId: partnerId,
         customerInfo: {
           customerName: partnerInfo?.name || 'Partner',
           customerEmailId: partnerInfo?.email || 'partner@example.com',
           customerMobileNo: partnerInfo?.phone || '9999999999',
-          customerCountry: 'India'
         }
       });
 
+      console.log('🔍 Payment result received:', {
+        success: result.success,
+        message: result.message,
+        error: result.error,
+        fullResult: result
+      });
+
       if (result.success) {
-        if (result.message && result.message.includes('Redirecting to payment gateway')) {
-          // Payment gateway redirect is being handled by usePayment hook
-          console.log('Payment gateway redirect initiated');
-          // Close the modal as payment is being processed
-          onClose();
-        } else if (result.redirectUrl) {
-          // Redirect to payment gateway
-          console.log('Redirecting to payment gateway:', result.redirectUrl);
-          window.location.href = result.redirectUrl;
-        } else {
-          // Payment initiated successfully, call the original handler
-          console.log('Payment initiated successfully without redirect');
-          onAddAmount(amount);
-          setAmount('');
-          onClose();
-        }
+        console.log('✅ Payment initiated successfully');
+        // Close the modal as payment is being processed
+        onClose();
       } else {
         console.error('Payment initiation failed:', result.error);
-        setError(result.error?.message || 'Payment initiation failed');
+        
+        // Show user-friendly error messages
+        const userMessage = result.error || 'Payment initiation failed';
+        
+        setError(userMessage);
       }
     } catch (err) {
       console.error('Error initiating payment:', err);
