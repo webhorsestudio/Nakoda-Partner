@@ -11,6 +11,7 @@ import {
 } from '../utils/cardUtils';
 import TaskCompletionModal from './TaskCompletionModal';
 import { toast } from 'react-hot-toast';
+import { ACEFONE_CONFIG } from '@/config/acefone';
 
 interface OngoingTaskActionsProps {
   taskId: string;
@@ -42,53 +43,70 @@ export default function OngoingTaskActions({
   // Disable buttons if task is completed via timer OR database status OR expired
   const isDisabled = isCompleted || isTaskCompletedStatus || isExpired;
   
-  const handleCallNow = async () => {
+  const handleCallNow = () => {
     if (isDisabled) {
       return;
     }
-    if (hasValidPhone) {
-      try {
-        // Show loading state
-        const loadingToast = toast.loading('Initiating call...', {
-          duration: 0,
-        });
-
-        // Call the new /api/call-customer endpoint with required format
-        const response = await fetch('/api/call-customer', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderId: taskId,
-            partnerNumber: '919326499348', // This should come from partner data
-            customerNumber: customerPhone
-          })
-        });
-
-        const result = await response.json();
-
-        // Dismiss loading toast
-        toast.dismiss(loadingToast);
-
-        if (result.success) {
-          toast.success('Call initiated! You will receive a call shortly.', {
-            duration: 5000,
-            icon: '📞',
-          });
-        } else {
-          toast.error(result.error || 'Failed to initiate call', {
-            duration: 5000,
-            icon: '❌',
-          });
-        }
-      } catch (error) {
-        toast.error('Failed to initiate call. Please try again.', {
-          duration: 5000,
-          icon: '❌',
-        });
-        console.error('Call initiation error:', error);
+    
+    // Get the DID number for calling
+    const didNumber = ACEFONE_CONFIG.DID_NUMBER;
+    
+    // Show loading toast while initiating call
+    const loadingToast = toast.loading('Initiating call...', {
+      duration: 2000,
+      icon: '📞',
+    });
+    
+    // Log the call initiation attempt
+    console.log('📞 Call Now initiated:', {
+      taskId,
+      customerPhone,
+      didNumber,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Initiate the call using multiple methods for better compatibility
+    try {
+      // Method 1: Try tel: link (works on mobile devices)
+      const telLink = `tel:${didNumber}`;
+      
+      // Method 2: Try creating a temporary link element (works on desktop)
+      const createCallLink = () => {
+        const link = document.createElement('a');
+        link.href = telLink;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+      
+      // Try different approaches based on device/browser
+      if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
+        // Mobile device - use tel: link
+        window.location.href = telLink;
+      } else {
+        // Desktop - try creating a link element
+        createCallLink();
       }
+      
+      // Dismiss loading toast and show success
+      setTimeout(() => {
+        toast.dismiss(loadingToast);
+        toast.success('Call initiated! Dialing DID number...', {
+          duration: 3000,
+          icon: '📞',
+        });
+      }, 1000);
+      
+    } catch (error) {
+      // Dismiss loading toast and show error
+      toast.dismiss(loadingToast);
+      toast.error('Failed to initiate call. Please try again.', {
+        duration: 4000,
+        icon: '❌',
+      });
+      
+      console.error('❌ Error initiating call:', error);
     }
   };
 
@@ -196,7 +214,7 @@ export default function OngoingTaskActions({
               opacity: isDisabled ? 0.5 : 1
             }}
             disabled={isDisabled}
-            title={isDisabled ? (isExpired ? 'Task has expired' : 'Task is completed') : 'Call customer'}
+            title={isDisabled ? (isExpired ? 'Task has expired' : 'Task is completed') : 'Call DID number to connect with customer'}
             onMouseEnter={(e) => {
               if (!isDisabled) {
                 e.currentTarget.style.backgroundColor = '#E67300';

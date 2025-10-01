@@ -47,10 +47,10 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
             }).join(''));
             const decoded = JSON.parse(jsonPayload);
             
-            if (decoded.role === 'partner') {
-              console.log('🌍 Global Order Provider: Partner user authenticated, initializing service...');
+            if (decoded.role === 'partner' || decoded.role === 'admin') {
+              console.log('🌍 Global Order Provider: User authenticated, initializing service...', decoded.role);
               
-              // Initialize partner order service
+              // Initialize partner order service (for both admin and partner)
               globalOrderService.initialize(10000);
               
               // Start global fetcher for continuous updates
@@ -102,12 +102,12 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
               }).join(''));
               const decoded = JSON.parse(jsonPayload);
               
-              if (decoded.role === 'partner') {
-                console.log('🌍 Global Order Provider: Partner auth token added, initializing service...');
+              if (decoded.role === 'partner' || decoded.role === 'admin') {
+                console.log('🌍 Global Order Provider: Auth token added, initializing service...', decoded.role);
                 globalOrderService.initialize(10000);
                 globalOrderFetcher.start().catch(console.error);
               } else {
-                console.log('🌍 Global Order Provider: Non-partner auth token added, skipping initialization');
+                console.log('🌍 Global Order Provider: Non-admin/partner auth token added, skipping initialization');
               }
             }
           } catch (error) {

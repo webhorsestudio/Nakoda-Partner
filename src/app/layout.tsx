@@ -4,7 +4,6 @@ import "./globals.css";
 import ToastProvider from "@/components/ui/ToastProvider";
 import { ToastProvider as CustomToastProvider } from "@/contexts/ToastContext";
 import { ToastContainer } from "@/components/ui/Toast";
-import { AutoFetchProvider } from "@/contexts/AutoFetchContext";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -22,14 +21,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AutoFetchProvider>
-          <ToastProvider />
-          <CustomToastProvider>
-            <ServiceWorkerRegistration />
-            {children}
-            <ToastContainer />
-          </CustomToastProvider>
-        </AutoFetchProvider>
+        <ToastProvider />
+        <CustomToastProvider>
+          <ServiceWorkerRegistration />
+          {children}
+          <ToastContainer />
+        </CustomToastProvider>
       </body>
     </html>
   );

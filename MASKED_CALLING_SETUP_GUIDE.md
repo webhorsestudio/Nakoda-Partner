@@ -1,176 +1,264 @@
-# 🔒 **Masked Calling System Setup Guide**
+# 📞 Acefone Masked Calling System - Setup Guide
 
-## 🚨 **Current Issue & Solution**
+## 🎯 **Overview**
 
-### **Problem Identified:**
-- **422 Error** from Acefone API during authentication
-- **Missing or incorrect credentials** in environment variables
-- **API request format** may not match Acefone's expected format
+This system implements **masked calling** using Acefone's API Dialplan feature. When customers call your DID number, the system automatically routes the call to the appropriate partner while keeping both numbers masked.
 
-### **Solution Implemented:**
-1. **Enhanced error logging** with detailed debugging
-2. **Fallback mechanism** when Acefone is not available
-3. **Test endpoint** to verify configuration
-4. **Graceful error handling** with user-friendly messages
+## 🔧 **System Architecture**
 
----
+```
+Customer → DID Number (08065343250) → Acefone → Your API → Partner
+```
 
-## 🔧 **Setup Steps**
+1. **Customer calls DID number** (08065343250)
+2. **Acefone receives call** and makes HTTP request to your API Dialplan endpoint
+3. **Your API determines** which partner to route the call to
+4. **Acefone connects** the call using your DID as the bridge
+5. **Both parties see DID number** - their real numbers remain hidden
 
-### **1. Environment Variables Setup**
+## 📋 **Setup Steps**
+
+### **Step 1: Database Setup**
+
+Run the database migration to create the call logs table:
+
+```sql
+-- Run this migration in your Supabase SQL editor
+-- File: migration-create-call-logs.sql
+```
+
+### **Step 2: Environment Variables**
 
 Add these to your `.env.local` file:
 
 ```bash
-# Acefone API Configuration
-ACEFONE_API_TOKEN=your_acefone_api_token_here
-ACEFONE_SECRET_KEY=your_acefone_secret_key_here
+# Your app URL (for webhook endpoints)
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Optional: Webhook secret for security
+ACEFONE_WEBHOOK_SECRET=your_webhook_secret_here
 ```
 
-### **2. Test Configuration**
+### **Step 3: Acefone Dashboard Configuration**
 
-Visit this URL to test your Acefone setup:
-```
-http://localhost:3000/api/test/acefone
-```
+#### **3.1 Configure API Dialplan**
 
-This will show you:
-- ✅ Configuration status
-- ✅ Authentication test results
-- ✅ Detailed error messages
-- ✅ Setup instructions
+1. **Login** to your Acefone dashboard
+2. Navigate to **"API Connect"** → **"API Dialplan"**
+3. Click **"Add API Dialplan"**
+4. Fill in the details:
 
-### **3. Get Acefone Credentials**
+| Field | Value |
+|-------|-------|
+| **Name** | Nakoda Partner Routing |
+| **Description** | Routes customer calls to assigned partners |
+| **URL** | `http://localhost:3000/api/acefone-dialplan` |
+| **Request Method** | `POST` |
+| **Failover Destination** | `voicemail` |
 
-1. **Sign up** at [Acefone](https://acefone.co.uk)
-2. **Navigate to API Settings** → **Generate Credentials**
-3. **Get API Token** (Access Key) from your account dashboard
-4. **Get Secret Key** from your account dashboard
-5. **Add your DID number** `08065343250` to your account
+#### **3.2 Configure Webhook (Optional)**
 
-### **4. Database Migration**
+1. Navigate to **"API Connect"** → **"Webhook"**
+2. Add webhook configuration:
 
-Run the migration to create the call logs table:
-```sql
--- Execute migration-create-call-logs.sql
--- This creates the call_logs table with correct data types
-```
+| Field | Value |
+|-------|-------|
+| **Webhook URL** | `http://localhost:3000/api/acefone-webhook` |
+| **Events** | Call Status Updates |
+| **Secret** | `your_webhook_secret_here` |
 
----
+### **Step 4: Test the System**
 
-## 🎯 **How It Works Now**
+#### **4.1 Test Configuration**
 
-### **With Acefone (Ideal):**
-1. Partner clicks "Call Now"
-2. System authenticates with Acefone API
-3. Call routed: Partner → `08065343250` → Customer
-4. Both parties see `08065343250` on caller ID
-5. Privacy maintained ✅
+Visit: `http://localhost:3000/api/test-masked-calling?type=config`
 
-### **Without Acefone (Fallback):**
-1. Partner clicks "Call Now"
-2. System detects Acefone is not configured
-3. Falls back to direct calling mechanism
-4. Still logs the call attempt
-5. User gets appropriate feedback ✅
+#### **4.2 Test API Dialplan**
 
----
+Visit: `http://localhost:3000/api/test-masked-calling?type=dialplan`
 
-## 🔍 **Debugging Steps**
+#### **4.3 Test Webhook**
 
-### **Step 1: Check Configuration**
-```bash
-# Visit this URL in your browser
-http://localhost:3000/api/test/acefone
-```
+Visit: `http://localhost:3000/api/test-masked-calling?type=webhook`
 
-### **Step 2: Check Environment Variables**
-```bash
-# In your terminal
-echo $ACEFONE_API_TOKEN
-echo $ACEFONE_USERNAME
-echo $ACEFONE_PASSWORD
-```
+#### **4.4 Test Call Now Button**
 
-### **Step 3: Check Console Logs**
-Look for these log messages:
-- `🔐 Attempting Acefone authentication...`
-- `🔐 Acefone auth response status: XXX`
-- `✅ Acefone authentication successful`
-- `❌ Acefone authentication error: ...`
-
-### **Step 4: Test Call Functionality**
 1. Go to `/partner/ongoing` page
-2. Click "Call Now" on any task
-3. Check console for detailed logs
-4. Verify user gets appropriate feedback
+2. Click **"Call Now"** button on any task card
+3. Verify DID number is copied to clipboard
+4. Toast notification should show success message
+
+## 🔄 **Call Flow Process**
+
+### **1. Partner Clicks "Call Now"**
+
+```typescript
+// Button shows DID number to customer
+const didNumber = '08065343250';
+navigator.clipboard.writeText(didNumber);
+toast.success('DID Number copied! Customer should call: 08065343250');
+```
+
+### **2. Customer Calls DID Number**
+
+Customer dials `08065343250` on their phone.
+
+### **3. Acefone Calls Your API**
+
+```json
+POST /api/acefone-dialplan
+{
+  "uuid": "call-uuid-123",
+  "call_id": "call-id-456", 
+  "call_to_number": "08065343250",
+  "caller_id_number": "9876543210",
+  "start_stamp": "2025-01-17T10:30:00Z"
+}
+```
+
+### **4. Your API Routes the Call**
+
+```typescript
+// System looks up partner for customer
+const partnerPhone = await findPartnerForCustomer('9876543210');
+
+// Returns transfer response
+return [{
+  "transfer": {
+    "type": "number",
+    "data": [partnerPhone],
+    "ring_type": "order_by",
+    "skip_active": true
+  }
+}];
+```
+
+### **5. Call Status Updates**
+
+```json
+POST /api/acefone-webhook
+{
+  "call_id": "call-id-456",
+  "call_status": "completed",
+  "duration": "300",
+  "hangup_cause": "NORMAL_CLEARING"
+}
+```
+
+## 🎯 **Call Routing Logic**
+
+The system uses a **3-tier routing strategy**:
+
+### **Tier 1: Active Orders**
+- Looks for orders with status `assigned` or `in-progress`
+- Partner completion status is not `completed`
+- Partner status is `active`
+
+### **Tier 2: Recent Orders**
+- Looks for orders from the last 7 days
+- Partner status is `active`
+
+### **Tier 3: Any Orders**
+- Looks for any order with the customer's phone number
+- Partner status is `active`
+
+## 📊 **Call Logging**
+
+All calls are logged in the `call_logs` table with:
+
+- **Call identifiers**: `call_id`, `uuid`
+- **Participants**: `caller_number`, `called_number`
+- **Routing info**: `partner_id`, `order_id`
+- **Call details**: `status`, `duration`, `call_quality`
+- **Timestamps**: `start_time`, `end_time`
+
+## 🔧 **API Endpoints**
+
+### **API Dialplan Endpoint**
+- **URL**: `/api/acefone-dialplan`
+- **Method**: `POST`
+- **Purpose**: Main routing endpoint called by Acefone
+- **Test**: `GET /api/acefone-dialplan?test=true`
+
+### **Webhook Endpoint**
+- **URL**: `/api/acefone-webhook`
+- **Method**: `POST`
+- **Purpose**: Receives call status updates
+- **Test**: `GET /api/acefone-webhook?test=true`
+
+### **Test Endpoint**
+- **URL**: `/api/test-masked-calling`
+- **Method**: `GET`
+- **Purpose**: System testing and verification
+- **Tests**: `?type=config|dialplan|webhook|button`
+
+## 🚨 **Troubleshooting**
+
+### **Common Issues**
+
+1. **"No destination found"**
+   - Check if customer has active orders
+   - Verify partner phone numbers are correct
+   - Check partner status is `active`
+
+2. **"API Dialplan not responding"**
+   - Verify endpoint URL in Acefone dashboard
+   - Check server logs for errors
+   - Test endpoint manually
+
+3. **"Webhook not receiving updates"**
+   - Verify webhook URL in Acefone dashboard
+   - Check webhook secret configuration
+   - Test webhook manually
+
+### **Debug Steps**
+
+1. **Check logs**: Look at server console for API calls
+2. **Test endpoints**: Use test endpoints to verify functionality
+3. **Verify database**: Check `call_logs` table for entries
+4. **Check configuration**: Verify Acefone dashboard settings
+
+## 📈 **Monitoring**
+
+### **Active Calls View**
+```sql
+SELECT * FROM active_calls;
+```
+
+### **Call Statistics**
+```sql
+SELECT * FROM call_statistics;
+```
+
+### **Partner Call Logs**
+```sql
+SELECT * FROM get_partner_call_logs(partner_id);
+```
+
+## 🔒 **Security**
+
+- **Webhook Secret**: Optional but recommended for webhook security
+- **Row Level Security**: Enabled on call_logs table
+- **Input Validation**: All inputs validated with Zod schemas
+- **Error Handling**: Graceful fallbacks on API failures
+
+## 🎉 **Success Indicators**
+
+✅ **System Ready**: All endpoints responding correctly  
+✅ **Database**: Call logs table created and accessible  
+✅ **Configuration**: Acefone dashboard configured  
+✅ **Button**: Call Now button copies DID number  
+✅ **Routing**: Calls routed to correct partners  
+✅ **Logging**: Call status updates received  
+
+## 📞 **Next Steps**
+
+1. **Deploy to production** with proper environment variables
+2. **Update Acefone dashboard** with production URLs
+3. **Monitor call logs** for system performance
+4. **Enhance routing logic** based on business requirements
+5. **Add call analytics** and reporting features
 
 ---
 
-## 📊 **Current Status**
-
-### **✅ What's Working:**
-- Database migration with correct data types
-- Enhanced error logging and debugging
-- Fallback mechanism when Acefone fails
-- User-friendly error messages
-- Call logging system
-
-### **⚠️ What Needs Setup:**
-- Acefone API credentials
-- Environment variables configuration
-- Acefone account setup with DID number
-
-### **🔧 What's Fixed:**
-- Foreign key constraint error (UUID vs INTEGER)
-- Enhanced authentication error handling
-- Better user feedback messages
-- Comprehensive logging system
-
----
-
-## 🚀 **Next Steps**
-
-1. **Get Acefone credentials** and add to environment variables
-2. **Test the configuration** using `/api/test/acefone`
-3. **Verify the setup** by clicking "Call Now" button
-4. **Check logs** for any remaining issues
-5. **Deploy to production** once testing is complete
-
----
-
-## 📞 **Expected User Experience**
-
-### **When Acefone is Working:**
-- Partner clicks "Call Now"
-- Sees: "Call initiated! You will receive a call shortly."
-- Receives call from `08065343250`
-- Gets connected to customer
-- Both parties see masked number
-
-### **When Acefone is Not Available:**
-- Partner clicks "Call Now"
-- Sees: "Call initiated! Please check your phone for the call."
-- System logs the attempt
-- Graceful fallback behavior
-
----
-
-## 🛠️ **Troubleshooting**
-
-### **422 Error:**
-- Check if credentials are correct
-- Verify API token is valid
-- Ensure username/password are correct
-
-### **Authentication Failed:**
-- Check environment variables
-- Verify Acefone account is active
-- Test with `/api/test/acefone` endpoint
-
-### **Call Not Initiated:**
-- Check console logs for detailed errors
-- Verify partner phone number in database
-- Test with different phone numbers
-
-The system is now robust with proper error handling and fallback mechanisms! 🎉
+**Need Help?** Check the test endpoint: `/api/test-masked-calling` for system status and debugging information.

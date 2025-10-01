@@ -19,9 +19,9 @@ import {
   ClockIcon,
   PhotoIcon
 } from "@heroicons/react/24/outline";
-import { useAutoFetch } from "@/contexts/AutoFetchContext";
 import { verifyJWTTokenClient, verifySimpleToken, debugToken } from "@/utils/authUtils";
 import { getUserRole, getNavigationItems, UserRole } from "@/utils/roleUtils";
+import { GlobalOrderProvider } from "@/contexts/GlobalOrderProvider";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -35,9 +35,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [isLoading, setIsLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
-
-  // Get auto-fetch status from context - always call hooks at top level
-  const { isAutoFetchEnabled, countdown } = useAutoFetch();
 
   // Handle hydration mismatch - always call this hook
   useEffect(() => {
@@ -438,15 +435,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1" />
             <div className="flex items-center gap-x-4 lg:gap-x-6">
-              {/* Auto-fetch status indicator */}
-              {isAutoFetchEnabled && (
-                <div className="flex items-center gap-x-2 px-3 py-1 bg-green-50 border border-green-200 rounded-full">
-                  <ClockIcon className="h-4 w-4 text-green-600" />
-                  <span className="text-xs font-medium text-green-700">
-                    Auto-sync: {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
-                  </span>
-                </div>
-              )}
               <button className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500">
                 <BellIcon className="h-6 w-6" />
               </button>
@@ -461,7 +449,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Page content */}
         <main className="py-6">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            {children}
+            <GlobalOrderProvider>
+              {children}
+            </GlobalOrderProvider>
           </div>
         </main>
       </div>

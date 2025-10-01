@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import { globalOrderFetcher } from '@/services/globalOrderFetcher';
 
 interface GlobalSyncStatusProps {
@@ -13,6 +14,7 @@ export function GlobalSyncStatus({ className = '' }: GlobalSyncStatusProps) {
     lastSync: null as Date | null,
     retryCount: 0
   });
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
 
   useEffect(() => {
     // Get initial status
@@ -68,24 +70,57 @@ export function GlobalSyncStatus({ className = '' }: GlobalSyncStatusProps) {
     return '🔄';
   };
 
+  const handleManualSync = async () => {
+    setIsManualSyncing(true);
+    try {
+      const response = await fetch('/api/orders/global-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success('🔄 Manual sync initiated successfully');
+        console.log('Manual sync result:', result);
+      } else {
+        toast.error('❌ Failed to initiate manual sync');
+      }
+    } catch (error) {
+      console.error('Manual sync error:', error);
+      toast.error('❌ Manual sync failed');
+    } finally {
+      setIsManualSyncing(false);
+    }
+  };
+
   return (
-    <div className={`flex items-center space-x-2 text-sm ${className}`}>
-      <span className={getStatusColor()}>
-        {getStatusIcon()}
-      </span>
-      <span className="text-gray-600">
-        Global Sync: {status.isRunning ? 'Running' : 'Stopped'}
-      </span>
-      {status.lastSync && (
-        <span className="text-gray-500">
-          • Last: {formatLastSync(status.lastSync)}
-        </span>
-      )}
-      {status.retryCount > 0 && (
-        <span className="text-yellow-600">
-          • Retries: {status.retryCount}
-        </span>
-      )}
+    <div className={`bg-blue-50 border border-blue-200 rounded-lg p-4 ${className}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <span className={getStatusColor()}>
+            {getStatusIcon()}
+          </span>
+          <div>
+            <p className="text-sm font-medium text-blue-900">
+              Global Sync: {status.isRunning ? 'Running (every 5 minutes)' : 'Stopped'}
+            </p>
+            <p className="text-xs text-blue-700">
+              Last sync: {formatLastSync(status.lastSync)}
+              {status.retryCount > 0 && ` • Retries: ${status.retryCount}`}
+            </p>
+          </div>
+        </div>
+        
+        <button
+          onClick={handleManualSync}
+          disabled={isManualSyncing}
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+        >
+          {isManualSyncing ? 'Syncing...' : 'Sync Now'}
+        </button>
+      </div>
     </div>
   );
 }

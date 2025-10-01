@@ -6,12 +6,10 @@ import {
   OrdersHeader, 
   OrdersSearchAndFilter, 
   OrdersStats, 
-  OrdersTable, 
-  OrdersCountdown
+  OrdersTable
 } from '@/components/orders';
 import { GlobalSyncStatus } from '@/components/GlobalSyncStatus';
 import { useOrders } from '@/hooks/useOrders';
-import { useAutoFetch } from '@/contexts/AutoFetchContext';
 import { OrderFilters } from '@/types/orders';
 
 // Loading component for Suspense fallback
@@ -38,14 +36,8 @@ export default function OrdersPage() {
     status: '',
   });
 
-  // State to track when table is refreshing due to background service
+  // State to track when table is refreshing due to Global Sync
   const [isTableRefreshing, setIsTableRefreshing] = useState(false);
-
-  // Use the auto-fetch context for automatic syncing
-  const {
-    lastFetchTime,
-    triggerManualFetch,
-  } = useAutoFetch();
 
   // Use the orders hook for displaying orders
   const {
@@ -74,17 +66,17 @@ export default function OrdersPage() {
     goToPage(1); // Reset to first page when filtering
   }, [goToPage]);
 
-  // Fetch orders when filters change or when new data is synced
+  // Fetch orders when filters change
   useEffect(() => {
-    if (Object.keys(filters).length > 0 || lastFetchTime) {
+    if (Object.keys(filters).length > 0) {
       fetchOrders(filters);
     }
-  }, [filters, lastFetchTime, fetchOrders]);
+  }, [filters, fetchOrders]);
 
-  // Listen for custom events from both background service and global fetcher
+  // Listen for Global Sync events
   useEffect(() => {
-    const handleDataFetched = (event: CustomEvent) => {
-      console.log('New orders data fetched:', event.detail);
+    const handleGlobalSyncUpdate = (event: CustomEvent) => {
+      console.log('Global Sync update received:', event.detail);
       
       // Set refreshing state to show visual indicator
       setIsTableRefreshing(true);
@@ -98,11 +90,11 @@ export default function OrdersPage() {
         if (created > 0 || updated > 0) {
           // Show success toast for new data
           if (created > 0 && updated > 0) {
-            toast.success(`🔄 Auto-synced: ${created} new orders, ${updated} updated orders`);
+            toast.success(`🔄 Global Sync: ${created} new orders, ${updated} updated orders`);
           } else if (created > 0) {
-            toast.success(`🆕 Auto-synced: ${created} new orders found`);
+            toast.success(`🆕 Global Sync: ${created} new orders found`);
           } else if (updated > 0) {
-            toast.success(`📝 Auto-synced: ${updated} orders updated`);
+            toast.success(`📝 Global Sync: ${updated} orders updated`);
           }
         } else {
           // Show info toast when no new data
@@ -116,14 +108,12 @@ export default function OrdersPage() {
       }, 2000);
     };
 
-    // Add event listeners for both event types
-    window.addEventListener('ordersDataFetched', handleDataFetched as EventListener);
-    window.addEventListener('globalOrdersUpdated', handleDataFetched as EventListener);
+    // Add event listener for Global Sync events
+    window.addEventListener('globalOrdersUpdated', handleGlobalSyncUpdate as EventListener);
 
-    // Cleanup event listeners
+    // Cleanup event listener
     return () => {
-      window.removeEventListener('ordersDataFetched', handleDataFetched as EventListener);
-      window.removeEventListener('globalOrdersUpdated', handleDataFetched as EventListener);
+      window.removeEventListener('globalOrdersUpdated', handleGlobalSyncUpdate as EventListener);
     };
   }, [fetchOrders, filters]);
 
@@ -155,14 +145,9 @@ export default function OrdersPage() {
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Global Sync Status */}
-          <div className="mb-4">
+          <div className="mb-6">
             <GlobalSyncStatus />
           </div>
-          
-          {/* Countdown Timer */}
-          <OrdersCountdown
-            onManualFetch={triggerManualFetch}
-          />
 
           {/* Search and Filters */}
           <OrdersSearchAndFilter
