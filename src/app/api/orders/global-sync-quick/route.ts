@@ -20,7 +20,7 @@ export async function GET() {
         await globalOrderFetcher.start();
         console.log('✅ Quick Sync API: Service started successfully');
       } catch (startError) {
-        console.warn('⚠️ Quick Sync API: Failed to start service');
+        console.warn('⚠️ Quick Sync API: Failed to start service', startError);
       }
     }
     

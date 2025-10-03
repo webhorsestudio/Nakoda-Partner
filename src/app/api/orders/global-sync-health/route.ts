@@ -18,7 +18,7 @@ export async function GET() {
         await globalOrderFetcher.start();
         console.log('✅ Health Check: Service started successfully');
       } catch (startError) {
-        console.warn('⚠️ Health Check: Failed to start service');
+        console.warn('⚠️ Health Check: Failed to start service', startError);
       }
     }
     

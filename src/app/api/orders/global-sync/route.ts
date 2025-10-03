@@ -20,7 +20,7 @@ export async function POST() {
         await globalOrderFetcher.start();
         console.log('✅ Global Sync API: Service started successfully');
       } catch (startError) {
-        console.warn('⚠️ Global Sync API: Failed to start service, continuing with manual sync');
+        console.warn('⚠️ Global Sync API: Failed to start service, continuing with manual sync', startError);
       }
     }
     
@@ -34,7 +34,7 @@ export async function POST() {
     try {
       result = await Promise.race([syncPromise, timeoutPromise]);
     } catch (timeoutError) {
-      console.warn('⚠️ Global Sync API: POST sync timed out, running in background');
+      console.warn('⚠️ Global Sync API: POST sync timed out, running in background', timeoutError);
       
       // Start background sync without waiting
       syncPromise.then(bgResult => {
@@ -104,7 +104,7 @@ export async function GET() {
         await globalOrderFetcher.start();
         console.log('✅ Global Sync API: Service started successfully');
       } catch (startError) {
-        console.warn('⚠️ Global Sync API: Failed to start service, continuing with manual sync');
+        console.warn('⚠️ Global Sync API: Failed to start service, continuing with manual sync', startError);
       }
     }
     
@@ -122,7 +122,7 @@ export async function GET() {
     try {
       result = await Promise.race([syncPromise, timeoutPromise]);
     } catch (timeoutError) {
-      console.warn('⚠️ Global Sync API: Sync timed out, returning status only');
+      console.warn('⚠️ Global Sync API: Sync timed out, returning status only', timeoutError);
       
       // Start background sync without waiting
       syncPromise.then(bgResult => {

@@ -11,7 +11,11 @@ export async function GET() {
     
     const debugResults = {
       timestamp: new Date().toISOString(),
-      tests: [] as any[]
+      tests: [] as Array<{
+        test: string;
+        status: 'info' | 'success' | 'error';
+        details: Record<string, unknown>;
+      }>
     };
     
     // Test 1: Check environment variables
