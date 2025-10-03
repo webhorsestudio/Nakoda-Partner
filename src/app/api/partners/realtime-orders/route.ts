@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { verifyPartnerToken } from '@/lib/auth';
+import { verifyPartnerToken, verifyAdminToken } from '@/lib/auth';
 import { isTaskExpired } from '@/components/partner/tabs/new-task/utils/timeExpirationUtils';
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify partner authentication
-    const authResult = await verifyPartnerToken(request);
+    // Try to verify as admin first, then partner
+    let authResult = await verifyAdminToken(request);
+    let isAdmin = authResult.success;
+    
+    if (!authResult.success) {
+      authResult = await verifyPartnerToken(request);
+      isAdmin = false;
+    }
+    
     if (!authResult.success) {
       return NextResponse.json(
         { error: 'Unauthorized', message: authResult.error },
@@ -14,21 +21,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const partnerId = authResult.userId;
+    const userId = authResult.userId;
 
-    // Get partner information
-    const { data: partner, error: partnerError } = await supabase
-      .from('partners')
-      .select('id, name, city, service_categories, service_type, status')
-      .eq('id', partnerId)
-      .eq('status', 'active')
-      .single();
+    // Get partner information (for partners) or skip for admins
+    let partner = null;
+    if (!isAdmin) {
+      const { data: partnerData, error: partnerError } = await supabase
+        .from('partners')
+        .select('id, name, city, service_categories, service_type, status')
+        .eq('id', userId)
+        .eq('status', 'active')
+        .single();
 
-    if (partnerError || !partner) {
-      return NextResponse.json(
-        { error: 'Partner not found or inactive' },
-        { status: 404 }
-      );
+      if (partnerError || !partnerData) {
+        return NextResponse.json(
+          { error: 'Partner not found or inactive' },
+          { status: 404 }
+        );
+      }
+      partner = partnerData;
     }
 
     // Calculate 24 hours ago timestamp
@@ -68,17 +79,20 @@ export async function GET(request: NextRequest) {
       .order('date_created', { ascending: false }) // Latest first
       .limit(50);
 
-    // Filter by city if partner has city
-    if (partner.city) {
-      query = query.ilike('city', `%${partner.city}%`);
-    }
+    // Apply filters only for partners, not for admins
+    if (!isAdmin && partner) {
+      // Filter by city if partner has city
+      if (partner.city) {
+        query = query.ilike('city', `%${partner.city}%`);
+      }
 
-    // Filter by service categories if partner has service_categories
-    if (partner.service_categories && partner.service_categories.length > 0) {
-      // For now, we'll filter by service_type matching partner's service_type
-      // In a more complex system, you'd join with service_categories table
-      if (partner.service_type && partner.service_type !== 'Other') {
-        query = query.ilike('service_type', `%${partner.service_type}%`);
+      // Filter by service categories if partner has service_categories
+      if (partner.service_categories && partner.service_categories.length > 0) {
+        // For now, we'll filter by service_type matching partner's service_type
+        // In a more complex system, you'd join with service_categories table
+        if (partner.service_type && partner.service_type !== 'Other') {
+          query = query.ilike('service_type', `%${partner.service_type}%`);
+        }
       }
     }
 
@@ -119,12 +133,13 @@ export async function GET(request: NextRequest) {
       success: true,
       orders: transformedOrders,
       total: transformedOrders.length,
-      partner: {
+      userType: isAdmin ? 'admin' : 'partner',
+      partner: partner ? {
         id: partner.id,
         name: partner.name,
         city: partner.city,
         serviceType: partner.service_type
-      }
+      } : null
     });
 
   } catch (error) {

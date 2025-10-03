@@ -1,0 +1,27 @@
+# Global Order Sync Cron Job Setup
+# This file contains the crontab entry for the global sync job
+
+# Add this line to your crontab (run: crontab -e)
+# This will run the global sync every 5 minutes
+*/5 * * * * /path/to/your/project/scripts/cron-global-sync.sh
+
+# Alternative: Direct curl command (simpler but less robust)
+# */5 * * * * curl -X POST -H "Content-Type: application/json" https://yourdomain.com/api/orders/global-sync >> /var/log/nakoda-sync.log 2>&1
+
+# Alternative: Every 3 minutes (more frequent)
+# */3 * * * * /path/to/your/project/scripts/cron-global-sync.sh
+
+# Alternative: Every 10 minutes (less frequent)
+# */10 * * * * /path/to/your/project/scripts/cron-global-sync.sh
+
+# To install:
+# 1. Make script executable: chmod +x scripts/cron-global-sync.sh
+# 2. Edit crontab: crontab -e
+# 3. Add the cron line above
+# 4. Save and exit
+
+# To check if cron is running:
+# tail -f /var/log/nakoda-global-sync.log
+
+# To check cron jobs:
+# crontab -l

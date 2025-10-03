@@ -47,7 +47,7 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
             }).join(''));
             const decoded = JSON.parse(jsonPayload);
             
-            if (decoded.role === 'partner' || decoded.role === 'admin') {
+            if (decoded.role === 'partner' || decoded.role === 'admin' || decoded.role === 'Admin' || decoded.role === 'Super Admin' || decoded.role === 'Support Admin' || decoded.role === 'Analytics Admin' || decoded.role === 'Technical Admin') {
               console.log('🌍 Global Order Provider: User authenticated, initializing service...', decoded.role);
               
               // Initialize partner order service (for both admin and partner)
@@ -102,7 +102,7 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
               }).join(''));
               const decoded = JSON.parse(jsonPayload);
               
-              if (decoded.role === 'partner' || decoded.role === 'admin') {
+              if (decoded.role === 'partner' || decoded.role === 'admin' || decoded.role === 'Admin' || decoded.role === 'Super Admin' || decoded.role === 'Support Admin' || decoded.role === 'Analytics Admin' || decoded.role === 'Technical Admin') {
                 console.log('🌍 Global Order Provider: Auth token added, initializing service...', decoded.role);
                 globalOrderService.initialize(10000);
                 globalOrderFetcher.start().catch(console.error);

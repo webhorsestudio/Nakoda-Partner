@@ -1,0 +1,56 @@
+name: Global Order Sync
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Every 5 minutes
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  global-sync:
+    runs-on: ubuntu-latest
+    name: Sync Orders from Bitrix24
+    
+    steps:
+      - name: Call Global Sync API
+        run: |
+          echo "🔄 Starting global order sync..."
+          
+          # Check if GLOBAL_SYNC_URL secret is set
+          if [ -z "${{ secrets.GLOBAL_SYNC_URL }}" ]; then
+            echo "❌ GLOBAL_SYNC_URL secret is not set. Please configure it in repository settings."
+            echo "Go to: Settings → Secrets and variables → Actions → New repository secret"
+            echo "Name: GLOBAL_SYNC_URL"
+            echo "Value: https://nakoda-partner.vercel.app/api/orders/global-sync"
+            exit 1
+          fi
+          
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: GitHub-Actions-Global-Sync/1.0" \
+            --max-time 30 \
+            "${{ secrets.GLOBAL_SYNC_URL }}")
+          
+          # Extract HTTP status code
+          http_code=$(echo "$response" | tail -n1)
+          response_body=$(echo "$response" | head -n -1)
+          
+          echo "Response: $response_body"
+          echo "HTTP Status: $http_code"
+          
+          if [ "$http_code" -eq 200 ]; then
+            echo "✅ Global sync successful"
+            exit 0
+          else
+            echo "❌ Global sync failed with HTTP $http_code"
+            exit 1
+          fi
+      
+      - name: Notify on Success
+        if: success()
+        run: |
+          echo "🎉 Global sync completed successfully at $(date)"
+      
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "💥 Global sync failed at $(date)"
+          # You can add Slack/Discord notifications here

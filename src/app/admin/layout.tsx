@@ -20,7 +20,7 @@ import {
   PhotoIcon
 } from "@heroicons/react/24/outline";
 import { verifyJWTTokenClient, verifySimpleToken, debugToken } from "@/utils/authUtils";
-import { getUserRole, getNavigationItems, UserRole } from "@/utils/roleUtils";
+import { getUserRole, getNavigationItems, UserRole, canAccessAdminPanel } from "@/utils/roleUtils";
 import { GlobalOrderProvider } from "@/contexts/GlobalOrderProvider";
 
 interface AdminLayoutProps {
@@ -91,7 +91,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   console.log('🔑 User role:', role);
                   
                   // Check if user is actually an admin - if not, redirect to appropriate page
-                  if (role.role !== 'admin') {
+                  if (!canAccessAdminPanel(role)) {
                     console.log('❌ User is not an admin, redirecting to appropriate page');
                     if (role.role === 'partner') {
                       router.push('/partner');
@@ -114,7 +114,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   console.log('🔑 User role:', role);
                   
                   // Check if user is actually an admin - if not, redirect to appropriate page
-                  if (role.role !== 'admin') {
+                  if (!canAccessAdminPanel(role)) {
                     console.log('❌ User is not an admin, redirecting to appropriate page');
                     if (role.role === 'partner') {
                       router.push('/partner');
@@ -180,7 +180,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   // Additional role check to ensure only admins can access admin pages - always call this hook
   useEffect(() => {
-    if (userRole && userRole.role !== 'admin') {
+    if (userRole && !canAccessAdminPanel(userRole)) {
       console.log('❌ Non-admin user trying to access admin page, redirecting');
       if (userRole.role === 'partner') {
         router.push('/partner');
@@ -233,7 +233,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   // Show loading state while redirecting non-admin users
-  if (userRole && userRole.role !== 'admin') {
+  if (userRole && !canAccessAdminPanel(userRole)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

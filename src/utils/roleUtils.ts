@@ -2,7 +2,7 @@
 // This works with your existing admin_users and partners tables
 
 export interface UserRole {
-  role: 'admin' | 'partner' | 'customer';
+  role: 'admin' | 'partner' | 'customer' | 'Admin' | 'Super Admin' | 'Support Admin' | 'Analytics Admin' | 'Technical Admin';
   permissions: string[];
   access_level?: string;
   source_table: 'admin_users' | 'partners';
@@ -42,7 +42,7 @@ export async function getUserRole(mobile: string): Promise<UserRole | null> {
         if (adminData.success && adminData.data) {
           console.log('✅ Admin user found:', adminData.data);
           return {
-            role: 'admin',
+            role: adminData.data.role || 'admin', // Use actual role from database
             permissions: adminData.data.permissions || [],
             access_level: adminData.data.access_level,
             source_table: 'admin_users'
@@ -110,31 +110,35 @@ export function hasPermission(userRole: UserRole | null, requiredPermission: str
 
 // Check if user can access admin panel
 export function canAccessAdminPanel(userRole: UserRole | null): boolean {
-  return userRole?.role === 'admin';
+  if (!userRole) return false;
+  
+  // Check for all admin role variations
+  const adminRoles = ['admin', 'Admin', 'Super Admin', 'Support Admin', 'Analytics Admin', 'Technical Admin'];
+  return adminRoles.includes(userRole.role);
 }
 
 // Check if user can access partners section
 export function canAccessPartners(userRole: UserRole | null): boolean {
-  return userRole?.role === 'admin' || 
+  return canAccessAdminPanel(userRole) || 
          hasPermission(userRole, 'Partner Management');
 }
 
 // Check if user can access orders section
 export function canAccessOrders(userRole: UserRole | null): boolean {
-  return userRole?.role === 'admin' || 
+  return canAccessAdminPanel(userRole) || 
          hasPermission(userRole, 'Order Management') ||
          hasPermission(userRole, 'View Orders');
 }
 
 // Check if user can access customers section
 export function canAccessCustomers(userRole: UserRole | null): boolean {
-  return userRole?.role === 'admin' || 
+  return canAccessAdminPanel(userRole) || 
          hasPermission(userRole, 'User Management');
 }
 
 // Check if user can access settings section
 export function canAccessSettings(userRole: UserRole | null): boolean {
-  return userRole?.role === 'admin' || 
+  return canAccessAdminPanel(userRole) || 
          hasPermission(userRole, 'System Settings');
 }
 
