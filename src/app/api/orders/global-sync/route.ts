@@ -39,30 +39,43 @@ export async function POST() {
 
 /**
  * GET /api/orders/global-sync
- * Get the status of the global order fetcher
+ * Get the status of the global order fetcher and optionally trigger sync
+ * This endpoint is called by UptimeRobot free account (default GET requests)
  */
 export async function GET() {
   try {
+    console.log('🌍 Global Sync API: GET request received (UptimeRobot monitoring)');
+    
+    // Get current status
     const status = globalOrderFetcher.getStatus();
     const stats = await globalOrderFetcher.getSyncStats();
     
+    // For UptimeRobot monitoring, we can optionally trigger a sync
+    // This ensures the endpoint is actively doing something useful
+    const result = await globalOrderFetcher.forceSync();
+    
+    console.log('✅ Global Sync API: GET sync completed', result);
+    
     return NextResponse.json({
       success: true,
+      message: 'Global sync completed successfully',
       data: {
         status,
         stats,
+        syncResult: result,
         timestamp: new Date().toISOString()
       }
     });
     
   } catch (error) {
-    console.error('❌ Global Sync API: Failed to get status', error);
+    console.error('❌ Global Sync API: GET request failed', error);
     
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to get global sync status',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Global sync failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
       },
       { status: 500 }
     );
