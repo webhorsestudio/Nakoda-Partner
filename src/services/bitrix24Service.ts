@@ -23,8 +23,8 @@ class Bitrix24Service {
    * Fetch deals from Bitrix24 API with correct POST format
    */
   async fetchDeals(start: number = 0, limit: number = 50, retryCount: number = 0): Promise<Bitrix24Response> {
-    const maxRetries = 3;
-    const baseDelay = 1000; // 1 second base delay
+    const maxRetries = 5; // Increased retries
+    const baseDelay = 2000; // 2 second base delay (more conservative)
 
     try {
       const url = `${this.baseUrl}${this.restUrl}/crm.deal.list.json`;
@@ -142,12 +142,17 @@ class Bitrix24Service {
     try {
       const recentDeals: Bitrix24Deal[] = [];
       let start = 0;
-      const limit = 50;
+      const limit = 25; // Reduced batch size for better rate limiting
       let totalFetched = 0;
       let consecutiveEmptyBatches = 0;
       
       // Fetch deals in smaller batches with delays
       while (totalFetched < 1000 && consecutiveEmptyBatches < 5) {
+        // Add initial delay to be extra safe with rate limiting
+        if (start === 0) {
+          await this.sleep(1000); // 1 second delay before first request
+        }
+        
         const response = await this.fetchDeals(start, limit);
         const deals = response.result;
         
@@ -165,8 +170,8 @@ class Bitrix24Service {
           break;
         }
         
-        // Add delay between requests to avoid rate limiting
-        await this.sleep(200);
+        // Add delay between requests to avoid rate limiting (Bitrix24 allows 2 requests per second = 500ms minimum)
+        await this.sleep(500);
         
         start += limit;
       }
