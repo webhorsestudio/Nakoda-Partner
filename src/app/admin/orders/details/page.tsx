@@ -11,7 +11,10 @@ import {
   CurrencyDollarIcon,
   UserIcon,
   PhoneIcon,
-  ClockIcon
+  ClockIcon,
+  EllipsisVerticalIcon,
+  ArrowDownTrayIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -36,6 +39,7 @@ export default function OrderDetailsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   // Fetch accepted orders from API
   const fetchAcceptedOrders = async () => {
@@ -93,6 +97,20 @@ export default function OrderDetailsPage() {
   useEffect(() => {
     fetchAcceptedOrders();
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (activeDropdown) {
+        setActiveDropdown(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    });
+  }, [activeDropdown]);
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -265,21 +283,88 @@ export default function OrderDetailsPage() {
               {/* Order Header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
-                  <span className="text-lg font-bold text-gray-900">{order.id}</span>
                   <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(order.status)}`}>
                     {getStatusIcon(order.status)} {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                   </span>
                 </div>
-                <div className="flex space-x-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <EyeIcon className="h-4 w-4" />
+                <div className="relative">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8"
+                    onClick={() => setActiveDropdown(activeDropdown === order.id ? null : order.id)}
+                  >
+                    <EllipsisVerticalIcon className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <PencilIcon className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700">
-                    <TrashIcon className="h-4 w-4" />
-                  </Button>
+                  
+                  {/* Actions Dropdown */}
+                  {activeDropdown === order.id && (
+                    <div className="absolute right-0 top-9 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-10">
+                      <button 
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                        onClick={() => {
+                          console.log('View order:', order.id);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        Actions for Order {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      </button>
+                      <hr className="my-1" />
+                      <button 
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                        onClick={() => {
+                          console.log('View order details:', order.id);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        <EyeIcon className="h-4 w-4" />
+                        <span>View Details</span>
+                      </button>
+                      <button 
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                        onClick={() => {
+                          console.log('Edit order:', order.id);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                        <span>Edit Order</span>
+                      </button>
+                      <button 
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                        onClick={() => {
+                          console.log('Download invoice:', order.id);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        <ArrowDownTrayIcon className="h-4 w-4" />
+                        <span>Download Invoice</span>
+                      </button>
+                      <button 
+                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                        onClick={() => {
+                          console.log('Contact customer:', order.customerPhone);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        <ChatBubbleLeftRightIcon className="h-4 w-4" />
+                        <span>Contact Customer</span>
+                      </button>
+                      <hr className="my-1" />
+                      <button 
+                        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to cancel this order?')) {
+                            console.log('Cancel order:', order.id);
+                          }
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                        <span>Cancel Order</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
