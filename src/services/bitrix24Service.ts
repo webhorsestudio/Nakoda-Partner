@@ -23,8 +23,8 @@ class Bitrix24Service {
    * Fetch deals from Bitrix24 API with correct POST format
    */
   async fetchDeals(start: number = 0, limit: number = 50, retryCount: number = 0): Promise<Bitrix24Response> {
-    const maxRetries = 5; // Increased retries
-    const baseDelay = 2000; // 2 second base delay (more conservative)
+    const maxRetries = 3; // Reduced retries to avoid too many attempts
+    const baseDelay = 5000; // 5 second base delay (very conservative)
 
     try {
       const url = `${this.baseUrl}${this.restUrl}/crm.deal.list.json`;
@@ -142,19 +142,22 @@ class Bitrix24Service {
     try {
       const recentDeals: Bitrix24Deal[] = [];
       let start = 0;
-      const limit = 25; // Reduced batch size for better rate limiting
+      const limit = 10; // Very small batch size for better rate limiting
       let totalFetched = 0;
       let consecutiveEmptyBatches = 0;
+      let requestCount = 0;
+      const maxRequests = 5; // Limit total requests to avoid rate limiting
       
       // Fetch deals in smaller batches with delays
-      while (totalFetched < 1000 && consecutiveEmptyBatches < 5) {
+      while (totalFetched < 100 && consecutiveEmptyBatches < 3 && requestCount < maxRequests) {
         // Add initial delay to be extra safe with rate limiting
         if (start === 0) {
-          await this.sleep(1000); // 1 second delay before first request
+          await this.sleep(2000); // 2 second delay before first request
         }
         
         const response = await this.fetchDeals(start, limit);
         const deals = response.result;
+        requestCount++;
         
         if (deals.length === 0) {
           consecutiveEmptyBatches++;
@@ -165,13 +168,14 @@ class Bitrix24Service {
         totalFetched += deals.length;
         recentDeals.push(...deals);
         
-        // Stop if we've had 5 consecutive empty batches
-        if (consecutiveEmptyBatches >= 5) {
+        // Stop if we've had 3 consecutive empty batches or reached max requests
+        if (consecutiveEmptyBatches >= 3 || requestCount >= maxRequests) {
           break;
         }
         
         // Add delay between requests to avoid rate limiting (Bitrix24 allows 2 requests per second = 500ms minimum)
-        await this.sleep(500);
+        // Use 2 second delay to be very safe
+        await this.sleep(2000);
         
         start += limit;
       }

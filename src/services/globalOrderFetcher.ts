@@ -16,6 +16,7 @@ class GlobalOrderFetcher {
   private readonly MAX_RETRIES = 3;
   private retryCount = 0;
   private lastSyncTime: Date | null = null;
+  private isSyncing = false; // Prevent concurrent sync operations
 
   constructor() {
     console.log('🌍 Global Order Fetcher: Initialized');
@@ -93,7 +94,21 @@ class GlobalOrderFetcher {
    * Main method to fetch orders from Bitrix24 and store them
    */
   private async fetchAndStoreOrders(): Promise<GlobalSyncResult> {
+    // Prevent concurrent sync operations
+    if (this.isSyncing) {
+      console.log('🔄 Global Order Fetcher: Sync already in progress, skipping...');
+      return {
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        errors: 0,
+        lastSync: this.lastSyncTime?.toISOString() || new Date().toISOString()
+      };
+    }
+    
+    this.isSyncing = true;
     const startTime = Date.now();
+    
     try {
       console.log('🌍 Global Order Fetcher: Starting sync...');
       console.log('📊 Global Order Fetcher: Current status:', {
@@ -159,6 +174,9 @@ class GlobalOrderFetcher {
         errors: 1,
         lastSync: this.lastSyncTime?.toISOString() || new Date().toISOString()
       };
+    } finally {
+      // Always reset the syncing flag
+      this.isSyncing = false;
     }
   }
 
