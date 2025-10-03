@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
         service_type,
         specification,
         status,
-        amount,
         currency,
         customer_name,
         address,
@@ -44,13 +43,11 @@ export async function GET(request: NextRequest) {
         created_at,
         order_number,
         mobile_number,
+        amount,
         partner_id,
-        partners!inner(
-          id,
-          name,
-          city,
-          service_type
-        )
+        partner,
+        mode,
+        package
       `)
       .not('partner_id', 'is', null) // Only orders assigned to partners
       .order('created_at', { ascending: false }) // Latest first
@@ -107,18 +104,25 @@ export async function GET(request: NextRequest) {
       location: `${order.city || 'Unknown City'}${order.pin_code ? ` - ${order.pin_code}` : ''}`,
       amount: parseFloat(order.amount?.toString() || '0'),
       advanceAmount: parseFloat(order.advance_amount?.toString() || '0'),
-      serviceType: order.service_type || 'General Service',
+      serviceType: order.package || order.service_type || 'General Service',
       priority: 'medium', // Default priority
       estimatedDuration: order.time_slot || '2-4 hours',
       createdAt: order.date_created || order.created_at,
       status: order.status || 'assigned',
       serviceDate: order.service_date,
       timeSlot: order.time_slot,
-      partnerName: (order.partners as { name: string }[])?.[0]?.name || 'Unknown Partner',
+      partnerName: order.partner || 'Unknown Partner',
       partnerId: order.partner_id
     })) || [];
 
     console.log(`Returning ${transformedOrders.length} accepted orders to admin`);
+    console.log('Sample order data:', orders?.[0] ? {
+      id: orders[0].id,
+      partner_id: orders[0].partner_id,
+      partner: orders[0].partner,
+      package: orders[0].package,
+      service_type: orders[0].service_type
+    } : 'No orders found');
     
     return NextResponse.json({
       success: true,
