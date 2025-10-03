@@ -12,6 +12,18 @@ export async function POST() {
   try {
     console.log('🌍 Global Sync API: Starting global order sync...');
     
+    // Ensure the global fetcher is running (auto-start if needed)
+    const status = globalOrderFetcher.getStatus();
+    if (!status.isRunning) {
+      console.log('🔄 Global Sync API: Service not running, starting it...');
+      try {
+        await globalOrderFetcher.start();
+        console.log('✅ Global Sync API: Service started successfully');
+      } catch (startError) {
+        console.warn('⚠️ Global Sync API: Failed to start service, continuing with manual sync');
+      }
+    }
+    
     // Force a sync using the global fetcher with timeout protection
     const syncPromise = globalOrderFetcher.forceSync();
     const timeoutPromise = new Promise((_, reject) => 
@@ -59,8 +71,20 @@ export async function GET() {
   try {
     console.log('🌍 Global Sync API: GET request received (UptimeRobot monitoring)');
     
-    // Get current status first (fast operation)
+    // Ensure the global fetcher is running (auto-start if needed)
     const status = globalOrderFetcher.getStatus();
+    if (!status.isRunning) {
+      console.log('🔄 Global Sync API: Service not running, starting it...');
+      try {
+        await globalOrderFetcher.start();
+        console.log('✅ Global Sync API: Service started successfully');
+      } catch (startError) {
+        console.warn('⚠️ Global Sync API: Failed to start service, continuing with manual sync');
+      }
+    }
+    
+    // Get updated status
+    const updatedStatus = globalOrderFetcher.getStatus();
     const stats = await globalOrderFetcher.getSyncStats();
     
     // For UptimeRobot monitoring, trigger sync with timeout protection
@@ -79,7 +103,7 @@ export async function GET() {
         success: true,
         message: 'Global sync status retrieved (sync timed out)',
         data: {
-          status,
+          status: updatedStatus,
           stats,
           syncResult: null,
           timeout: true,
@@ -95,7 +119,7 @@ export async function GET() {
       success: true,
       message: 'Global sync completed successfully',
       data: {
-        status,
+        status: updatedStatus,
         stats,
         syncResult: result,
         duration: `${duration}ms`,
