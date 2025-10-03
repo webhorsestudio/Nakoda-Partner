@@ -12,7 +12,7 @@ interface GlobalSyncResult {
 class GlobalOrderFetcher {
   private isRunning = false;
   private intervalId: NodeJS.Timeout | null = null;
-  private readonly FETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+  private readonly FETCH_INTERVAL = 30 * 60 * 1000; // 30 minutes (much less frequent)
   private readonly MAX_RETRIES = 3;
   private retryCount = 0;
   private lastSyncTime: Date | null = null;
@@ -151,20 +151,9 @@ class GlobalOrderFetcher {
         name: error instanceof Error ? error.name : undefined
       });
       
-      // Implement retry logic
-      if (this.retryCount < this.MAX_RETRIES) {
-        this.retryCount++;
-        const retryDelay = Math.pow(2, this.retryCount) * 1000; // Exponential backoff
-        
-        console.log(`🔄 Global Order Fetcher: Retrying in ${retryDelay}ms (attempt ${this.retryCount}/${this.MAX_RETRIES})`);
-        
-        setTimeout(async () => {
-          await this.fetchAndStoreOrders();
-        }, retryDelay);
-      } else {
-        console.error('❌ Global Order Fetcher: Max retries exceeded, stopping');
-        this.retryCount = 0; // Reset for next cycle
-      }
+      // DISABLED RETRY LOGIC - to prevent rate limiting loops
+      console.log('❌ Global Order Fetcher: Sync failed, skipping retry to prevent rate limiting');
+      this.retryCount = 0; // Reset retry count
       
       // Return error result
       return {

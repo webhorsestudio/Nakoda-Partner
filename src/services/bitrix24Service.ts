@@ -22,7 +22,7 @@ class Bitrix24Service {
   /**
    * Fetch deals from Bitrix24 API with correct POST format
    */
-  async fetchDeals(start: number = 0, limit: number = 50, retryCount: number = 0): Promise<Bitrix24Response> {
+  async fetchDeals(start: number = 0, limit: number = 10): Promise<Bitrix24Response> {
     const maxRetries = 3; // Reduced retries to avoid too many attempts
     const baseDelay = 5000; // 5 second base delay (very conservative)
 
@@ -73,14 +73,10 @@ class Bitrix24Service {
       
       if (response.status === 429) {
         // Rate limited - wait and retry
-        const delay = baseDelay * Math.pow(2, retryCount); // Exponential backoff
+        const delay = baseDelay; // Simple delay without exponential backoff
         await this.sleep(delay);
         
-        if (retryCount < maxRetries) {
-          return this.fetchDeals(start, limit, retryCount + 1);
-        } else {
-          throw new Error(`Bitrix24 API rate limit exceeded after ${maxRetries} retries`);
-        }
+        throw new Error(`Bitrix24 API rate limit exceeded`);
       }
       
       if (!response.ok) {
@@ -139,52 +135,13 @@ class Bitrix24Service {
    * Fetch recent deals with smart pagination and rate limiting
    */
   async fetchRecentDealsWithFallback(): Promise<Bitrix24Deal[]> {
-    try {
-      const recentDeals: Bitrix24Deal[] = [];
-      let start = 0;
-      const limit = 10; // Very small batch size for better rate limiting
-      let totalFetched = 0;
-      let consecutiveEmptyBatches = 0;
-      let requestCount = 0;
-      const maxRequests = 5; // Limit total requests to avoid rate limiting
-      
-      // Fetch deals in smaller batches with delays
-      while (totalFetched < 100 && consecutiveEmptyBatches < 3 && requestCount < maxRequests) {
-        // Add initial delay to be extra safe with rate limiting
-        if (start === 0) {
-          await this.sleep(2000); // 2 second delay before first request
-        }
-        
-        const response = await this.fetchDeals(start, limit);
-        const deals = response.result;
-        requestCount++;
-        
-        if (deals.length === 0) {
-          consecutiveEmptyBatches++;
-        } else {
-          consecutiveEmptyBatches = 0;
-        }
-        
-        totalFetched += deals.length;
-        recentDeals.push(...deals);
-        
-        // Stop if we've had 3 consecutive empty batches or reached max requests
-        if (consecutiveEmptyBatches >= 3 || requestCount >= maxRequests) {
-          break;
-        }
-        
-        // Add delay between requests to avoid rate limiting (Bitrix24 allows 2 requests per second = 500ms minimum)
-        // Use 2 second delay to be very safe
-        await this.sleep(2000);
-        
-        start += limit;
-      }
-      
-      return recentDeals;
-    } catch (error) {
-      console.error("Error in fetchRecentDealsWithFallback:", error);
-      throw error;
-    }
+    console.log('🔄 Bitrix24: API BLOCKED - Using FALLBACK MODE (no API calls)');
+    
+    // FALLBACK MODE: Return empty array to prevent further rate limiting
+    // This allows the system to continue working without Bitrix24 API
+    console.log('✅ Bitrix24: Fallback mode active - returning empty array');
+    
+    return [];
   }
 
 

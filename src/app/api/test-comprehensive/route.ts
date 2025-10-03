@@ -88,7 +88,7 @@ export async function GET() {
       testResults.tests.push({
         test: 'Order Service Sync',
         status: 'success',
-        details: syncResult,
+        details: syncResult as Record<string, unknown>,
         duration: `${duration}ms`
       });
       

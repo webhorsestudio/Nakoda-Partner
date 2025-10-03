@@ -1,17 +1,15 @@
 import { supabase } from "@/lib/supabase";
 import { Order, OrderFilters, OrderStats } from "@/types/orders";
-import { bitrix24Service } from "./bitrix24Service";
+import { professionalBitrix24Service } from "./professionalBitrix24Service";
 
 export class OrderService {
-  private bitrix24Service: typeof bitrix24Service;
-
   constructor() {
-    this.bitrix24Service = bitrix24Service;
+    // Use professional Bitrix24 service
   }
 
   async syncRecentOrdersFromBitrix24(): Promise<{ created: number; updated: number; skipped: number; errors: number }> {
     try {
-      const deals = await this.bitrix24Service.fetchRecentDealsWithFallback();
+      const deals = await professionalBitrix24Service.fetchRecentDealsWithFallback();
       
       let created = 0;
       let updated = 0;
@@ -20,7 +18,7 @@ export class OrderService {
 
       for (const deal of deals) {
         try {
-          const orderData = this.bitrix24Service.transformDealToOrder(deal);
+          const orderData = professionalBitrix24Service.transformDealToOrder(deal);
           
           // Skip deals that don't have a valid business order number
           if (!orderData.order_number || /^\d+$/.test(orderData.order_number)) {
