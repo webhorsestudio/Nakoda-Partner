@@ -27,7 +27,7 @@ export async function POST() {
     // Force a sync using the global fetcher with aggressive timeout protection
     const syncPromise = globalOrderFetcher.forceSync();
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Sync timeout after 30 seconds')), 30000)
+      setTimeout(() => reject(new Error('Sync timeout after 60 seconds')), 60000)
     );
     
     let result;
@@ -115,7 +115,7 @@ export async function GET() {
     // For UptimeRobot monitoring, trigger sync with aggressive timeout protection
     const syncPromise = globalOrderFetcher.forceSync();
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Sync timeout after 30 seconds')), 30000)
+      setTimeout(() => reject(new Error('Sync timeout after 60 seconds')), 60000)
     );
     
     let result;
