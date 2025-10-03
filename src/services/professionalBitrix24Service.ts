@@ -38,12 +38,25 @@ class ProfessionalBitrix24Service {
         order: { "DATE_CREATE": "DESC" },
         select: [
           "ID", "TITLE", "OPPORTUNITY", "CURRENCY_ID", "DATE_CREATE", "STAGE_ID",
-          "UF_CRM_1681645659170", // Customer name
-          "UF_CRM_1681974166046", // Mobile number
-          "UF_CRM_1681649038953", // Order number
-          "UF_CRM_1681648179537", // Amount & currency
-          "UF_CRM_1681749732453", // Package & partner
-          "UF_CRM_1681648036958", // Service date
+          "STAGE_SEMANTIC_ID", "LEAD_ID", "CONTACT_ID", "COMPANY_ID", "ASSIGNED_BY_ID",
+          "CREATED_BY_ID", "BEGINDATE", "CLOSEDATE", "DATE_MODIFY", "CLOSED", "IS_NEW",
+          "COMMENTS", "ADDITIONAL_INFO", "LOCATION_ID", "CATEGORY_ID", "SOURCE_ID",
+          "SOURCE_DESCRIPTION", "UTM_SOURCE", "UTM_MEDIUM", "UTM_CAMPAIGN", "UTM_CONTENT",
+          "UTM_TERM", "LAST_ACTIVITY_TIME", "LAST_ACTIVITY_BY", "LAST_COMMUNICATION_TIME",
+          // Rich custom fields for complete information
+          "UF_CRM_1681747087033", // Full address: "Plot no :192,Dibbapalem r h colony, Srinagar,gajuwaka, Visakhapatnam , 530026, "
+          "UF_CRM_1681645659170", // Customer name: "Gayathri"
+          "UF_CRM_1681974166046", // Mobile number: "6305170127"
+          "UF_CRM_1681649038953", // Order number: "Nus87638"
+          "UF_CRM_1681648179537", // Amount & currency: "510|INR"
+          "UF_CRM_1681749732453", // Package & partner: "Intense Cleaning 1 Bathroom By : Pams Facility Management Services"
+          "UF_CRM_1681648036958", // Service Date and Time Slot: "2025-08-12T03:00:00+03:00"
+          "UF_CRM_1681647842342", // Order time: "2918" (time slot)
+          "UF_CRM_1681648200083", // Commission(%): "25"
+          "UF_CRM_1681648220910", // Additional info: "1"
+          "UF_CRM_1681648284105", // Advance Amount: "1000"
+          "UF_CRM_1723904458952", // Taxes and Fee: "150"
+          "UF_CRM_1681747291577", // Service Slot Time: "4972", "4974", "4976", etc.
         ],
         start,
         limit
@@ -145,35 +158,140 @@ class ProfessionalBitrix24Service {
   }
 
   /**
-   * Transform Bitrix24 deal to order data
+   * Transform Bitrix24 deal to order data with complete field mapping
    */
   transformDealToOrder(deal: Bitrix24Deal): CreateOrderData {
-    // Implementation remains the same as original
+    // Use rich custom fields instead of parsing incomplete TITLE
+    const richAddress = deal.UF_CRM_1681747087033;
     const customerName = deal.UF_CRM_1681645659170 || 'Unknown Customer';
     const mobileNumber = deal.UF_CRM_1681974166046 || '';
     const orderNumber = deal.UF_CRM_1681649038953 || '';
     const amountCurrency = deal.UF_CRM_1681648179537 || '0|INR';
     const packagePartner = deal.UF_CRM_1681749732453 || '';
     const serviceDate = deal.UF_CRM_1681648036958 || '';
+    const orderTime = deal.UF_CRM_1681647842342 || '';
+    const commissionPercentage = deal.UF_CRM_1681648200083 || '';
+    const additionalInfo = deal.UF_CRM_1681648220910 || '';
+    const advanceAmount = deal.UF_CRM_1681648284105 || '';
+    const taxesAndFees = deal.UF_CRM_1723904458952 || '';
+    const serviceSlotTime = deal.UF_CRM_1681747291577 || '';
 
+    // Parse amount and currency
     const [amount, currency] = amountCurrency.split('|');
+    const numericAmount = parseFloat(amount) || 0;
+
+    // Parse package and partner
     const [packageName, partnerName] = packagePartner.split(' By : ');
+
+    // Parse address components
+    let address = '';
+    let city = '';
+    let pin_code = '';
+    
+    if (richAddress) {
+      // Parse address: "Plot no :192,Dibbapalem r h colony, Srinagar,gajuwaka, Visakhapatnam , 530026, "
+      const addressParts = richAddress.split(',').map(part => part.trim());
+      
+      // Extract pin code (last numeric part)
+      const pinCodeMatch = richAddress.match(/(\d{6})/);
+      if (pinCodeMatch) {
+        pin_code = pinCodeMatch[1];
+      }
+      
+      // Extract city (usually the last meaningful part before pin code)
+      if (addressParts.length >= 2) {
+        city = addressParts[addressParts.length - 2] || '';
+      }
+      
+      // Address is the full string minus pin code
+      address = richAddress.replace(/\s*\d{6}\s*,?\s*$/, '').trim();
+    }
+
+    // Parse order date and time
+    const orderDate = serviceDate ? new Date(serviceDate).toLocaleDateString() : '';
+    const finalOrderTime = orderTime || serviceSlotTime || '';
+
+    // Map stage to status
+    const status = this.mapStageToStatus(deal.STAGE_ID);
 
     return {
       bitrix24_id: deal.ID,
-      title: deal.TITLE || 'Unknown Order',
-      order_number: orderNumber,
-      customer_name: customerName,
-      mobile_number: mobileNumber,
-      service_type: packageName || 'Unknown Service',
+      title: deal.TITLE,
+      
+      // Rich parsed fields from custom fields
+      mode: 'online', // Default mode
+      package: packageName || 'Unknown Package',
       partner: partnerName || 'Unknown Partner',
-      amount: parseFloat(amount) || 0,
+      order_number: orderNumber,
+      mobile_number: mobileNumber,
+      order_date: orderDate,
+      order_time: finalOrderTime,
+      customer_name: customerName,
+      address,
+      city,
+      pin_code,
+      
+      // Financial and service fields
+      commission_percentage: commissionPercentage,
+      advance_amount: advanceAmount,
+      taxes_and_fees: taxesAndFees,
+      service_date: serviceDate,
+      time_slot: finalOrderTime,
+      
+      // Original fields
+      service_type: packageName || 'Unknown Service',
+      specification: packageName,
+      stage_id: deal.STAGE_ID,
+      stage_semantic_id: deal.STAGE_SEMANTIC_ID,
+      status,
       currency: currency || 'INR',
-      status: deal.STAGE_ID === 'C2:PREPAYMENT_INVOICE' ? 'pending' : 'in_progress',
-      service_date: serviceDate ? new Date(serviceDate).toISOString() : new Date().toISOString(),
-      date_created: new Date(deal.DATE_CREATE).toISOString(),
-      date_modified: new Date().toISOString()
+      amount: numericAmount,
+      lead_id: deal.LEAD_ID || undefined,
+      contact_id: deal.CONTACT_ID || undefined,
+      company_id: deal.COMPANY_ID || undefined,
+      assigned_by_id: deal.ASSIGNED_BY_ID || undefined,
+      created_by_id: deal.CREATED_BY_ID || undefined,
+      begin_date: deal.BEGINDATE || undefined,
+      close_date: deal.CLOSEDATE || undefined,
+      date_created: deal.DATE_CREATE,
+      date_modified: deal.DATE_MODIFY,
+      is_closed: deal.CLOSED === "Y",
+      is_new: deal.IS_NEW === "Y",
+      comments: deal.COMMENTS || undefined,
+      additional_info: deal.ADDITIONAL_INFO || undefined,
+      location_id: deal.LOCATION_ID || undefined,
+      category_id: deal.CATEGORY_ID || undefined,
+      source_id: deal.SOURCE_ID || undefined,
+      source_description: deal.SOURCE_DESCRIPTION || undefined,
+      utm_source: deal.UTM_SOURCE || undefined,
+      utm_medium: deal.UTM_MEDIUM || undefined,
+      utm_campaign: deal.UTM_CAMPAIGN || undefined,
+      utm_content: deal.UTM_CONTENT || undefined,
+      utm_term: deal.UTM_TERM || undefined,
+      last_activity_time: deal.LAST_ACTIVITY_TIME || undefined,
+      last_activity_by: deal.LAST_ACTIVITY_BY || undefined,
+      last_communication_time: deal.LAST_COMMUNICATION_TIME || undefined
     };
+  }
+
+  /**
+   * Map Bitrix24 stage to order status
+   */
+  private mapStageToStatus(stageId: string): string {
+    switch (stageId) {
+      case 'C2:PREPAYMENT_INVOICE':
+        return 'pending';
+      case 'C2:EXECUTING':
+        return 'in_progress';
+      case 'C2:FINAL_INVOICE':
+        return 'completed';
+      case 'C2:WON':
+        return 'completed';
+      case 'C2:LOSE':
+        return 'cancelled';
+      default:
+        return 'pending';
+    }
   }
 }
 
