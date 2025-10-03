@@ -54,7 +54,14 @@ export function GlobalOrderProvider({ children }: GlobalOrderProviderProps) {
               globalOrderService.initialize(10000);
               
               // Start global fetcher for continuous updates
-              globalOrderFetcher.start().catch(console.error);
+              console.log('🌍 Global Order Provider: Starting globalOrderFetcher...');
+              globalOrderFetcher.start()
+                .then(() => {
+                  console.log('✅ Global Order Provider: globalOrderFetcher started successfully');
+                })
+                .catch((error) => {
+                  console.error('❌ Global Order Provider: Failed to start globalOrderFetcher:', error);
+                });
               
               // Listen for global order updates
               const handleGlobalOrdersUpdated = (event: CustomEvent) => {

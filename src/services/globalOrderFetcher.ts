@@ -93,11 +93,21 @@ class GlobalOrderFetcher {
    * Main method to fetch orders from Bitrix24 and store them
    */
   private async fetchAndStoreOrders(): Promise<GlobalSyncResult> {
+    const startTime = Date.now();
     try {
-      console.log('🌍 Global Order Fetcher: Fetching orders from Bitrix24...');
+      console.log('🌍 Global Order Fetcher: Starting sync...');
+      console.log('📊 Global Order Fetcher: Current status:', {
+        isRunning: this.isRunning,
+        retryCount: this.retryCount,
+        lastSync: this.lastSyncTime?.toISOString() || null
+      });
       
       // Use existing orderService for consistency
+      console.log('🔄 Global Order Fetcher: Calling orderService.syncRecentOrdersFromBitrix24()...');
       const result = await orderService.syncRecentOrdersFromBitrix24();
+      
+      const duration = Date.now() - startTime;
+      console.log(`✅ Global Order Fetcher: Sync completed in ${duration}ms`, result);
       
       // Update last sync time
       this.lastSyncTime = new Date();
@@ -111,7 +121,7 @@ class GlobalOrderFetcher {
         lastSync: this.lastSyncTime.toISOString()
       };
       
-      console.log('✅ Global Order Fetcher: Sync completed', syncResult);
+      console.log('✅ Global Order Fetcher: Final sync result', syncResult);
       
       // Emit event for real-time updates
       this.emitOrdersUpdated(syncResult);
