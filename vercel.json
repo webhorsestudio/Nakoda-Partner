@@ -1,6 +1,12 @@
 {
   "functions": {
     "src/app/api/orders/global-sync/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/orders/global-sync-health/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/orders/global-sync-debug/route.ts": {
       "maxDuration": 60
     }
   }

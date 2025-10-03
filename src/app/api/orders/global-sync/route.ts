@@ -24,13 +24,38 @@ export async function POST() {
       }
     }
     
-    // Force a sync using the global fetcher with timeout protection
+    // Force a sync using the global fetcher with aggressive timeout protection
     const syncPromise = globalOrderFetcher.forceSync();
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Sync timeout after 50 seconds')), 50000)
+      setTimeout(() => reject(new Error('Sync timeout after 30 seconds')), 30000)
     );
     
-    const result = await Promise.race([syncPromise, timeoutPromise]);
+    let result;
+    try {
+      result = await Promise.race([syncPromise, timeoutPromise]);
+    } catch (timeoutError) {
+      console.warn('⚠️ Global Sync API: POST sync timed out, running in background');
+      
+      // Start background sync without waiting
+      syncPromise.then(bgResult => {
+        console.log('✅ Global Sync API: Background POST sync completed', bgResult);
+      }).catch(bgError => {
+        console.error('❌ Global Sync API: Background POST sync failed', bgError);
+      });
+      
+      // Return success even if sync times out
+      const duration = Date.now() - startTime;
+      return NextResponse.json({
+        success: true,
+        message: 'Global sync initiated (running in background)',
+        data: {
+          backgroundSync: true,
+          timeout: true
+        },
+        duration: `${duration}ms`,
+        timestamp: new Date().toISOString()
+      });
+    }
     
     const duration = Date.now() - startTime;
     console.log(`✅ Global Sync API: Sync completed in ${duration}ms`, result);
@@ -87,10 +112,10 @@ export async function GET() {
     const updatedStatus = globalOrderFetcher.getStatus();
     const stats = await globalOrderFetcher.getSyncStats();
     
-    // For UptimeRobot monitoring, trigger sync with timeout protection
+    // For UptimeRobot monitoring, trigger sync with aggressive timeout protection
     const syncPromise = globalOrderFetcher.forceSync();
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Sync timeout after 45 seconds')), 45000)
+      setTimeout(() => reject(new Error('Sync timeout after 30 seconds')), 30000)
     );
     
     let result;
@@ -98,15 +123,24 @@ export async function GET() {
       result = await Promise.race([syncPromise, timeoutPromise]);
     } catch (timeoutError) {
       console.warn('⚠️ Global Sync API: Sync timed out, returning status only');
+      
+      // Start background sync without waiting
+      syncPromise.then(bgResult => {
+        console.log('✅ Global Sync API: Background sync completed after timeout', bgResult);
+      }).catch(bgError => {
+        console.error('❌ Global Sync API: Background sync failed after timeout', bgError);
+      });
+      
       // Return status even if sync times out
       return NextResponse.json({
         success: true,
-        message: 'Global sync status retrieved (sync timed out)',
+        message: 'Global sync status retrieved (sync timed out, running in background)',
         data: {
           status: updatedStatus,
           stats,
           syncResult: null,
           timeout: true,
+          backgroundSync: true,
           timestamp: new Date().toISOString()
         }
       });

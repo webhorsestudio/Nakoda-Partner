@@ -120,6 +120,11 @@ class GlobalOrderFetcher {
       
     } catch (error) {
       console.error('❌ Global Order Fetcher: Sync failed', error);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : undefined
+      });
       
       // Implement retry logic
       if (this.retryCount < this.MAX_RETRIES) {
