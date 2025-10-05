@@ -69,7 +69,7 @@ export default function OrderDetailsPage() {
           amount: parseFloat(String(order.amount || '0')) || 0,
           currency: order.currency || 'INR',
           status: order.status || 'pending',
-          partner: order.partnerName || 'Unknown Partner',
+          partner: order.partnerName || 'Ready to Assign',
           orderDate: order.orderDate || ''
         }));
         
@@ -114,20 +114,17 @@ export default function OrderDetailsPage() {
 
   // Order action handlers
   const handleViewOrder = (orderId: string) => {
-    console.log('View order:', orderId);
     // Implement view order functionality
   };
 
   const handleEditOrder = (orderId: string) => {
     if (confirm('Are you sure you want to edit this order?')) {
-      console.log('Edit order:', orderId);
       // Implement edit order functionality
     }
   };
 
   const handleDeleteOrder = (orderId: string) => {
     if (confirm('Are you sure you want to cancel this order?')) {
-      console.log('Delete order:', orderId);
       // Implement delete order functionality
     }
   };
@@ -288,7 +285,6 @@ export default function OrderDetailsPage() {
       <AddNewOrderModal
         isOpen={showAddOrderModal}
         onClose={() => setShowAddOrderModal(false)}
-        onOrderAssigned={handleOrderAssigned}
       />
     </div>
   );

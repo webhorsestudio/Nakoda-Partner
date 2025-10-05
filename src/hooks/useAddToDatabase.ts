@@ -59,6 +59,48 @@ export const useAddToDatabase = (): UseAddToDatabaseReturn => {
 
       if (response.ok && data.success) {
         console.log(`✅ Order ${orderDetails.orderNumber} successfully added to database with ID: ${data.order.id}`);
+        
+        // Send WATI WhatsApp message after successful database addition
+        try {
+          console.log(`📱 Sending WATI message for order ${orderDetails.orderNumber}...`);
+          
+          const watiOrderData = {
+            customerName: orderDetails.customerName,
+            customerPhone: orderDetails.customerPhone,
+            orderId: orderDetails.orderNumber,
+            orderAmount: orderDetails.amount,
+            address: orderDetails.address,
+            serviceDetails: orderDetails.package || orderDetails.serviceType,
+            fees: orderDetails.taxesAndFees || '0',
+            serviceDate: orderDetails.serviceDate,
+            timeSlot: orderDetails.timeSlot
+          };
+
+          const watiResponse = await fetch('/api/wati/send-message', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderData: watiOrderData,
+              messageType: 'pipeline'
+            }),
+          });
+
+          const watiData = await watiResponse.json();
+          
+          if (watiData.success) {
+            console.log(`✅ WATI message sent successfully for order ${orderDetails.orderNumber}`);
+          } else {
+            console.warn(`⚠️ WATI message failed for order ${orderDetails.orderNumber}:`, watiData.error);
+            // Don't fail the entire operation if WATI fails
+          }
+        } catch (watiError) {
+          console.warn(`⚠️ WATI service error for order ${orderDetails.orderNumber}:`, watiError);
+          // Don't fail the entire operation if WATI fails
+        }
+        
+        setAddingToDatabase(false);
         return true;
       } else {
             if (data.message && data.message.includes('already exists')) {
@@ -66,11 +108,13 @@ export const useAddToDatabase = (): UseAddToDatabaseReturn => {
             } else {
               setAddToDatabaseError(data.error || data.message || 'Failed to add order to database');
             }
+        setAddingToDatabase(false);
         return false;
       }
     } catch (error) {
       console.error('Error adding order to database:', error);
       setAddToDatabaseError('Failed to add order to database');
+      setAddingToDatabase(false);
       return false;
     }
   }, []);

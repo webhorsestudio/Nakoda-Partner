@@ -140,6 +140,92 @@ class ProfessionalBitrix24Service {
   }
 
   /**
+   * Fetch single deal by order number with circuit breaker protection
+   */
+  async fetchDealByOrderNumber(orderNumber: string): Promise<Bitrix24Deal | null> {
+    return await bitrix24CircuitBreaker.execute(async () => {
+      // Wait for rate limiter
+      await bitrix24RateLimiter.waitForNextRequest();
+      
+      console.log(`🔍 Bitrix24: Searching deal by order number: ${orderNumber}`);
+
+      // Use POST method to search deals by custom field (order number)
+      const url = `${this.baseUrl}${this.restUrl}/crm.deal.list.json`;
+      
+      const requestBody = {
+        filter: {
+          "UF_CRM_1681649038953": orderNumber // Order number custom field
+        },
+        select: [
+          "ID", "TITLE", "OPPORTUNITY", "CURRENCY_ID", "DATE_CREATE", "STAGE_ID",
+          "STAGE_SEMANTIC_ID", "LEAD_ID", "CONTACT_ID", "COMPANY_ID", "ASSIGNED_BY_ID",
+          "CREATED_BY_ID", "BEGINDATE", "CLOSEDATE", "DATE_MODIFY", "CLOSED", "IS_NEW",
+          "COMMENTS", "ADDITIONAL_INFO", "LOCATION_ID", "CATEGORY_ID", "SOURCE_ID",
+          "SOURCE_DESCRIPTION", "UTM_SOURCE", "UTM_MEDIUM", "UTM_CAMPAIGN", "UTM_CONTENT",
+          "UTM_TERM", "LAST_ACTIVITY_TIME", "LAST_ACTIVITY_BY", "LAST_COMMUNICATION_TIME",
+          // Rich custom fields for complete information
+          "UF_CRM_1681747087033", // Full address
+          "UF_CRM_1681645659170", // Customer name
+          "UF_CRM_1681974166046", // Mobile number
+          "UF_CRM_1681649038953", // Order number
+          "UF_CRM_1681648179537", // Amount & currency
+          "UF_CRM_1681749732453", // Package & partner
+          "UF_CRM_1681648036958", // Service Date and Time Slot
+          "UF_CRM_1681647842342", // Order time
+          "UF_CRM_1681648200083", // Commission(%)
+          "UF_CRM_1681648220910", // Additional info
+          "UF_CRM_1681648284105", // Advance Amount
+          "UF_CRM_1723904458952", // Taxes and Fee
+          "UF_CRM_1681747291577", // Service Slot Time
+        ],
+        start: 0,
+        limit: 1
+      };
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (response.status === 429) {
+        bitrix24RateLimiter.onRateLimit();
+        throw new Error('Rate limit exceeded');
+      }
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Bitrix24 API Error:", response.status, errorText);
+        bitrix24RateLimiter.onError();
+        throw new Error(`Bitrix24 API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data: Bitrix24Response = await response.json();
+      bitrix24RateLimiter.onSuccess();
+      
+      if (!data.result || data.result.length === 0) {
+        console.log(`❌ No deal found with order number: ${orderNumber}`);
+        return null;
+      }
+
+      const deal = data.result[0];
+      console.log(`✅ Bitrix24: Successfully found deal for order number: ${orderNumber}`);
+      console.log(`📊 Deal data preview:`, {
+        ID: deal.ID,
+        TITLE: deal.TITLE,
+        orderNumber: deal.UF_CRM_1681649038953,
+        customerName: deal.UF_CRM_1681645659170,
+        amount: deal.UF_CRM_1681648179537,
+        address: deal.UF_CRM_1681747087033
+      });
+      
+      return deal;
+    });
+  }
+
+  /**
    * Fetch single deal by ID with circuit breaker protection
    */
   async fetchDealById(dealId: string): Promise<Bitrix24Deal | null> {
@@ -267,7 +353,7 @@ class ProfessionalBitrix24Service {
       // Rich parsed fields from custom fields
       mode: 'online', // Default mode
       package: packageName || 'Unknown Package',
-      partner: partnerName || 'Unknown Partner',
+      partner: partnerName || undefined,
       order_number: orderNumber,
       mobile_number: mobileNumber,
       order_date: orderDate,

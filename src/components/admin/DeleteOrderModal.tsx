@@ -73,7 +73,7 @@ export const DeleteOrderModal: React.FC<DeleteOrderModalProps> = ({
   if (!isOpen || !order) return null;
 
   // Check if order is assigned to a partner
-  const isAssigned = order.partner !== 'Ready to Assign' && order.partner !== 'Unknown Partner';
+  const isAssigned = order.partner !== 'Ready to Assign';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

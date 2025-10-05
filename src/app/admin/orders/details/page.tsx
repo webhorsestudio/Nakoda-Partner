@@ -66,14 +66,6 @@ export default function OrderDetailsPage() {
   const [showDeleteOrderModal, setShowDeleteOrderModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  // Debug modal states
-  console.log('Modal states:', {
-    showOrderDetailsModal,
-    showEditOrderModal,
-    showDeleteOrderModal,
-    selectedOrder: selectedOrder?.id
-  });
-
   // Fetch all orders from API (both assigned and unassigned)
   const fetchAllOrders = async () => {
     try {
@@ -81,6 +73,7 @@ export default function OrderDetailsPage() {
       setError(null);
 
       const response = await fetch('/api/admin/orders/realtime-orders');
+      
       if (!response.ok) {
         if (response.status === 401) {
           window.location.href = '/login';
@@ -93,38 +86,39 @@ export default function OrderDetailsPage() {
       
       // Ensure result.orders is an array before proceeding
       if (result.success && Array.isArray(result.orders)) {
-        const transformedOrders = result.orders.map((order: ApiOrderData) => ({
-          id: order.id,
-          orderNumber: order.orderNumber || 'N/A',
-          customerName: order.customerName || 'Unknown Customer',
-          mobileNumber: order.customerPhone || '',
-          city: order.location?.split(' - ')[0] || '',
-          address: order.location || '',
-          pinCode: order.location?.split(' - ')[1] || '',
-          serviceType: order.serviceType || order.package || 'General Service',
-          serviceDate: order.serviceDate || '',
-          timeSlot: order.timeSlot || '',
-          amount: parseFloat(String(order.amount || '0')) || 0,
-          currency: order.currency || 'INR',
-          status: order.status || 'pending',
-          partner: order.partnerId ? (order.partnerName || 'Unknown Partner') : 'Ready to Assign', // Show partner or "Ready to Assign"
-          orderDate: order.createdAt ? new Date(order.createdAt).toLocaleDateString() : ''
-        }));
+        const transformedOrders = result.orders.map((order: ApiOrderData) => {
+          const partnerDisplay = order.partnerName || 'Ready to Assign';
+          
+          return {
+            id: order.id,
+            orderNumber: order.orderNumber || 'N/A',
+            customerName: order.customerName || 'Unknown Customer',
+            mobileNumber: order.customerPhone || '',
+            city: order.location?.split(' - ')[0] || '',
+            address: order.location || '',
+            pinCode: order.location?.split(' - ')[1] || '',
+            serviceType: order.serviceType || order.package || 'General Service',
+            serviceDate: order.serviceDate || '',
+            timeSlot: order.timeSlot || '',
+            amount: parseFloat(String(order.amount || '0')) || 0,
+            currency: order.currency || 'INR',
+            status: order.status || 'pending',
+            partner: partnerDisplay, // Show partner or "Ready to Assign"
+            orderDate: order.createdAt ? new Date(order.createdAt).toLocaleDateString() : ''
+          };
+        });
         
         setOrders(transformedOrders);
       } else {
         // Handle case where result.orders is undefined/null or not an array
-        console.error('Invalid API response:', result);
         setOrders([]);
         if (result.error) {
-          console.error('API Error:', result.error);
           setError(result.error);
         } else {
           setError('No orders data received from server');
         }
       }
     } catch (error) {
-      console.error('Error fetching all orders:', error);
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
@@ -145,42 +139,29 @@ export default function OrderDetailsPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Handle order assignment completion
-  const handleOrderAssigned = () => {
-    fetchAllOrders(); // Refresh the orders list
-  };
 
   // Handle order actions
   const handleViewOrder = (orderId: string) => {
-    console.log('handleViewOrder called with orderId:', orderId);
     const order = orders.find(o => o.id === orderId);
-    console.log('Found order:', order);
     if (order) {
       setSelectedOrder(order);
       setShowOrderDetailsModal(true);
-      console.log('Opening OrderDetailsModal');
     }
   };
 
   const handleEditOrder = (orderId: string) => {
-    console.log('handleEditOrder called with orderId:', orderId);
     const order = orders.find(o => o.id === orderId);
-    console.log('Found order:', order);
     if (order) {
       setSelectedOrder(order);
       setShowEditOrderModal(true);
-      console.log('Opening EditOrderModal');
     }
   };
 
   const handleDeleteOrder = (orderId: string) => {
-    console.log('handleDeleteOrder called with orderId:', orderId);
     const order = orders.find(o => o.id === orderId);
-    console.log('Found order:', order);
     if (order) {
       setSelectedOrder(order);
       setShowDeleteOrderModal(true);
-      console.log('Opening DeleteOrderModal');
     }
   };
 
@@ -356,7 +337,6 @@ export default function OrderDetailsPage() {
       <AddNewOrderModal
         isOpen={showAddOrderModal}
         onClose={() => setShowAddOrderModal(false)}
-        onOrderAssigned={handleOrderAssigned}
       />
 
       {/* Order Details Modal */}

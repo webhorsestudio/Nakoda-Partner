@@ -48,25 +48,20 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
 
-  // Debug props
-  console.log('OrderCard rendered with:', {
-    orderId: order.id,
-    orderNumber: order.orderNumber,
-    customerName: order.customerName,
-    hasOnViewOrder: !!onViewOrder,
-    hasOnEditOrder: !!onEditOrder,
-    hasOnDeleteOrder: !!onDeleteOrder,
-    activeDropdown
-  });
-
   // Click outside handler for dropdown
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      // Check if click is outside the dropdown container
-      if (!target.closest('.dropdown-container')) {
-        setActiveDropdown(false);
-      }
+      // Add a small delay to prevent immediate closure when clicking the dropdown button
+      setTimeout(() => {
+        const target = event.target as Element;
+        // Check if click is outside both the dropdown container and the portal dropdown
+        const isInsideDropdownContainer = target.closest('.dropdown-container');
+        const isInsidePortalDropdown = target.closest('[data-portal-dropdown]');
+        
+        if (!isInsideDropdownContainer && !isInsidePortalDropdown) {
+          setActiveDropdown(false);
+        }
+      }, 10);
     };
 
     const handleEscape = (e: KeyboardEvent) => {
@@ -103,17 +98,18 @@ export const OrderCard: React.FC<OrderCardProps> = ({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('Dropdown button clicked, current state:', activeDropdown);
               const newState = !activeDropdown;
-              console.log('Setting dropdown state to:', newState);
               
               if (buttonRef.current) {
                 const rect = buttonRef.current.getBoundingClientRect();
                 setButtonRect(rect);
-                console.log('Button position:', rect);
               }
               
               setActiveDropdown(newState);
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
             }}
           >
             <EllipsisVerticalIcon className="h-4 w-4" />
@@ -122,27 +118,25 @@ export const OrderCard: React.FC<OrderCardProps> = ({
           {activeDropdown && buttonRect && createPortal(
             <div 
               className="fixed w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50"
+              data-portal-dropdown="true"
               style={{ 
-                backgroundColor: 'white', 
-                border: '2px solid red', 
-                zIndex: 9999,
                 position: 'fixed',
                 top: buttonRect.bottom + 4,
                 left: buttonRect.right - 192,
                 width: '192px'
               }}
             >
-              <div style={{ padding: '4px', backgroundColor: 'yellow' }}>
-                DEBUG: Portal Dropdown is visible!
-              </div>
               <button 
                 className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 cursor-pointer"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('View Order clicked for:', order.id);
                   onViewOrder?.(order.id);
                   setActiveDropdown(false);
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                 }}
               >
                 <EyeIcon className="h-4 w-4" />
@@ -153,22 +147,28 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('Edit Order clicked for:', order.id);
                   onEditOrder?.(order.id);
                   setActiveDropdown(false);
                 }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
               >
                 <PencilIcon className="h-4 w-4" />
-                <span>Edit Order</span>
+                <span>Assign Partner</span>
               </button>
               <button 
                 className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 cursor-pointer"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  console.log('Delete Order clicked for:', order.id);
                   onDeleteOrder?.(order.id);
                   setActiveDropdown(false);
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                 }}
               >
                 <TrashIcon className="h-4 w-4" />

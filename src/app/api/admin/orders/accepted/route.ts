@@ -119,21 +119,10 @@ export async function GET(request: NextRequest) {
       status: order.status || 'assigned',
       serviceDate: order.service_date,
       timeSlot: order.time_slot,
-      partnerName: (order.partners as PartnerJoin[])?.[0]?.name || 'Unknown Partner', // Use actual partner name from join
+      partnerName: (order.partners as PartnerJoin[])?.[0]?.name || undefined, // Use actual partner name from join
       partnerId: order.partner_id
     })) || [];
 
-    console.log(`Returning ${transformedOrders.length} accepted orders to admin`);
-    console.log('Sample order data:', orders?.[0] ? {
-      id: orders[0].id,
-      partner_id: orders[0].partner_id,
-      bitrix24_partner: orders[0].partner, // Partner from Bitrix24 parsing
-      actual_partner: (orders[0].partners as PartnerJoin[])?.[0]?.name, // Actual partner from database join
-      package: orders[0].package,
-      service_type: orders[0].service_type,
-      order_number: orders[0].order_number,
-      orderNumber: transformedOrders[0]?.orderNumber
-    } : 'No orders found');
     
     return NextResponse.json({
       success: true,

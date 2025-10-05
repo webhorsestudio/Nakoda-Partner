@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminToken } from '@/lib/auth';
 import { supabaseAdmin, executeAdminQuery } from '@/lib/supabase';
 
+interface PartnerJoin {
+  name: string;
+  city: string;
+  mobile: string;
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Admin-only authentication
@@ -13,7 +19,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log(`🔍 Admin requesting real-time orders`);
 
     // Get query parameters for pagination and filtering
     const { searchParams } = new URL(request.url);
@@ -92,38 +97,95 @@ export async function GET(request: NextRequest) {
 
     // Log performance metrics
     console.log(`📊 Query performance: ${queryTime}ms, ${orders?.length || 0} records`);
+    
+    // Fetch partner data separately for orders that have partner_id
+    const partnerIds = orders?.filter(order => order.partner_id).map(order => order.partner_id) || [];
+    let partnersData: { [key: number]: PartnerJoin } = {};
+    
+    if (partnerIds.length > 0) {
+      console.log('🔍 Fetching partner data for IDs:', partnerIds);
+      const { data: partners, error: partnersError } = await supabaseAdmin
+        .from('partners')
+        .select('id, name, city, mobile')
+        .in('id', partnerIds);
+      
+      if (partnersError) {
+        console.error('Error fetching partners:', partnersError);
+      } else {
+        // Create a lookup map
+        partnersData = partners?.reduce((acc, partner) => {
+          acc[partner.id] = partner;
+          return acc;
+        }, {} as { [key: number]: PartnerJoin }) || {};
+        console.log('🔍 Partners data fetched:', partnersData);
+      }
+    }
+    
+    // Debug: Log raw database data
+    if (orders && orders.length > 0) {
+      console.log('🔍 Raw database data sample:', {
+        firstOrder: orders[0],
+        ordersCount: orders.length,
+        sampleFields: {
+          id: orders[0].id,
+          customer_name: orders[0].customer_name,
+          partner_id: orders[0].partner_id
+        }
+      });
+    }
+    
 
     // Transform orders for admin interface - optimized mapping
-    const transformedOrders = orders?.map(order => ({
-      id: order.id,
-      title: order.title || 'Service Request',
-      description: order.title || 'Service request', // Simplified description
-      customerName: order.customer_name || 'Customer',
-      customerPhone: order.mobile_number || '',
-      location: `${order.city || 'Unknown City'}${order.pin_code ? ` - ${order.pin_code}` : ''}`,
-      amount: parseFloat(order.amount?.toString() || '0'),
-      advanceAmount: parseFloat(order.advance_amount?.toString() || '0'),
-      serviceType: order.service_type || 'General Service',
-      priority: 'medium', // Default priority
-      estimatedDuration: order.time_slot || '2-4 hours',
-      createdAt: order.date_created || order.created_at,
-      status: order.status || 'pending',
-      serviceDate: order.service_date,
-      timeSlot: order.time_slot,
-      mode: null, // Simplified - remove complex mode logic
-      partnerId: order.partner_id,
-      orderNumber: order.order_number,
-      package: order.service_type // Use service_type as package
-    })) || [];
+    const transformedOrders = orders?.map(order => {
+      try {
+        const partnerName = order.partner_id ? partnersData[order.partner_id]?.name || undefined : undefined;
+        
+        // Debug partner transformation
+        if (order.partner_id) {
+          console.log('🔍 Partner transformation debug:', {
+            order_id: order.id,
+            partner_id: order.partner_id,
+            partner_data: partnersData[order.partner_id],
+            final_partner_name: partnerName
+          });
+        }
+        
+        return {
+          id: order.id,
+          title: order.title || 'Service Request',
+          description: order.title || 'Service request', // Simplified description
+          customerName: order.customer_name || 'Customer',
+          customerPhone: order.mobile_number || '',
+          location: `${order.city || 'Unknown City'}${order.pin_code ? ` - ${order.pin_code}` : ''}`,
+          amount: parseFloat(order.amount?.toString() || '0'),
+          advanceAmount: parseFloat(order.advance_amount?.toString() || '0'),
+          serviceType: order.service_type || 'General Service',
+          priority: 'medium', // Default priority
+          estimatedDuration: order.time_slot || '2-4 hours',
+          createdAt: order.date_created || order.created_at,
+          status: order.status || 'pending',
+          serviceDate: order.service_date,
+          timeSlot: order.time_slot,
+          mode: null, // Simplified - remove complex mode logic
+          partnerId: order.partner_id,
+          partnerName: partnerName,
+          orderNumber: order.order_number,
+          package: order.service_type // Use service_type as package
+        };
+      } catch (transformError) {
+        console.error('Error transforming order:', order.id, transformError);
+        return null;
+      }
+    }).filter(Boolean) || [];
 
     // Calculate stats efficiently - only for current page data
     const stats = {
       total: count || 0,
-      pending: transformedOrders.filter(o => o.status === 'pending').length,
-      assigned: transformedOrders.filter(o => o.status === 'assigned').length,
-      completed: transformedOrders.filter(o => o.status === 'completed').length,
-      unassigned: transformedOrders.filter(o => !o.partnerId).length,
-      assignedToPartner: transformedOrders.filter(o => o.partnerId).length,
+      pending: transformedOrders.filter(o => o?.status === 'pending').length,
+      assigned: transformedOrders.filter(o => o?.status === 'assigned').length,
+      completed: transformedOrders.filter(o => o?.status === 'completed').length,
+      unassigned: transformedOrders.filter(o => !o?.partnerId).length,
+      assignedToPartner: transformedOrders.filter(o => o?.partnerId).length,
       currentPage: page,
       totalPages: Math.ceil((count || 0) / limit),
       queryTime: queryTime
@@ -148,8 +210,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Admin real-time orders error:', error);
-    
     // Handle timeout errors gracefully
     if (error instanceof Error && error.message.includes('timeout')) {
       return NextResponse.json(

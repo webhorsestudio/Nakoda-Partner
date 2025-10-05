@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     if (table === 'admin_users') {
       // Check admin_users table
-      const query = supabase
+      const query = supabaseAdmin
         .from('admin_users')
         .select('id, name, email, phone, role, status, access_level, permissions, avatar, created_at, updated_at');
       
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       }
     } else if (table === 'partners') {
       // Check partners table
-      const query = supabase
+      const query = supabaseAdmin
         .from('partners')
         .select('id, name, email, mobile, status, service_type, rating, total_orders, total_revenue, created_at, updated_at');
       

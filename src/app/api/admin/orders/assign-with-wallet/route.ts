@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     // Check if partner exists and has sufficient wallet balance
     const { data: partner, error: partnerError } = await supabase
       .from('partners')
-      .select('id, name, wallet_balance, wallet_status, status')
+      .select('id, name, mobile, wallet_balance, wallet_status, status')
       .eq('id', partnerId)
       .single();
 
@@ -175,7 +175,8 @@ export async function POST(request: NextRequest) {
       },
       partner: {
         id: partner.id,
-        name: partner.name
+        name: partner.name,
+        mobile: partner.mobile
       },
       walletUpdate: {
         previousBalance: currentBalance,

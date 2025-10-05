@@ -136,6 +136,53 @@ export const usePartnerAssignment = (): UsePartnerAssignmentReturn => {
       if (data.success) {
         console.log(`✅ Order ${orderDetails.orderNumber} assigned to partner ${data.partner.name} successfully`);
         console.log(`💰 Wallet deduction: ₹${data.walletUpdate.deductedAmount} from ${data.partner.name}'s wallet`);
+        
+        // Send WATI WhatsApp message to partner after successful assignment
+        try {
+          console.log(`📱 Sending WATI message to partner ${data.partner.name} for order ${orderDetails.orderNumber}...`);
+          console.log(`📱 Partner mobile from API: ${data.partner.mobile}`);
+          
+          const partnerOrderData = {
+            customerName: orderDetails.customerName,
+            partnerPhone: data.partner.mobile,
+            orderId: orderDetails.orderNumber,
+            orderAmount: orderDetails.amount,
+            address: orderDetails.address,
+            serviceDetails: orderDetails.package || orderDetails.serviceType,
+            fees: orderDetails.taxesAndFees || '0',
+            serviceDate: orderDetails.serviceDate,
+            timeSlot: orderDetails.timeSlot || 'N/A',
+            pendingPayment: orderDetails.advanceAmount,
+            otp: orderDetails.orderNumber.slice(-4), // Use last 4 digits as OTP
+            responsiblePerson: data.partner.name
+          };
+
+          console.log(`📱 Partner order data for WATI:`, partnerOrderData);
+
+          const watiResponse = await fetch('/api/wati/send-message', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderData: partnerOrderData,
+              messageType: 'partner'
+            }),
+          });
+
+          const watiData = await watiResponse.json();
+          
+          if (watiData.success) {
+            console.log(`✅ WATI message sent successfully to partner ${data.partner.name} for order ${orderDetails.orderNumber}`);
+          } else {
+            console.warn(`⚠️ WATI message failed for partner ${data.partner.name} for order ${orderDetails.orderNumber}:`, watiData.error);
+            // Don't fail the entire operation if WATI fails
+          }
+        } catch (watiError) {
+          console.warn(`⚠️ WATI service error for partner assignment ${orderDetails.orderNumber}:`, watiError);
+          // Don't fail the entire operation if WATI fails
+        }
+        
         return true; // Success
       } else {
         if (data.walletInfo) {

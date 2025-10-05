@@ -33,7 +33,7 @@ interface UseOrderDetailsReturn {
   fetchError: string | null;
   
   // Actions
-  fetchOrderFromBitrix24: (bitrixId: string) => Promise<void>;
+  fetchOrderFromBitrix24: (orderNumber: string) => Promise<void>;
   clearOrderDetails: () => void;
 }
 
@@ -42,9 +42,9 @@ export const useOrderDetails = (): UseOrderDetailsReturn => {
   const [fetchingOrder, setFetchingOrder] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const fetchOrderFromBitrix24 = useCallback(async (bitrixId: string) => {
-    if (!bitrixId.trim()) {
-      setFetchError('Please enter a Bitrix ID');
+  const fetchOrderFromBitrix24 = useCallback(async (orderNumber: string) => {
+    if (!orderNumber.trim()) {
+      setFetchError('Please enter an Order Number');
       return;
     }
 
@@ -59,7 +59,7 @@ export const useOrderDetails = (): UseOrderDetailsReturn => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          bitrixId: bitrixId.trim() 
+          orderNumber: orderNumber.trim() 
         }),
       });
 
@@ -72,11 +72,11 @@ export const useOrderDetails = (): UseOrderDetailsReturn => {
       if (result.success && result.orderDetails) {
         setFetchedOrderDetails(result.orderDetails);
       } else {
-        const errorMessage = result.error || 'Deal not found in Bitrix24';
+        const errorMessage = result.error || 'Order not found in Bitrix24';
         const suggestion = result.suggestion ? `\n\n💡 ${result.suggestion}` : '';
         const recentDeals = result.recentDeals ? 
-          `\n\n📋 Recent deals with data:\n${result.recentDeals.map((deal: { ID: string; customerName: string; orderNumber: string; amount?: string }) => 
-            `• ID: ${deal.ID} - ${deal.customerName} (${deal.orderNumber}) - ₹${deal.amount?.split('|')[0] || '0'}`
+          `\n\n📋 Recent orders with data:\n${result.recentDeals.map((deal: { ID: string; customerName: string; orderNumber: string; amount?: string }) => 
+            `• ${deal.orderNumber} - ${deal.customerName} - ₹${deal.amount?.split('|')[0] || '0'}`
           ).join('\n')}` : '';
         setFetchError(errorMessage + suggestion + recentDeals);
       }

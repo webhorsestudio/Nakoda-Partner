@@ -13,16 +13,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { bitrixId } = await request.json();
+    const { orderNumber } = await request.json();
 
-    if (!bitrixId) {
+    if (!orderNumber) {
       return NextResponse.json(
-        { error: 'Bitrix ID is required' },
+        { error: 'Order Number is required' },
         { status: 400 }
       );
     }
 
-    console.log(`🔍 Admin requesting Bitrix24 deal by ID: ${bitrixId}`);
+    console.log(`🔍 Admin requesting Bitrix24 deal by Order Number: ${orderNumber}`);
 
     // First, let's try to get a list of recent deals to see which ones have data
     console.log(`🔍 Fetching recent deals to find ones with data...`);
@@ -36,21 +36,21 @@ export async function POST(request: NextRequest) {
     }));
     console.log(`📊 Recent deals sample:`, recentDealsSample);
 
-    // Fetch deal directly by ID using the new method
-    const foundDeal = await professionalBitrix24Service.fetchDealById(bitrixId);
+    // Fetch deal by order number using the new method
+    const foundDeal = await professionalBitrix24Service.fetchDealByOrderNumber(orderNumber);
 
     if (!foundDeal) {
-      console.log(`❌ Deal with ID ${bitrixId} not found in Bitrix24`);
-      const validIds = recentDealsSample?.map(deal => deal.ID).join(', ') || '654976, 654974, 654972';
+      console.log(`❌ Deal with Order Number ${orderNumber} not found in Bitrix24`);
+      const validOrderNumbers = recentDealsSample?.map(deal => deal.orderNumber).filter(Boolean).join(', ') || 'Nus104161, MNus101038, Nus87638';
       return NextResponse.json({
         success: false,
-        error: `Deal with ID "${bitrixId}" not found in Bitrix24`,
-        suggestion: `Try these recent deals with data: ${validIds}`,
+        error: `Deal with Order Number "${orderNumber}" not found in Bitrix24`,
+        suggestion: `Try these recent order numbers with data: ${validOrderNumbers}`,
         recentDeals: recentDealsSample
       });
     }
 
-    console.log(`✅ Found deal: ${foundDeal.ID} for Bitrix ID: ${bitrixId}`);
+    console.log(`✅ Found deal: ${foundDeal.ID} for Order Number: ${orderNumber}`);
     console.log(`📊 Raw deal data:`, {
       ID: foundDeal.ID,
       TITLE: foundDeal.TITLE,
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       amount: foundDeal.UF_CRM_1681648179537,
       package: foundDeal.UF_CRM_1681749732453,
       serviceDate: foundDeal.UF_CRM_1681648036958,
-      timeSlot: foundDeal.UF_CRM_1681647842342,
+      timeSlot: foundDeal.UF_CRM_1681747291577,
       commission: foundDeal.UF_CRM_1681648200083,
       advanceAmount: foundDeal.UF_CRM_1681648284105,
       taxesAndFees: foundDeal.UF_CRM_1723904458952
@@ -76,12 +76,12 @@ export async function POST(request: NextRequest) {
                          foundDeal.UF_CRM_1681648179537;
 
     if (!hasCustomData) {
-      console.log(`⚠️ Deal ${bitrixId} exists but has no custom field data populated`);
-      const validIds = recentDealsSample?.map(deal => deal.ID).join(', ') || '654976, 654974, 654972';
+      console.log(`⚠️ Deal with Order Number ${orderNumber} exists but has no custom field data populated`);
+      const validOrderNumbers = recentDealsSample?.map(deal => deal.orderNumber).filter(Boolean).join(', ') || 'Nus104161, MNus101038, Nus87638';
       return NextResponse.json({
         success: false,
-        error: `Deal ${bitrixId} exists but has no order data populated. This might be a lead or incomplete deal.`,
-        suggestion: `Try these recent deals with data: ${validIds}`,
+        error: `Deal with Order Number ${orderNumber} exists but has no order data populated. This might be a lead or incomplete deal.`,
+        suggestion: `Try these recent order numbers with data: ${validOrderNumbers}`,
         recentDeals: recentDealsSample
       });
     }
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       serviceDate: foundDeal.UF_CRM_1681648036958 || '',
       timeSlot: foundDeal.UF_CRM_1681747291577 || foundDeal.UF_CRM_1681647842342 || '',
       package: (foundDeal.UF_CRM_1681749732453 || '').split(' By : ')[0] || 'Unknown Package',
-      partner: (foundDeal.UF_CRM_1681749732453 || '').split(' By : ')[1] || 'Unknown Partner',
+      partner: (foundDeal.UF_CRM_1681749732453 || '').split(' By : ')[1] || undefined,
       status: mapStageToStatus(foundDeal.STAGE_ID),
       stageId: foundDeal.STAGE_ID,
       commission: foundDeal.UF_CRM_1681648200083 || '',
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       orderDetails.address = orderDetails.address.replace(/\s*,?\s*\d{6}\s*,?\s*$/, '').replace(/,\s*,/g, ',').trim();
     }
 
-    console.log(`✅ Successfully fetched order details for Bitrix ID: ${bitrixId}`);
+    console.log(`✅ Successfully fetched order details for Order Number: ${orderNumber}`);
       console.log('Order details:', {
         id: orderDetails.id,
         orderNumber: orderDetails.orderNumber,

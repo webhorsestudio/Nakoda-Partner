@@ -120,7 +120,7 @@ export default function OrderDetailsPage() {
           scheduledTime: order.scheduledTime || 'Not specified',
           amount: order.amount || 0,
           status: order.status || 'assigned',
-          partner: order.partnerName || 'Unknown Partner',
+          partner: order.partnerName || 'Ready to Assign',
           orderDate: order.orderDate || new Date().toISOString().split('T')[0]
         }));
         
@@ -182,7 +182,6 @@ export default function OrderDetailsPage() {
     try {
       setAssigningPartner(true);
       // Add assignment logic here
-      console.log('Assigning partner:', selectedPartner, 'to order:', fetchedOrderDetails);
       // Close modal after assignment
       setShowAddOrderModal(false);
     } catch (error) {
@@ -195,7 +194,6 @@ export default function OrderDetailsPage() {
   // Fetch order from Bitrix24
   const fetchOrderFromBitrix24 = async () => {
     // This is a placeholder function - implement as needed
-    console.log('Fetching order from Bitrix24:', orderNumberInput);
   };
 
   const filteredOrders = orders.filter(order => {
@@ -362,7 +360,6 @@ export default function OrderDetailsPage() {
                       <button 
                         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
                         onClick={() => {
-                          console.log('View order:', order.id);
                           setActiveDropdown(null);
                         }}
                       >
@@ -372,7 +369,6 @@ export default function OrderDetailsPage() {
                       <button 
                         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
                         onClick={() => {
-                          console.log('View order details:', order.id);
                           setActiveDropdown(null);
                         }}
                       >
@@ -382,7 +378,6 @@ export default function OrderDetailsPage() {
                       <button 
                         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
                         onClick={() => {
-                          console.log('Edit order:', order.id);
                           setActiveDropdown(null);
                         }}
                       >
@@ -392,7 +387,6 @@ export default function OrderDetailsPage() {
                       <button 
                         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
                         onClick={() => {
-                          console.log('Download invoice:', order.id);
                           setActiveDropdown(null);
                         }}
                       >
@@ -402,7 +396,6 @@ export default function OrderDetailsPage() {
                       <button 
                         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
                         onClick={() => {
-                          console.log('Contact customer:', order.customerPhone);
                           setActiveDropdown(null);
                         }}
                       >
@@ -414,7 +407,7 @@ export default function OrderDetailsPage() {
                         className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
                         onClick={() => {
                           if (confirm('Are you sure you want to cancel this order?')) {
-                            console.log('Cancel order:', order.id);
+                            // Cancel order logic here
                           }
                           setActiveDropdown(null);
                         }}

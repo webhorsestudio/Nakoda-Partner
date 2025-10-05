@@ -31,10 +31,22 @@ export async function getUserRole(mobile: string): Promise<UserRole | null> {
   try {
     console.log('🔍 Checking role for mobile:', mobile);
     
+    // Get authentication token from localStorage
+    const token = localStorage.getItem('auth-token');
+    if (!token) {
+      console.log('❌ No auth token found for role check');
+      return null;
+    }
+    
     // First check admin_users table
     try {
       const adminResponse: Response = await Promise.race([
-        fetch(`/api/users/check-role?mobile=${encodeURIComponent(mobile)}&table=admin_users`),
+        fetch(`/api/users/check-role?mobile=${encodeURIComponent(mobile)}&table=admin_users`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }),
         new Promise<Response>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000)) as unknown as Promise<Response>
       ]);
       if (adminResponse.ok) {
@@ -56,7 +68,12 @@ export async function getUserRole(mobile: string): Promise<UserRole | null> {
     // Then check partners table
     try {
       const partnerResponse: Response = await Promise.race([
-        fetch(`/api/users/check-role?mobile=${encodeURIComponent(mobile)}&table=partners`),
+        fetch(`/api/users/check-role?mobile=${encodeURIComponent(mobile)}&table=partners`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }),
         new Promise<Response>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000)) as unknown as Promise<Response>
       ]);
       if (partnerResponse.ok) {
