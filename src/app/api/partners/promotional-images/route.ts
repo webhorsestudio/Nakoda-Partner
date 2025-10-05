@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { verifyPartnerToken } from '@/lib/auth';
+import { verifyPartnerToken, verifyAdminToken } from '@/lib/auth';
 import { PromotionalImage } from '@/types/promotionalImages';
 
 // GET /api/partners/promotional-images - Fetch active promotional images for partners
@@ -8,9 +8,16 @@ export async function GET(request: NextRequest) {
   try {
     console.log('=== PARTNER PROMOTIONAL IMAGES API DEBUG ===');
     
-    // Check partner authentication using JWT token
-    const authResult = await verifyPartnerToken(request);
-    console.log('Auth check:', { success: authResult.success, error: authResult.error });
+    // Try admin authentication first, then partner authentication
+    let authResult = await verifyAdminToken(request);
+    let isAdmin = authResult.success;
+    
+    if (!authResult.success) {
+      authResult = await verifyPartnerToken(request);
+      isAdmin = false;
+    }
+    
+    console.log('Auth check:', { success: authResult.success, error: authResult.error, isAdmin });
     
     if (!authResult.success) {
       console.log('Authentication failed:', authResult.error);
@@ -61,7 +68,10 @@ export async function GET(request: NextRequest) {
         });
     }
 
-    return NextResponse.json({ images: images || [] });
+    return NextResponse.json({ 
+      images: images || [],
+      userType: isAdmin ? 'admin' : 'partner'
+    });
 
   } catch (error) {
     console.error('Error in promotional images API:', error);
@@ -74,9 +84,16 @@ export async function POST(request: NextRequest) {
   try {
     console.log('=== PARTNER PROMOTIONAL IMAGES CLICK API DEBUG ===');
     
-    // Check partner authentication using JWT token
-    const authResult = await verifyPartnerToken(request);
-    console.log('Auth check:', { success: authResult.success, error: authResult.error });
+    // Try admin authentication first, then partner authentication
+    let authResult = await verifyAdminToken(request);
+    let isAdmin = authResult.success;
+    
+    if (!authResult.success) {
+      authResult = await verifyPartnerToken(request);
+      isAdmin = false;
+    }
+    
+    console.log('Auth check:', { success: authResult.success, error: authResult.error, isAdmin });
     
     if (!authResult.success) {
       console.log('Authentication failed:', authResult.error);

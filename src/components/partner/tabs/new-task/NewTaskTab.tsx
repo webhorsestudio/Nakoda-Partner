@@ -1,11 +1,11 @@
-import React, { useState, memo, useMemo, useRef, useEffect } from 'react';
+import React, { useState, memo, useMemo } from 'react';
 import {
   NewTaskHeader,
   TaskFilters,
   TaskCard,
   EmptyState
 } from './';
-import { useGlobalOrderService } from '@/hooks/useGlobalOrderService';
+import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import RefreshIndicator from './RefreshIndicator';
 
 function NewTaskTab() {
@@ -23,7 +23,7 @@ function NewTaskTab() {
     hasNewOrders,
     newOrdersCount,
     dismissNewOrdersNotification
-  } = useGlobalOrderService(); // Uses global service that runs independently
+  } = useRealtimeOrders(); // Uses partner-specific realtime orders hook
 
 
   // Memoize filtered orders to prevent unnecessary recalculations
@@ -251,15 +251,23 @@ function NewTaskTab() {
       
       {availableOrders.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {availableOrders.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onAcceptTask={handleAcceptTask}
-              onViewDetails={handleViewDetails}
-              isAccepting={isAccepting && acceptedOrders.has(task.id)}
-            />
-          ))}
+          {availableOrders.map((order) => {
+            const task = {
+              ...order,
+              customerPhone: order.mobileNumber || '',
+              estimatedDuration: order.duration,
+              status: 'pending'
+            };
+            return (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onAcceptTask={handleAcceptTask}
+                onViewDetails={handleViewDetails}
+                isAccepting={isAccepting && acceptedOrders.has(task.id)}
+              />
+            );
+          })}
         </div>
       ) : (
         <EmptyState />

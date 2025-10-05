@@ -9,17 +9,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AddNewOrderModal } from '@/components/admin/AddNewOrderModal';
 import { OrderCard } from '@/components/admin/OrderCard';
-import { OrderDetailsModal } from '@/components/admin/OrderDetailsModal';
-import { EditOrderModal } from '@/components/admin/EditOrderModal';
-import { DeleteOrderModal } from '@/components/admin/DeleteOrderModal';
 
 interface Order {
   id: string;
   orderNumber: string;
   customerName: string;
   mobileNumber: string;
-  city: string;
   address: string;
+  city: string;
   pinCode: string;
   serviceType: string;
   serviceDate: string;
@@ -31,25 +28,6 @@ interface Order {
   orderDate: string;
 }
 
-interface ApiOrderData {
-  id: string;
-  orderNumber?: string;
-  customerName?: string;
-  customerPhone?: string;
-  location?: string;
-  serviceType?: string;
-  serviceDate?: string;
-  timeSlot?: string;
-  estimatedDuration?: string;
-  amount?: number;
-  currency?: string;
-  status?: string;
-  partnerName?: string;
-  partnerId?: string | null;
-  createdAt?: string;
-  package?: string;
-}
-
 export default function OrderDetailsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -59,28 +37,14 @@ export default function OrderDetailsPage() {
   
   // Add New Order Modal State
   const [showAddOrderModal, setShowAddOrderModal] = useState(false);
-  
-  // Order Action Modals State
-  const [showOrderDetailsModal, setShowOrderDetailsModal] = useState(false);
-  const [showEditOrderModal, setShowEditOrderModal] = useState(false);
-  const [showDeleteOrderModal, setShowDeleteOrderModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  // Debug modal states
-  console.log('Modal states:', {
-    showOrderDetailsModal,
-    showEditOrderModal,
-    showDeleteOrderModal,
-    selectedOrder: selectedOrder?.id
-  });
-
-  // Fetch all orders from API (both assigned and unassigned)
-  const fetchAllOrders = async () => {
+  // Fetch accepted orders from API
+  const fetchAcceptedOrders = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/admin/orders/realtime-orders');
+      const response = await fetch('/api/admin/orders/accepted');
       if (!response.ok) {
         if (response.status === 401) {
           window.location.href = '/login';
@@ -90,41 +54,31 @@ export default function OrderDetailsPage() {
       }
 
       const result = await response.json();
-      
-      // Ensure result.orders is an array before proceeding
-      if (result.success && Array.isArray(result.orders)) {
-        const transformedOrders = result.orders.map((order: ApiOrderData) => ({
+      if (result.success) {
+        const transformedOrders = result.data.map((order: Record<string, unknown>) => ({
           id: order.id,
           orderNumber: order.orderNumber || 'N/A',
           customerName: order.customerName || 'Unknown Customer',
-          mobileNumber: order.customerPhone || '',
-          city: order.location?.split(' - ')[0] || '',
-          address: order.location || '',
-          pinCode: order.location?.split(' - ')[1] || '',
-          serviceType: order.serviceType || order.package || 'General Service',
+          mobileNumber: order.mobileNumber || '',
+          address: order.address || '',
+          city: order.city || '',
+          pinCode: order.pinCode || '',
+          serviceType: order.serviceType || 'General Service',
           serviceDate: order.serviceDate || '',
           timeSlot: order.timeSlot || '',
           amount: parseFloat(String(order.amount || '0')) || 0,
           currency: order.currency || 'INR',
           status: order.status || 'pending',
-          partner: order.partnerId ? (order.partnerName || 'Unknown Partner') : 'Ready to Assign', // Show partner or "Ready to Assign"
-          orderDate: order.createdAt ? new Date(order.createdAt).toLocaleDateString() : ''
+          partner: order.partnerName || 'Unknown Partner',
+          orderDate: order.orderDate || ''
         }));
         
         setOrders(transformedOrders);
       } else {
-        // Handle case where result.orders is undefined/null or not an array
-        console.error('Invalid API response:', result);
-        setOrders([]);
-        if (result.error) {
-          console.error('API Error:', result.error);
-          setError(result.error);
-        } else {
-          setError('No orders data received from server');
-        }
+        throw new Error(result.error || 'Failed to fetch orders');
       }
     } catch (error) {
-      console.error('Error fetching all orders:', error);
+      console.error('Error fetching accepted orders:', error);
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
       setLoading(false);
@@ -133,63 +87,21 @@ export default function OrderDetailsPage() {
 
   // Fetch orders on component mount
   useEffect(() => {
-    fetchAllOrders();
+    fetchAcceptedOrders();
   }, []);
 
-  // Auto-refresh every 5 minutes (admin doesn't need real-time updates like partners)
+  // Auto-refresh every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchAllOrders();
-    }, 300000); // 5 minutes instead of 30 seconds
+      fetchAcceptedOrders();
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
 
   // Handle order assignment completion
   const handleOrderAssigned = () => {
-    fetchAllOrders(); // Refresh the orders list
-  };
-
-  // Handle order actions
-  const handleViewOrder = (orderId: string) => {
-    console.log('handleViewOrder called with orderId:', orderId);
-    const order = orders.find(o => o.id === orderId);
-    console.log('Found order:', order);
-    if (order) {
-      setSelectedOrder(order);
-      setShowOrderDetailsModal(true);
-      console.log('Opening OrderDetailsModal');
-    }
-  };
-
-  const handleEditOrder = (orderId: string) => {
-    console.log('handleEditOrder called with orderId:', orderId);
-    const order = orders.find(o => o.id === orderId);
-    console.log('Found order:', order);
-    if (order) {
-      setSelectedOrder(order);
-      setShowEditOrderModal(true);
-      console.log('Opening EditOrderModal');
-    }
-  };
-
-  const handleDeleteOrder = (orderId: string) => {
-    console.log('handleDeleteOrder called with orderId:', orderId);
-    const order = orders.find(o => o.id === orderId);
-    console.log('Found order:', order);
-    if (order) {
-      setSelectedOrder(order);
-      setShowDeleteOrderModal(true);
-      console.log('Opening DeleteOrderModal');
-    }
-  };
-
-  const handleOrderUpdated = () => {
-    fetchAllOrders(); // Refresh the orders list
-  };
-
-  const handleOrderDeleted = () => {
-    fetchAllOrders(); // Refresh the orders list
+    fetchAcceptedOrders(); // Refresh the orders list
   };
 
   const filteredOrders = orders.filter(order => {
@@ -200,6 +112,26 @@ export default function OrderDetailsPage() {
     return matchesSearch && matchesStatus;
   });
 
+  // Order action handlers
+  const handleViewOrder = (orderId: string) => {
+    console.log('View order:', orderId);
+    // Implement view order functionality
+  };
+
+  const handleEditOrder = (orderId: string) => {
+    if (confirm('Are you sure you want to edit this order?')) {
+      console.log('Edit order:', orderId);
+      // Implement edit order functionality
+    }
+  };
+
+  const handleDeleteOrder = (orderId: string) => {
+    if (confirm('Are you sure you want to cancel this order?')) {
+      console.log('Delete order:', orderId);
+      // Implement delete order functionality
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -208,9 +140,9 @@ export default function OrderDetailsPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
                 <p className="mt-1 text-sm text-gray-500">
-                  Loading all orders...
+                  Loading accepted orders...
                 </p>
               </div>
             </div>
@@ -236,7 +168,7 @@ export default function OrderDetailsPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
                 <p className="mt-1 text-sm text-gray-500">
                   Error loading orders
                 </p>
@@ -251,11 +183,11 @@ export default function OrderDetailsPage() {
             </div>
             <h3 className="mt-2 text-sm font-medium text-gray-900">Error Occurred</h3>
             <p className="mt-1 text-sm text-gray-500">{error}</p>
-                   <div className="mt-6">
-                     <Button onClick={fetchAllOrders} variant="outline">
-                       Try Again
-                     </Button>
-                   </div>
+            <div className="mt-6">
+              <Button onClick={fetchAcceptedOrders} variant="outline">
+                Try Again
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -269,9 +201,9 @@ export default function OrderDetailsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Order Details</h1>
               <p className="mt-1 text-sm text-gray-500">
-                Manage all orders - assigned and ready to assign
+                Manage orders accepted by partners
               </p>
             </div>
             
@@ -288,7 +220,7 @@ export default function OrderDetailsPage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" style={{ overflow: 'visible' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search and Filter */}
         <Card className="p-6 mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
@@ -299,7 +231,7 @@ export default function OrderDetailsPage() {
                   type="text"
                   placeholder="Search orders by customer name, order number, or service..."
                   value={searchTerm}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -308,7 +240,7 @@ export default function OrderDetailsPage() {
             <div className="flex items-center space-x-4">
               <select
                 value={statusFilter}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
+                onChange={(e) => setStatusFilter(e.target.value)}
                 className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All Statuses</option>
@@ -326,7 +258,7 @@ export default function OrderDetailsPage() {
         </Card>
 
         {/* Orders Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6" style={{ overflow: 'visible' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredOrders.map((order) => (
             <OrderCard
               key={order.id}
@@ -357,29 +289,6 @@ export default function OrderDetailsPage() {
         isOpen={showAddOrderModal}
         onClose={() => setShowAddOrderModal(false)}
         onOrderAssigned={handleOrderAssigned}
-      />
-
-      {/* Order Details Modal */}
-      <OrderDetailsModal
-        isOpen={showOrderDetailsModal}
-        onClose={() => setShowOrderDetailsModal(false)}
-        order={selectedOrder}
-      />
-
-      {/* Edit Order Modal */}
-      <EditOrderModal
-        isOpen={showEditOrderModal}
-        onClose={() => setShowEditOrderModal(false)}
-        order={selectedOrder}
-        onOrderUpdated={handleOrderUpdated}
-      />
-
-      {/* Delete Order Modal */}
-      <DeleteOrderModal
-        isOpen={showDeleteOrderModal}
-        onClose={() => setShowDeleteOrderModal(false)}
-        order={selectedOrder}
-        onOrderDeleted={handleOrderDeleted}
       />
     </div>
   );

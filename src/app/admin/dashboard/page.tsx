@@ -356,7 +356,7 @@ export default function AdminDashboard() {
               </ul>
             </div>
             <div className="mt-6">
-              <a href="/admin/orders" className="flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" suppressHydrationWarning>
+              <a href="/admin/orders/details" className="flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" suppressHydrationWarning>
                 View all orders
               </a>
             </div>

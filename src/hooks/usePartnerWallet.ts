@@ -50,6 +50,10 @@ export function usePartnerWallet(): UsePartnerWalletReturn {
           const decoded = JSON.parse(jsonPayload);
           
           if (decoded.role !== 'partner') {
+            if (decoded.role === 'admin') {
+              console.warn('⚠️ Admin user accessing partner wallet - skipping wallet functionality');
+              return;
+            }
             console.warn('⚠️ Non-partner user trying to access partner wallet API');
             throw new Error('This feature is only available for partners');
           }

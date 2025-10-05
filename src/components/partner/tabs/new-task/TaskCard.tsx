@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { TaskCardProps } from './types';
-import { useGlobalOrderService } from '@/hooks/useGlobalOrderService';
+import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { 
   TaskHeader, 
   CustomerInfo, 
@@ -14,7 +14,7 @@ import {
 } from './components';
 
 export default function TaskCard({ task, onAcceptTask, onViewDetails, isAccepting = false }: TaskCardProps) {
-  const { partner } = useGlobalOrderService();
+  const { partner } = useRealtimeOrders();
 
   return (
     <Card className="hover:shadow-md transition-shadow">

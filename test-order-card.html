@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Order Card</title>
+    <style>
+        .dropdown-container {
+            position: relative;
+        }
+        .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 36px;
+            width: 192px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            padding: 4px 0;
+            z-index: 50;
+        }
+        .dropdown-button {
+            width: 100%;
+            padding: 8px 16px;
+            text-align: left;
+            font-size: 14px;
+            color: #374151;
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .dropdown-button:hover {
+            background-color: #f9fafb;
+        }
+        .delete-button {
+            color: #dc2626;
+        }
+        .delete-button:hover {
+            background-color: #fef2f2;
+        }
+    </style>
+</head>
+<body>
+    <div style="padding: 20px;">
+        <h1>Test Order Card Actions</h1>
+        
+        <div class="dropdown-container">
+            <button onclick="toggleDropdown()" style="padding: 8px; border: 1px solid #ccc; background: white;">
+                ⋮ Actions
+            </button>
+            
+            <div id="dropdown" class="dropdown-menu" style="display: none;">
+                <button class="dropdown-button" onclick="viewOrder()">
+                    👁️ View Details
+                </button>
+                <button class="dropdown-button" onclick="editOrder()">
+                    ✏️ Edit Order
+                </button>
+                <button class="dropdown-button delete-button" onclick="deleteOrder()">
+                    🗑️ Delete Order
+                </button>
+            </div>
+        </div>
+        
+        <div id="output" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+            Click the buttons above to test functionality...
+        </div>
+    </div>
+
+    <script>
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdown');
+            const isVisible = dropdown.style.display !== 'none';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+            console.log('Dropdown toggled:', !isVisible);
+        }
+
+        function viewOrder() {
+            document.getElementById('output').innerHTML = '✅ View Order clicked!';
+            document.getElementById('dropdown').style.display = 'none';
+            console.log('View Order clicked');
+        }
+
+        function editOrder() {
+            document.getElementById('output').innerHTML = '✅ Edit Order clicked!';
+            document.getElementById('dropdown').style.display = 'none';
+            console.log('Edit Order clicked');
+        }
+
+        function deleteOrder() {
+            document.getElementById('output').innerHTML = '✅ Delete Order clicked!';
+            document.getElementById('dropdown').style.display = 'none';
+            console.log('Delete Order clicked');
+        }
+
+        // Click outside handler
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('dropdown');
+            const container = event.target.closest('.dropdown-container');
+            if (!container && dropdown.style.display !== 'none') {
+                dropdown.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

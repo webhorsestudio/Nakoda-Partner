@@ -140,8 +140,54 @@ class ProfessionalBitrix24Service {
   }
 
   /**
-   * Get service health status
+   * Fetch single deal by ID with circuit breaker protection
    */
+  async fetchDealById(dealId: string): Promise<Bitrix24Deal | null> {
+    return await bitrix24CircuitBreaker.execute(async () => {
+      // Wait for rate limiter
+      await bitrix24RateLimiter.waitForNextRequest();
+      
+      console.log(`🔍 Bitrix24: Fetching deal by ID: ${dealId}`);
+
+      // Use GET method with URL parameters for crm.deal.get.json
+      const url = `${this.baseUrl}${this.restUrl}/crm.deal.get.json`;
+      const params = new URLSearchParams({
+        id: dealId,
+      });
+
+      const response = await fetch(`${url}?${params}`);
+      
+      if (!response.ok) {
+        // Handle specific error cases
+        if (response.status === 400) {
+          console.log(`❌ Deal ${dealId} not found or invalid ID`);
+          return null; // Return null instead of throwing error for non-existent deals
+        }
+        throw new Error(`Bitrix24 API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        console.log(`❌ Bitrix24 API error for deal ${dealId}:`, data.error_description || data.error);
+        return null; // Return null instead of throwing error
+      }
+
+      console.log(`✅ Bitrix24: Successfully fetched deal ${dealId}`);
+      console.log(`📊 Deal data preview:`, {
+        ID: data.result?.ID,
+        TITLE: data.result?.TITLE,
+        orderNumber: data.result?.UF_CRM_1681649038953,
+        customerName: data.result?.UF_CRM_1681645659170,
+        amount: data.result?.UF_CRM_1681648179537,
+        address: data.result?.UF_CRM_1681747087033
+      });
+      
+      return data.result;
+    });
+  }
+
+  /**
   getHealthStatus(): {
     circuitBreakerState: string;
     rateLimiterStats: { delay: number; successes: number; failures: number };

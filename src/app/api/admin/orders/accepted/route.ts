@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { verifyAdminToken } from '@/lib/auth';
 
+interface PartnerJoin {
+  name: string;
+  city: string;
+  mobile: string;
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Verify admin authentication
@@ -20,7 +26,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    // Build query for accepted orders
+    // Build query for accepted orders with partner join
     let query = supabase
       .from('orders')
       .select(`
@@ -47,7 +53,8 @@ export async function GET(request: NextRequest) {
         partner_id,
         partner,
         mode,
-        package
+        package,
+        partners!partner_id(name, city, mobile)
       `)
       .not('partner_id', 'is', null) // Only orders assigned to partners
       .order('created_at', { ascending: false }) // Latest first
@@ -78,7 +85,7 @@ export async function GET(request: NextRequest) {
     let countQuery = supabase
       .from('orders')
       .select('id', { count: 'exact' })
-      .not('partner_id', 'is', null);
+      .not('partner_id', 'is', null)
 
     if (status !== 'all') {
       countQuery = countQuery.eq('status', status);
@@ -99,6 +106,7 @@ export async function GET(request: NextRequest) {
       id: order.id,
       title: order.title || 'Service Request',
       description: order.specification || order.title || 'Service request',
+      orderNumber: order.order_number || 'N/A',
       customerName: order.customer_name || 'Customer',
       customerPhone: order.mobile_number || '',
       location: `${order.city || 'Unknown City'}${order.pin_code ? ` - ${order.pin_code}` : ''}`,
@@ -111,7 +119,7 @@ export async function GET(request: NextRequest) {
       status: order.status || 'assigned',
       serviceDate: order.service_date,
       timeSlot: order.time_slot,
-      partnerName: order.partner || 'Unknown Partner',
+      partnerName: (order.partners as PartnerJoin[])?.[0]?.name || 'Unknown Partner', // Use actual partner name from join
       partnerId: order.partner_id
     })) || [];
 
@@ -119,9 +127,12 @@ export async function GET(request: NextRequest) {
     console.log('Sample order data:', orders?.[0] ? {
       id: orders[0].id,
       partner_id: orders[0].partner_id,
-      partner: orders[0].partner,
+      bitrix24_partner: orders[0].partner, // Partner from Bitrix24 parsing
+      actual_partner: (orders[0].partners as PartnerJoin[])?.[0]?.name, // Actual partner from database join
       package: orders[0].package,
-      service_type: orders[0].service_type
+      service_type: orders[0].service_type,
+      order_number: orders[0].order_number,
+      orderNumber: transformedOrders[0]?.orderNumber
     } : 'No orders found');
     
     return NextResponse.json({

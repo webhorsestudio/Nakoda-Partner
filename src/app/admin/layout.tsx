@@ -16,12 +16,10 @@ import {
   XMarkIcon,
   UserGroupIcon,
   ArrowRightOnRectangleIcon,
-  ClockIcon,
   PhotoIcon
 } from "@heroicons/react/24/outline";
 import { verifyJWTTokenClient, verifySimpleToken, debugToken } from "@/utils/authUtils";
 import { getUserRole, getNavigationItems, UserRole, canAccessAdminPanel } from "@/utils/roleUtils";
-import { GlobalOrderProvider } from "@/contexts/GlobalOrderProvider";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -449,9 +447,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Page content */}
         <main className="py-6">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <GlobalOrderProvider>
-              {children}
-            </GlobalOrderProvider>
+            {children}
           </div>
         </main>
       </div>

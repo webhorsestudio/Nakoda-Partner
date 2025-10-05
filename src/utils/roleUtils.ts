@@ -151,12 +151,11 @@ export function getNavigationItems(userRole: UserRole | null): NavigationItem[] 
   if (canAccessOrders(userRole)) {
     baseItems.push({
       name: "Orders",
-      href: "/admin/orders",
+      href: "/admin/orders/details",
       icon: "CalendarIcon",
       alwaysShow: false,
       children: [
-        { name: "Bitrix24 Orders", href: "/admin/orders", icon: "CalendarIcon", alwaysShow: false },
-        { name: "Order Details", href: "/admin/orders/details", icon: "CalendarIcon", alwaysShow: false }
+        { name: "Order Management", href: "/admin/orders/details", icon: "CalendarIcon", alwaysShow: false }
       ]
     });
   }

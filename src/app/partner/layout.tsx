@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { GlobalOrderProvider } from "@/contexts/GlobalOrderProvider";
 
 interface PartnerLayoutProps {
   children: React.ReactNode;
@@ -48,8 +47,8 @@ export default function PartnerLayout({ children }: PartnerLayoutProps) {
   }
 
   return (
-    <GlobalOrderProvider>
+    <div className="min-h-screen bg-gray-100">
       {children}
-    </GlobalOrderProvider>
+    </div>
   );
 }

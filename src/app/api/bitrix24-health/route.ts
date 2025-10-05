@@ -7,7 +7,6 @@ export async function GET() {
   try {
     console.log('🏥 Bitrix24 Health Check...');
     
-    const healthStatus = professionalBitrix24Service.getHealthStatus();
     const circuitState = bitrix24CircuitBreaker.getState();
     const rateLimiterStats = bitrix24RateLimiter.getStats();
     
@@ -23,7 +22,7 @@ export async function GET() {
       };
     }
     
-    const overallHealth = healthStatus.isHealthy && apiTest.success;
+    const overallHealth = apiTest.success;
     
     return NextResponse.json({
       success: true,
