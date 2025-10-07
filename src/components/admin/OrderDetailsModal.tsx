@@ -4,31 +4,15 @@ import React from 'react';
 import { XMarkIcon, UserIcon, PhoneIcon, MapPinIcon, CalendarIcon, CurrencyDollarIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { formatDate, getStatusColor } from '@/utils/orders';
+import { formatDate, getStatusColor, formatDateWithoutTime } from '@/utils/orders';
 import { getTimeSlotDisplay } from '@/utils/timeSlots';
-
-interface Order {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  mobileNumber: string;
-  city: string;
-  address: string;
-  pinCode: string;
-  serviceType: string;
-  serviceDate: string;
-  timeSlot: string;
-  amount: number;
-  currency: string;
-  status: string;
-  partner: string;
-  orderDate: string;
-}
+import { extractPaymentMode, calculateBalanceAmount } from '@/utils/paymentModeExtractor';
+import { AdminOrder } from '@/types/orders';
 
 interface OrderDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  order: Order | null;
+  order: AdminOrder | null;
 }
 
 export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
@@ -104,7 +88,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                 <CalendarIcon className="h-4 w-4 text-gray-400" />
                 <div>
                   <span className="text-sm font-medium text-gray-700">Service Date:</span>
-                  <p className="text-sm text-gray-900">{formatDate(order.serviceDate)}</p>
+                  <p className="text-sm text-gray-900">{formatDateWithoutTime(order.serviceDate)}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
@@ -126,9 +110,10 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
                 <MapPinIcon className="h-4 w-4 text-gray-400" />
-                <div>
-                  <span className="text-sm font-medium text-gray-700">Address:</span>
-                  <p className="text-sm text-gray-900">{order.address || 'Not provided'}</p>
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-gray-700">Full Address:</span>
+                  <p className="text-sm text-gray-900">{order.address || order.city}</p>
+                  {order.pinCode && <p className="text-xs text-gray-600 mt-1">PIN: {order.pinCode}</p>}
                 </div>
               </div>
               <div className="flex items-center space-x-3">
@@ -136,13 +121,6 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                 <div>
                   <span className="text-sm font-medium text-gray-700">City:</span>
                   <p className="text-sm text-gray-900">{order.city}</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                <MapPinIcon className="h-4 w-4 text-gray-400" />
-                <div>
-                  <span className="text-sm font-medium text-gray-700">PIN Code:</span>
-                  <p className="text-sm text-gray-900">{order.pinCode || 'Not provided'}</p>
                 </div>
               </div>
             </div>
@@ -154,14 +132,40 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
               <CurrencyDollarIcon className="h-5 w-5 mr-2 text-green-600" />
               Financial Information
             </h3>
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-sm font-medium text-gray-700">Total Amount:</span>
-                <p className="text-2xl font-bold text-green-600">₹{order.amount.toLocaleString()}</p>
+            <div className="space-y-4">
+              {/* Payment Mode */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Payment Mode:</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {extractPaymentMode(order.title) === 'COD' ? 'Cash on Delivery' : 
+                   extractPaymentMode(order.title) === 'online' ? 'Online Payment' : 'Unknown'}
+                </span>
               </div>
-              <div className="text-right">
+              
+              {/* Total Amount */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Total Amount:</span>
+                <span className="text-xl font-bold text-green-600">₹{order.amount.toLocaleString()}</span>
+              </div>
+              
+              {/* Advance Amount */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Advance Amount:</span>
+                <span className="text-sm font-medium text-gray-900">₹{(order.advanceAmount || 0).toLocaleString()}</span>
+              </div>
+              
+              {/* Balance Amount */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Balance Amount:</span>
+                <span className="text-lg font-semibold text-green-600">
+                  ₹{calculateBalanceAmount(order.amount, order.advanceAmount || 0, extractPaymentMode(order.title), order.vendorAmount).toLocaleString()}
+                </span>
+              </div>
+              
+              {/* Currency */}
+              <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">Currency:</span>
-                <p className="text-sm text-gray-900">{order.currency}</p>
+                <span className="text-sm text-gray-900">{order.currency}</span>
               </div>
             </div>
           </Card>

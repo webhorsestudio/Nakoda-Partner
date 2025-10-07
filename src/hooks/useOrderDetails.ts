@@ -1,30 +1,5 @@
 import { useState, useCallback } from 'react';
-
-interface Bitrix24OrderDetails {
-  id: string;
-  orderNumber: string;
-  title: string;
-  amount: number;
-  customerName: string;
-  customerPhone: string;
-  address: string;
-  city: string;
-  pinCode: string;
-  serviceDate: string;
-  timeSlot: string;
-  package: string;
-  partner: string;
-  status: string;
-  commission: string;
-  advanceAmount: number;
-  taxesAndFees: string;
-  serviceType: string;
-  mode: string;
-  specification: string;
-  currency: string;
-  bitrix24Id: string;
-  stageId: string;
-}
+import { Bitrix24OrderDetails } from '@/types/orders';
 
 interface UseOrderDetailsReturn {
   // Data

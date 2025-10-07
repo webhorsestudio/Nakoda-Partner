@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
       stageId: foundDeal.STAGE_ID,
       commission: foundDeal.UF_CRM_1681648200083 || '',
       advanceAmount: parseFloat((foundDeal.UF_CRM_1681648284105 || '0|INR').split('|')[0]) || 0,
+      vendorAmount: foundDeal.UF_CRM_1681649447600 || '', // Add vendor amount field
       taxesAndFees: foundDeal.UF_CRM_1723904458952 || '',
       serviceType: (foundDeal.UF_CRM_1681749732453 || '').split(' By : ')[0] || 'Unknown Service',
       mode: 'online', // Default mode

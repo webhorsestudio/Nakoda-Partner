@@ -6,24 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SearchablePartnerDropdown } from '@/components/admin/SearchablePartnerDropdown';
 import { usePartnerAssignment } from '@/hooks/usePartnerAssignment';
-
-interface Order {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  mobileNumber: string;
-  city: string;
-  serviceType: string;
-  serviceDate: string;
-  amount: number;
-  status: string;
-  partner: string;
-}
+import { extractPaymentMode, calculateBalanceAmount } from '@/utils/paymentModeExtractor';
+import { AdminOrder } from '@/types/orders';
 
 interface EditOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
-  order: Order | null;
+  order: AdminOrder | null;
   onOrderUpdated: () => void;
 }
 
@@ -65,24 +54,26 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({
 
     try {
       // Create order details object for assignment
+      
       const orderDetails = {
         id: order.id,
         orderNumber: order.orderNumber,
-        title: `${order.serviceType} - ${order.orderNumber}`,
+        title: order.title || `${order.serviceType} - ${order.orderNumber}`, // Use actual order title from database
         amount: order.amount,
         customerName: order.customerName,
         customerPhone: order.mobileNumber,
-        address: order.city, // Use city as address
+        address: order.address || order.city, // Use full address if available
         city: order.city,
-        pinCode: '', // Not available in simplified interface
+        pinCode: order.pinCode || '', // Use actual pin code
         serviceDate: order.serviceDate,
-        timeSlot: '', // Not available in simplified interface
+        timeSlot: order.timeSlot || '', // Use actual time slot from order
         package: order.serviceType,
         partner: order.partner,
         status: order.status,
         commission: '10', // Default commission
-        advanceAmount: Math.round(order.amount * 0.1), // 10% advance
-        taxesAndFees: '0',
+        advanceAmount: order.advanceAmount || Math.round(order.amount * 0.1), // Use actual advance amount
+        vendorAmount: order.vendorAmount || '', // Use actual vendor amount
+        taxesAndFees: order.taxesAndFees || '0', // Use actual taxes and fees
         serviceType: order.serviceType,
         mode: 'online',
         specification: order.serviceType,
@@ -90,6 +81,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({
         bitrix24Id: order.id, // Use order ID as bitrix24Id for assignment
         stageId: '1'
       };
+
 
       const success = await assignPartnerToOrder(orderDetails);
       
@@ -146,12 +138,34 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({
                 <p className="text-gray-900">{order.serviceType}</p>
               </div>
               <div>
-                <span className="font-medium text-gray-700">Location:</span>
-                <p className="text-gray-900">{order.city}</p>
+                <span className="font-medium text-gray-700">Full Address:</span>
+                <p className="text-gray-900">{order.address || order.city}</p>
+                {order.pinCode && <p className="text-gray-600 text-xs">PIN: {order.pinCode}</p>}
               </div>
               <div>
-                <span className="font-medium text-gray-700">Amount:</span>
+                <span className="font-medium text-gray-700">Payment Mode:</span>
+                <p className="text-gray-900 font-medium">
+                  {extractPaymentMode(order.title) === 'COD' ? 'Cash on Delivery' : 
+                   extractPaymentMode(order.title) === 'online' ? 'Online Payment' : 'Unknown'}
+                </p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Total Amount:</span>
                 <p className="text-gray-900 font-semibold">₹{order.amount.toLocaleString()}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Advance Amount:</span>
+                <p className="text-gray-900">₹{(order.advanceAmount || 0).toLocaleString()}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Balance Amount:</span>
+                <p className="font-semibold text-green-600">
+                  ₹{calculateBalanceAmount(order.amount, order.advanceAmount || 0, extractPaymentMode(order.title), order.vendorAmount).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-700">Service Date:</span>
+                <p className="text-gray-900">{order.serviceDate ? new Date(order.serviceDate).toLocaleDateString() : 'Not set'}</p>
               </div>
             </div>
           </Card>

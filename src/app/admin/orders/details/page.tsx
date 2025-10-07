@@ -12,48 +12,12 @@ import { OrderCard } from '@/components/admin/OrderCard';
 import { OrderDetailsModal } from '@/components/admin/OrderDetailsModal';
 import { EditOrderModal } from '@/components/admin/EditOrderModal';
 import { DeleteOrderModal } from '@/components/admin/DeleteOrderModal';
-
-interface Order {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  mobileNumber: string;
-  city: string;
-  address: string;
-  pinCode: string;
-  serviceType: string;
-  serviceDate: string;
-  timeSlot: string;
-  amount: number;
-  currency: string;
-  status: string;
-  partner: string;
-  orderDate: string;
-}
-
-interface ApiOrderData {
-  id: string;
-  orderNumber?: string;
-  customerName?: string;
-  customerPhone?: string;
-  location?: string;
-  serviceType?: string;
-  serviceDate?: string;
-  timeSlot?: string;
-  estimatedDuration?: string;
-  amount?: number;
-  currency?: string;
-  status?: string;
-  partnerName?: string;
-  partnerId?: string | null;
-  createdAt?: string;
-  package?: string;
-}
+import { AdminOrder, ApiOrderData } from '@/types/orders';
 
 export default function OrderDetailsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -64,7 +28,7 @@ export default function OrderDetailsPage() {
   const [showOrderDetailsModal, setShowOrderDetailsModal] = useState(false);
   const [showEditOrderModal, setShowEditOrderModal] = useState(false);
   const [showDeleteOrderModal, setShowDeleteOrderModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
 
   // Fetch all orders from API (both assigned and unassigned)
   const fetchAllOrders = async () => {
@@ -92,15 +56,19 @@ export default function OrderDetailsPage() {
           return {
             id: order.id,
             orderNumber: order.orderNumber || 'N/A',
+            title: order.title, // Include title for payment mode extraction
             customerName: order.customerName || 'Unknown Customer',
             mobileNumber: order.customerPhone || '',
-            city: order.location?.split(' - ')[0] || '',
-            address: order.location || '',
-            pinCode: order.location?.split(' - ')[1] || '',
+            city: order.city || '',
+            address: order.address || '',
+            pinCode: order.pinCode || '',
             serviceType: order.serviceType || order.package || 'General Service',
             serviceDate: order.serviceDate || '',
             timeSlot: order.timeSlot || '',
             amount: parseFloat(String(order.amount || '0')) || 0,
+            advanceAmount: parseFloat(String(order.advanceAmount || '0')) || 0,
+            taxesAndFees: order.taxesAndFees || '0',
+            vendorAmount: order.vendorAmount || '',
             currency: order.currency || 'INR',
             status: order.status || 'pending',
             partner: partnerDisplay, // Show partner or "Ready to Assign"
@@ -130,14 +98,6 @@ export default function OrderDetailsPage() {
     fetchAllOrders();
   }, []);
 
-  // Auto-refresh every 5 minutes (admin doesn't need real-time updates like partners)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchAllOrders();
-    }, 300000); // 5 minutes instead of 30 seconds
-
-    return () => clearInterval(interval);
-  }, []);
 
 
   // Handle order actions
@@ -177,7 +137,15 @@ export default function OrderDetailsPage() {
     const matchesSearch = order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.serviceType.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    
+    let matchesStatus = true;
+    if (statusFilter === 'assigned') {
+      matchesStatus = order.partner !== 'Ready to Assign';
+    } else if (statusFilter === 'ready') {
+      matchesStatus = order.partner === 'Ready to Assign';
+    }
+    // For 'all', matchesStatus remains true (shows all orders)
+    
     return matchesSearch && matchesStatus;
   });
 
@@ -292,11 +260,9 @@ export default function OrderDetailsPage() {
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
                 className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="accepted">Accepted</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="all">All Orders</option>
+                <option value="assigned">Partner Assigned</option>
+                <option value="ready">Ready to Assign</option>
               </select>
               
               <div className="text-sm text-gray-500">

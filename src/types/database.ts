@@ -60,6 +60,12 @@ export interface Database {
           address: string | null;
           city: string | null;
           pin_code: string | null;
+          commission_percentage: string | null;
+          advance_amount: string | null;
+          taxes_and_fees: string | null;
+          vendor_amount: string | null;
+          service_date: string | null;
+          time_slot: string | null;
           service_type: string | null;
           specification: string | null;
           stage_id: string | null;
@@ -115,6 +121,12 @@ export interface Database {
           address?: string | null;
           city?: string | null;
           pin_code?: string | null;
+          commission_percentage?: string | null;
+          advance_amount?: string | null;
+          taxes_and_fees?: string | null;
+          vendor_amount?: string | null;
+          service_date?: string | null;
+          time_slot?: string | null;
           service_type?: string | null;
           specification?: string | null;
           stage_id?: string | null;
@@ -165,6 +177,12 @@ export interface Database {
           address?: string | null;
           city?: string | null;
           pin_code?: string | null;
+          commission_percentage?: string | null;
+          advance_amount?: string | null;
+          taxes_and_fees?: string | null;
+          vendor_amount?: string | null;
+          service_date?: string | null;
+          time_slot?: string | null;
           service_type?: string | null;
           specification?: string | null;
           stage_id?: string | null;

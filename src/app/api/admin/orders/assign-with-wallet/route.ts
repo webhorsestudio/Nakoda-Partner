@@ -106,7 +106,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Assign order to partner by updating the order record
+    console.log(`🔍 Assignment API - Order data before assignment:`, {
+      orderNumber,
+      partnerId,
+      advanceAmount
+    });
+
+    // Fetch the order data to get time slot
+    const { data: orderData, error: orderFetchError } = await supabase
+      .from('orders')
+      .select('time_slot, service_date, customer_name, mobile_number, amount, advance_amount, service_type')
+      .eq('order_number', orderNumber)
+      .single();
+
+    if (orderFetchError || !orderData) {
+      console.error('Error fetching order data:', orderFetchError);
+      return NextResponse.json(
+        { error: 'Order not found' },
+        { status: 404 }
+      );
+    }
+
+    console.log(`🔍 Order data fetched:`, {
+      time_slot: orderData.time_slot,
+      service_date: orderData.service_date,
+      customer_name: orderData.customer_name
+    });
     const { data: order, error: orderUpdateError } = await supabase
       .from('orders')
       .update({ 

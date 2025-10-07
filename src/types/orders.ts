@@ -58,6 +58,9 @@ export interface Bitrix24Deal {
   UF_CRM_1681648284105?: string; // Advance Amount: "1000"
   UF_CRM_1723904458952?: string; // Taxes and Fee: "150"
   UF_CRM_1681747291577?: string; // Service Slot Time: "4972", "4974", "4976", etc.
+  UF_CRM_1681649447600?: string; // Potential Vendor Amount: "4030|INR"
+  UF_CRM_1681648538643?: string; // Another Amount Field: "3500"
+  UF_CRM_1681886022342?: string; // Another Amount Field: "7370"
 }
 
 export interface Bitrix24Response {
@@ -98,6 +101,7 @@ export interface Order {
   commission_percentage?: string;
   advance_amount?: string;
   taxes_and_fees?: string;
+  vendor_amount?: string;
   service_date?: string;
   time_slot?: string;
   
@@ -167,6 +171,7 @@ export interface CreateOrderData {
   commission_percentage?: string;
   advance_amount?: string;
   taxes_and_fees?: string;
+  vendor_amount?: string;
   service_date?: string;
   time_slot?: string;
   
@@ -260,4 +265,100 @@ export interface OrderFilters {
   date_to?: string;
   page?: number;
   limit?: number;
+}
+
+// UI-specific Order interfaces for admin components
+export interface AdminOrder {
+  id: string;
+  orderNumber: string;
+  title?: string;
+  customerName: string;
+  mobileNumber: string;
+  city: string;
+  address: string;
+  pinCode: string;
+  serviceType: string;
+  serviceDate: string;
+  timeSlot: string;
+  amount: number;
+  advanceAmount?: number;
+  taxesAndFees?: string;
+  vendorAmount?: string;
+  currency: string;
+  status: string;
+  partner: string;
+  orderDate: string;
+}
+
+export interface ApiOrderData {
+  id: string;
+  orderNumber?: string;
+  title?: string;
+  customerName?: string;
+  customerPhone?: string;
+  location?: string;
+  address?: string;
+  city?: string;
+  pinCode?: string;
+  serviceType?: string;
+  serviceDate?: string;
+  timeSlot?: string;
+  estimatedDuration?: string;
+  amount?: number;
+  advanceAmount?: number;
+  taxesAndFees?: string;
+  vendorAmount?: string;
+  currency?: string;
+  status?: string;
+  partnerName?: string;
+  partnerId?: string | null;
+  createdAt?: string;
+  package?: string;
+}
+
+export interface Bitrix24OrderDetails {
+  id: string;
+  orderNumber: string;
+  title: string;
+  amount: number;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  city: string;
+  pinCode: string;
+  serviceDate: string;
+  timeSlot: string;
+  package: string;
+  partner: string;
+  status: string;
+  commission: string;
+  advanceAmount: number;
+  vendorAmount?: string;
+  taxesAndFees: string;
+  serviceType: string;
+  mode: string;
+  specification: string;
+  currency: string;
+  bitrix24Id: string;
+  stageId: string;
+}
+
+export interface Partner {
+  id: number;
+  name: string;
+  service_type: string;
+  status: string;
+  city: string;
+  mobile: string;
+  wallet_balance?: number;
+}
+
+export interface ApiWalletPartner {
+  id: number;
+  name: string;
+  service_type: string;
+  status: string;
+  city: string;
+  mobile: string;
+  wallet_balance?: number;
 }

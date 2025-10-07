@@ -54,12 +54,17 @@ export async function POST(request: NextRequest) {
 
     let result;
 
+    // Debug: Log the order data being sent to WATI
+    console.log(`🔍 WATI API - Message Type: ${messageType}`);
+    console.log(`🔍 WATI API - Order Data:`, JSON.stringify(orderData, null, 2));
+    
     // Send appropriate message based on type
     switch (messageType) {
       case 'pipeline':
         result = await watiService.sendPipelineMessage(orderData as OrderData);
         break;
       case 'final_confirmation':
+        console.log(`🔍 WATI API - Final Confirmation - Pending Payment: ${(orderData as OrderData).pendingPayment}`);
         result = await watiService.sendFinalConfirmationMessage(orderData as OrderData);
         break;
       case 'partner':

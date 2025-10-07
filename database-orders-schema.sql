@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS orders (
     commission_percentage VARCHAR(50),
     advance_amount VARCHAR(100),
     taxes_and_fees VARCHAR(100),
+    vendor_amount VARCHAR(100), -- Vendor amount (balance amount) from Bitrix24
     service_date VARCHAR(200),
     time_slot VARCHAR(100),
     
@@ -146,6 +147,11 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'time_slot') THEN
         ALTER TABLE orders ADD COLUMN time_slot VARCHAR(100);
     END IF;
+    
+    -- Add vendor_amount column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'vendor_amount') THEN
+        ALTER TABLE orders ADD COLUMN vendor_amount VARCHAR(100);
+    END IF;
 END $$;
 
 -- Create indexes for better performance
@@ -158,6 +164,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_contact_id ON orders(contact_id);
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_name ON orders(customer_name);
 CREATE INDEX IF NOT EXISTS idx_orders_city ON orders(city);
+CREATE INDEX IF NOT EXISTS idx_orders_vendor_amount ON orders(vendor_amount);
 
 -- Create trigger function if it doesn't exist
 CREATE OR REPLACE FUNCTION update_updated_at_column()

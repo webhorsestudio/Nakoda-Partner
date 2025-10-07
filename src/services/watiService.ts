@@ -6,6 +6,38 @@ export interface WATIResponse {
   error?: string;
 }
 
+/**
+ * Format date to simple YYYY-MM-DD format
+ * @param dateString - ISO date string or any date string
+ * @returns Formatted date string (YYYY-MM-DD) or original string if invalid
+ */
+function formatDateForWATI(dateString: string | null | undefined): string {
+  if (!dateString) {
+    return 'N/A';
+  }
+
+  try {
+    // Handle ISO date strings like "2025-10-10T03:00:00+03:00"
+    const date = new Date(dateString);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.warn(`⚠️ Invalid date string: ${dateString}`);
+      return dateString; // Return original if invalid
+    }
+
+    // Format as YYYY-MM-DD
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.warn(`⚠️ Error formatting date: ${dateString}`, error);
+    return dateString; // Return original if error
+  }
+}
+
 export class WATIService {
   private baseUrl: string;
   private token: string;
@@ -72,11 +104,11 @@ export class WATIService {
       parameters: [
         { name: 'name', value: orderData.customerName },
         { name: 'order_id', value: orderData.orderId },
-        { name: 'order_amount', value: `₹${orderData.orderAmount}` },
+        { name: 'order_amount', value: orderData.orderAmount.toString() }, // Remove ₹ symbol
         { name: 'address', value: orderData.address },
         { name: 'service_details', value: orderData.serviceDetails },
         { name: 'fees', value: orderData.fees },
-        { name: 'date', value: orderData.serviceDate },
+        { name: 'date', value: formatDateForWATI(orderData.serviceDate) }, // Use formatted date
         { name: 'slot', value: orderData.timeSlot }
       ],
       broadcast_name: WATI_CONFIG.BROADCASTS.PIPELINE
@@ -93,9 +125,9 @@ export class WATIService {
       template_name: WATI_CONFIG.TEMPLATES.FINAL_CONFIRMATION,
       parameters: [
         { name: 'order_id', value: orderData.orderId },
-        { name: 'pending_payment', value: `₹${orderData.pendingPayment || 0}` },
+        { name: 'pending_payment', value: (orderData.pendingPayment || 0).toString() }, // Remove ₹ symbol
         { name: 'service_details', value: orderData.serviceDetails },
-        { name: 'date', value: orderData.serviceDate },
+        { name: 'date', value: formatDateForWATI(orderData.serviceDate) }, // Use formatted date
         { name: 'slot', value: orderData.timeSlot },
         { name: 'Unique_ID', value: orderData.otp || 'N/A' }
       ],
@@ -114,13 +146,13 @@ export class WATIService {
       parameters: [
         { name: 'name', value: partnerOrderData.customerName },
         { name: 'order_id', value: partnerOrderData.orderId },
-        { name: 'order_amount', value: `₹${partnerOrderData.orderAmount}` },
+        { name: 'order_amount', value: partnerOrderData.orderAmount.toString() }, // Remove ₹ symbol
         { name: 'address', value: partnerOrderData.address },
         { name: 'service_details', value: partnerOrderData.serviceDetails },
-        { name: 'fees', value: partnerOrderData.fees },
-        { name: 'date', value: partnerOrderData.serviceDate },
+        { name: 'fees', value: partnerOrderData.fees }, // Use actual fees value
+        { name: 'date', value: formatDateForWATI(partnerOrderData.serviceDate) },
         { name: 'slot', value: partnerOrderData.timeSlot },
-        { name: 'pending_payment', value: `₹${partnerOrderData.pendingPayment}` },
+        { name: 'pending_payment', value: partnerOrderData.pendingPayment.toString() }, // Remove ₹ symbol
         { name: 'Unique_ID', value: partnerOrderData.otp },
         { name: 'responsible_person', value: partnerOrderData.responsiblePerson }
       ],

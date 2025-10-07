@@ -41,11 +41,14 @@ export async function GET(request: NextRequest) {
         amount,
         currency,
         customer_name,
+        address,
         city,
         pin_code,
         advance_amount,
+        taxes_and_fees,
         service_date,
         time_slot,
+        vendor_amount,
         date_created,
         created_at,
         order_number,
@@ -156,9 +159,13 @@ export async function GET(request: NextRequest) {
           description: order.title || 'Service request', // Simplified description
           customerName: order.customer_name || 'Customer',
           customerPhone: order.mobile_number || '',
-          location: `${order.city || 'Unknown City'}${order.pin_code ? ` - ${order.pin_code}` : ''}`,
+          address: order.address || '', // Add address field
+          city: order.city || 'Unknown City',
+          pinCode: order.pin_code || '', // Add pin code field
           amount: parseFloat(order.amount?.toString() || '0'),
           advanceAmount: parseFloat(order.advance_amount?.toString() || '0'),
+          taxesAndFees: order.taxes_and_fees || '0',
+          vendorAmount: order.vendor_amount || '',
           serviceType: order.service_type || 'General Service',
           priority: 'medium', // Default priority
           estimatedDuration: order.time_slot || '2-4 hours',

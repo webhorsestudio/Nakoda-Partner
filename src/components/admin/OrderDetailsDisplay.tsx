@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { extractPaymentMode, calculateBalanceAmount } from '@/utils/paymentModeExtractor';
 
 interface Bitrix24OrderDetails {
   id: string;
@@ -19,6 +20,7 @@ interface Bitrix24OrderDetails {
   status: string;
   commission: string;
   advanceAmount: number;
+  vendorAmount?: string; // Add vendor amount field
   taxesAndFees: string;
   serviceType: string;
   mode: string;
@@ -61,9 +63,26 @@ export const OrderDetailsDisplay: React.FC<OrderDetailsDisplayProps> = ({
               <span className="font-medium ml-1">{orderDetails.orderNumber}</span>
             </p>
             <p className="text-gray-600">
-              <span className="text-gray-600">Amount:</span>
+              <span className="text-gray-600">Payment Mode:</span>
+              <span className="font-medium ml-1">
+                {extractPaymentMode(orderDetails.title) === 'COD' ? 'Cash on Delivery' : 
+                 extractPaymentMode(orderDetails.title) === 'online' ? 'Online Payment' : 'Unknown'}
+              </span>
+            </p>
+            <p className="text-gray-600">
+              <span className="text-gray-600">Total Amount:</span>
               <span className="font-medium ml-1 text-green-600">
                 ₹{orderDetails.amount.toLocaleString()}
+              </span>
+            </p>
+            <p className="text-gray-600">
+              <span className="text-gray-600">Advance Amount:</span>
+              <span className="font-medium ml-1">₹{orderDetails.advanceAmount.toLocaleString()}</span>
+            </p>
+            <p className="text-gray-600">
+              <span className="text-gray-600">Balance Amount:</span>
+              <span className="font-medium ml-1 text-green-600">
+                ₹{calculateBalanceAmount(orderDetails.amount, orderDetails.advanceAmount, extractPaymentMode(orderDetails.title), orderDetails.vendorAmount).toLocaleString()}
               </span>
             </p>
             <p className="text-gray-600">
@@ -86,7 +105,7 @@ export const OrderDetailsDisplay: React.FC<OrderDetailsDisplayProps> = ({
               <span className="font-medium ml-1">{orderDetails.customerPhone}</span>
             </p>
             <p className="text-gray-600">
-              <span className="text-gray-600">Address:</span>
+              <span className="text-gray-600">Full Address:</span>
               <span className="font-medium ml-1">{orderDetails.address}</span>
             </p>
             <p className="text-gray-600">
@@ -100,17 +119,13 @@ export const OrderDetailsDisplay: React.FC<OrderDetailsDisplayProps> = ({
           </div>
         </div>
 
-        {/* Partner Information */}
+        {/* Service Information */}
         <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-          <h4 className="font-medium text-blue-900 mb-3 text-sm">Partner Information</h4>
+          <h4 className="font-medium text-blue-900 mb-3 text-sm">Service Information</h4>
           <div className="space-y-2 text-xs">
             <p className="text-gray-600">
               <span className="text-gray-600">Service Package:</span>
               <span className="font-medium ml-1">{orderDetails.package}</span>
-            </p>
-            <p className="text-gray-600">
-              <span className="text-gray-600">Advance Amount:</span>
-              <span className="font-medium ml-1">₹{orderDetails.advanceAmount.toLocaleString()}</span>
             </p>
             <p className="text-gray-600">
               <span className="text-gray-600">Service Date:</span>
@@ -126,10 +141,6 @@ export const OrderDetailsDisplay: React.FC<OrderDetailsDisplayProps> = ({
               <span className="font-medium ml-1">
                 {formatServiceDateTime(orderDetails.timeSlot, orderDetails.serviceDate) || 'N/A'}
               </span>
-            </p>
-            <p className="text-gray-600">
-              <span className="text-gray-600">Mode:</span>
-              <span className="font-medium ml-1">{orderDetails.mode}</span>
             </p>
           </div>
         </div>

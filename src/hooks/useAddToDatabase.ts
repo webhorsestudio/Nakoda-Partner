@@ -1,30 +1,7 @@
 import { useState, useCallback } from 'react';
-
-interface Bitrix24OrderDetails {
-  id: string;
-  orderNumber: string;
-  title: string;
-  amount: number;
-  customerName: string;
-  customerPhone: string;
-  address: string;
-  city: string;
-  pinCode: string;
-  serviceDate: string;
-  timeSlot: string;
-  package: string;
-  partner: string;
-  status: string;
-  commission: string;
-  advanceAmount: number;
-  taxesAndFees: string;
-  serviceType: string;
-  mode: string;
-  specification: string;
-  currency: string;
-  bitrix24Id: string;
-  stageId: string;
-}
+import { convertTimeSlot } from '@/utils/timeSlotConverter';
+import { extractPaymentMode, calculateBalanceAmount } from '@/utils/paymentModeExtractor';
+import { Bitrix24OrderDetails } from '@/types/orders';
 
 interface UseAddToDatabaseReturn {
   // State
@@ -45,7 +22,7 @@ export const useAddToDatabase = (): UseAddToDatabaseReturn => {
       setAddingToDatabase(true);
       setAddToDatabaseError(null);
 
-      console.log(`📥 Adding order ${orderDetails.orderNumber} to database...`);
+      // Adding order to database
 
       const response = await fetch('/api/admin/orders/add-to-database', {
         method: 'POST',
@@ -58,11 +35,14 @@ export const useAddToDatabase = (): UseAddToDatabaseReturn => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        console.log(`✅ Order ${orderDetails.orderNumber} successfully added to database with ID: ${data.order.id}`);
-        
         // Send WATI WhatsApp message after successful database addition
         try {
-          console.log(`📱 Sending WATI message for order ${orderDetails.orderNumber}...`);
+          // Extract payment mode and calculate balance amount
+          const paymentMode = extractPaymentMode(orderDetails.title);
+          const totalAmount = orderDetails.amount;
+          const advanceAmount = orderDetails.advanceAmount;
+          const vendorAmount = orderDetails.vendorAmount;
+          const balanceAmount = calculateBalanceAmount(totalAmount, advanceAmount, paymentMode, vendorAmount);
           
           const watiOrderData = {
             customerName: orderDetails.customerName,
@@ -73,7 +53,7 @@ export const useAddToDatabase = (): UseAddToDatabaseReturn => {
             serviceDetails: orderDetails.package || orderDetails.serviceType,
             fees: orderDetails.taxesAndFees || '0',
             serviceDate: orderDetails.serviceDate,
-            timeSlot: orderDetails.timeSlot
+            timeSlot: convertTimeSlot(orderDetails.timeSlot) // Use converted time slot
           };
 
           const watiResponse = await fetch('/api/wati/send-message', {

@@ -1,50 +1,7 @@
 import { useState, useCallback } from 'react';
-
-interface Partner {
-  id: number;
-  name: string;
-  service_type: string;
-  status: string;
-  city: string;
-  mobile: string;
-  wallet_balance?: number;
-}
-
-interface ApiWalletPartner {
-  id: number;
-  name: string;
-  service_type: string;
-  status: string;
-  city: string;
-  mobile: string;
-  wallet_balance?: number;
-}
-
-interface Bitrix24OrderDetails {
-  id: string;
-  orderNumber: string;
-  title: string;
-  amount: number;
-  customerName: string;
-  customerPhone: string;
-  address: string;
-  city: string;
-  pinCode: string;
-  serviceDate: string;
-  timeSlot: string;
-  package: string;
-  partner: string;
-  status: string;
-  commission: string;
-  advanceAmount: number;
-  taxesAndFees: string;
-  serviceType: string;
-  mode: string;
-  specification: string;
-  currency: string;
-  bitrix24Id: string;
-  stageId: string;
-}
+import { convertTimeSlot } from '@/utils/timeSlotConverter';
+import { extractPaymentMode, calculateBalanceAmount } from '@/utils/paymentModeExtractor';
+import { Partner, Bitrix24OrderDetails, ApiWalletPartner } from '@/types/orders';
 
 interface UsePartnerAssignmentReturn {
   // Partner Data
@@ -137,10 +94,22 @@ export const usePartnerAssignment = (): UsePartnerAssignmentReturn => {
         console.log(`✅ Order ${orderDetails.orderNumber} assigned to partner ${data.partner.name} successfully`);
         console.log(`💰 Wallet deduction: ₹${data.walletUpdate.deductedAmount} from ${data.partner.name}'s wallet`);
         
-        // Send WATI WhatsApp message to partner after successful assignment
+        // Send WATI WhatsApp messages to both partner and customer after successful assignment
         try {
-          console.log(`📱 Sending WATI message to partner ${data.partner.name} for order ${orderDetails.orderNumber}...`);
-          console.log(`📱 Partner mobile from API: ${data.partner.mobile}`);
+          console.log(`📱 Sending WATI messages for order ${orderDetails.orderNumber}...`);
+          console.log(`📱 Partner: ${data.partner.name} (${data.partner.mobile})`);
+          console.log(`📱 Customer: ${orderDetails.customerName} (${orderDetails.customerPhone})`);
+          
+          // 1. Send message to PARTNER
+          // Convert time slot for partner message
+          const partnerTimeSlot = convertTimeSlot(orderDetails.timeSlot);
+          
+          // Calculate balance amount for partner message (what customer needs to pay)
+          const paymentMode = extractPaymentMode(orderDetails.title);
+          const totalAmount = orderDetails.amount;
+          const advanceAmount = orderDetails.advanceAmount;
+          const vendorAmount = orderDetails.vendorAmount;
+          const balanceAmount = calculateBalanceAmount(totalAmount, advanceAmount, paymentMode, vendorAmount);
           
           const partnerOrderData = {
             customerName: orderDetails.customerName,
@@ -149,17 +118,17 @@ export const usePartnerAssignment = (): UsePartnerAssignmentReturn => {
             orderAmount: orderDetails.amount,
             address: orderDetails.address,
             serviceDetails: orderDetails.package || orderDetails.serviceType,
-            fees: orderDetails.taxesAndFees || '0',
+            fees: orderDetails.taxesAndFees || '0', // Use actual taxes and fees
             serviceDate: orderDetails.serviceDate,
-            timeSlot: orderDetails.timeSlot || 'N/A',
-            pendingPayment: orderDetails.advanceAmount,
+            timeSlot: partnerTimeSlot, // Use converted time slot
+            pendingPayment: balanceAmount, // Balance amount (what customer needs to pay)
             otp: orderDetails.orderNumber.slice(-4), // Use last 4 digits as OTP
             responsiblePerson: data.partner.name
           };
 
           console.log(`📱 Partner order data for WATI:`, partnerOrderData);
 
-          const watiResponse = await fetch('/api/wati/send-message', {
+          const partnerWatiResponse = await fetch('/api/wati/send-message', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -170,14 +139,54 @@ export const usePartnerAssignment = (): UsePartnerAssignmentReturn => {
             }),
           });
 
-          const watiData = await watiResponse.json();
+          const partnerWatiData = await partnerWatiResponse.json();
           
-          if (watiData.success) {
+          if (partnerWatiData.success) {
             console.log(`✅ WATI message sent successfully to partner ${data.partner.name} for order ${orderDetails.orderNumber}`);
           } else {
-            console.warn(`⚠️ WATI message failed for partner ${data.partner.name} for order ${orderDetails.orderNumber}:`, watiData.error);
-            // Don't fail the entire operation if WATI fails
+            console.warn(`⚠️ WATI message failed for partner ${data.partner.name} for order ${orderDetails.orderNumber}:`, partnerWatiData.error);
           }
+
+          // 2. Send FINAL CONFIRMATION message to CUSTOMER
+          // Reuse the same variables from partner message calculation
+          // Format time slot properly using converter
+          const formattedTimeSlot = convertTimeSlot(orderDetails.timeSlot);
+          
+          const customerOrderData = {
+            customerName: orderDetails.customerName,
+            customerPhone: orderDetails.customerPhone,
+            orderId: orderDetails.orderNumber,
+            orderAmount: orderDetails.amount,
+            address: orderDetails.address,
+            serviceDetails: orderDetails.package || orderDetails.serviceType,
+            fees: orderDetails.taxesAndFees || '0',
+            serviceDate: orderDetails.serviceDate,
+            timeSlot: formattedTimeSlot, // Use properly formatted time slot
+            pendingPayment: balanceAmount, // Use calculated balance amount
+            otp: orderDetails.orderNumber.slice(-4) // Use last 4 digits as OTP
+          };
+
+          console.log(`📱 Customer order data for WATI:`, customerOrderData);
+
+          const customerWatiResponse = await fetch('/api/wati/send-message', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderData: customerOrderData,
+              messageType: 'final_confirmation'
+            }),
+          });
+
+          const customerWatiData = await customerWatiResponse.json();
+          
+          if (customerWatiData.success) {
+            console.log(`✅ WATI final confirmation message sent successfully to customer ${orderDetails.customerName} for order ${orderDetails.orderNumber}`);
+          } else {
+            console.warn(`⚠️ WATI final confirmation message failed for customer ${orderDetails.customerName} for order ${orderDetails.orderNumber}:`, customerWatiData.error);
+          }
+
         } catch (watiError) {
           console.warn(`⚠️ WATI service error for partner assignment ${orderDetails.orderNumber}:`, watiError);
           // Don't fail the entire operation if WATI fails

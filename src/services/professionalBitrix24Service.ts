@@ -57,6 +57,9 @@ class ProfessionalBitrix24Service {
           "UF_CRM_1681648284105", // Advance Amount: "1000"
           "UF_CRM_1723904458952", // Taxes and Fee: "150"
           "UF_CRM_1681747291577", // Service Slot Time: "4972", "4974", "4976", etc.
+          "UF_CRM_1681649447600", // Potential Vendor Amount: "4030|INR"
+          "UF_CRM_1681648538643", // Another Amount Field: "3500"
+          "UF_CRM_1681886022342", // Another Amount Field: "7370"
         ],
         start,
         limit
@@ -177,6 +180,9 @@ class ProfessionalBitrix24Service {
           "UF_CRM_1681648284105", // Advance Amount
           "UF_CRM_1723904458952", // Taxes and Fee
           "UF_CRM_1681747291577", // Service Slot Time
+          "UF_CRM_1681649447600", // Potential Vendor Amount: "4030|INR"
+          "UF_CRM_1681648538643", // Another Amount Field: "3500"
+          "UF_CRM_1681886022342", // Another Amount Field: "7370"
         ],
         start: 0,
         limit: 1
@@ -307,6 +313,7 @@ class ProfessionalBitrix24Service {
     const advanceAmount = deal.UF_CRM_1681648284105 || '';
     const taxesAndFees = deal.UF_CRM_1723904458952 || '';
     const serviceSlotTime = deal.UF_CRM_1681747291577 || '';
+    const vendorAmount = deal.UF_CRM_1681649447600 || '';
 
     // Parse amount and currency
     const [amount, currency] = amountCurrency.split('|');
@@ -341,7 +348,8 @@ class ProfessionalBitrix24Service {
 
     // Parse order date and time
     const orderDate = serviceDate ? new Date(serviceDate).toLocaleDateString() : '';
-    const finalOrderTime = orderTime || serviceSlotTime || '';
+    // Use serviceSlotTime (4978) as primary time slot, fallback to orderTime (2894)
+    const finalOrderTime = serviceSlotTime || orderTime || '';
 
     // Map stage to status
     const status = this.mapStageToStatus(deal.STAGE_ID);
@@ -367,6 +375,7 @@ class ProfessionalBitrix24Service {
       commission_percentage: commissionPercentage,
       advance_amount: advanceAmount,
       taxes_and_fees: taxesAndFees,
+      vendor_amount: vendorAmount,
       service_date: serviceDate,
       time_slot: finalOrderTime,
       

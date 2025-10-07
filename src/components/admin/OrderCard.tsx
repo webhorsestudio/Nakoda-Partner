@@ -17,22 +17,10 @@ import {
   ChatBubbleLeftRightIcon
 } from "@heroicons/react/24/solid";
 import { formatDateOnly } from "@/utils/orders";
-
-interface Order {
-  id: string;
-  customerName: string;
-  mobileNumber: string;
-  city: string;
-  serviceType: string;
-  serviceDate: string;
-  amount: number;
-  partner: string;
-  orderNumber: string;
-  orderDate: string;
-}
+import { AdminOrder } from "@/types/orders";
 
 interface OrderCardProps {
-  order: Order;
+  order: AdminOrder;
   onViewOrder?: (orderId: string) => void;
   onEditOrder?: (orderId: string) => void;
   onDeleteOrder?: (orderId: string) => void;
