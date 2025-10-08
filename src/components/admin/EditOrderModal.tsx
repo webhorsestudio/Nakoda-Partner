@@ -202,12 +202,19 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({
                 <span className="ml-3 text-gray-600">Loading partners...</span>
               </div>
             ) : (
-              <SearchablePartnerDropdown
-                partners={partners}
-                selectedPartner={selectedPartner}
-                onPartnerSelect={selectPartner}
-                placeholder="Search and select a partner..."
-              />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">
+                    {partners.length} active partner{partners.length !== 1 ? 's' : ''} available
+                  </span>
+                </div>
+                <SearchablePartnerDropdown
+                  partners={partners}
+                  selectedPartner={selectedPartner}
+                  onPartnerSelect={selectPartner}
+                  placeholder="Search and select a partner..."
+                />
+              </div>
             )}
 
             {selectedPartner && (() => {

@@ -32,10 +32,11 @@ export const usePartnerAssignment = (): UsePartnerAssignmentReturn => {
       setLoadingPartners(true);
       setAssignmentError(null);
       // Fetch partners with wallet information for admin
-      const response = await fetch('/api/admin/partners/wallet?status=active&limit=100');
+      const response = await fetch('/api/admin/partners/wallet?status=active&limit=1000');
       const data = await response.json();
       
       if (data.success) {
+        
         // Transform wallet partners to match Partner interface
         const walletPartners = data.data.map((walletPartner: ApiWalletPartner) => ({
           id: walletPartner.id,
@@ -46,8 +47,11 @@ export const usePartnerAssignment = (): UsePartnerAssignmentReturn => {
           mobile: walletPartner.mobile,
           wallet_balance: walletPartner.wallet_balance // Add wallet balance for UI
         }));
+        
+        
         setPartners(walletPartners);
       } else {
+        console.error('API Response Error:', data);
         setAssignmentError('Failed to fetch partners');
       }
     } catch (error) {

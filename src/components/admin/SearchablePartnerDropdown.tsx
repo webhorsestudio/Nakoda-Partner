@@ -37,12 +37,38 @@ export const SearchablePartnerDropdown: React.FC<SearchablePartnerDropdownProps>
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter partners based on search term
-  const filteredPartners = partners.filter(partner =>
-    partner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    partner.service_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    partner.city.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Clean search logic - no debug code
+  const filteredPartners = React.useMemo(() => {
+    // If no search term, return all partners
+    if (!searchTerm || searchTerm.trim() === '') {
+      return partners;
+    }
+
+    const searchQuery = searchTerm.trim().toLowerCase();
+
+    const results = partners.filter((partner) => {
+      // Get all searchable fields with fallbacks
+      const partnerName = String(partner.name || '').toLowerCase();
+      const serviceType = String(partner.service_type || '').toLowerCase();
+      const city = String(partner.city || '').toLowerCase();
+      const mobile = String(partner.mobile || '');
+      
+      // Check each field for matches
+      const nameMatch = partnerName.includes(searchQuery);
+      const serviceMatch = serviceType.includes(searchQuery);
+      const cityMatch = city.includes(searchQuery);
+      const mobileMatch = mobile.includes(searchTerm);
+      
+      // Only do mobile clean match if search term contains digits
+      const mobileCleanMatch = /\d/.test(searchTerm) ? 
+        mobile.replace(/\D/g, '').includes(searchTerm.replace(/\D/g, '')) : false;
+      
+      return nameMatch || serviceMatch || cityMatch || mobileMatch || mobileCleanMatch;
+    });
+
+    return results;
+  }, [partners, searchTerm]);
+
 
   // Reset search when dropdown closes
   useEffect(() => {
@@ -55,14 +81,15 @@ export const SearchablePartnerDropdown: React.FC<SearchablePartnerDropdownProps>
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
-      if (!target.closest('[data-partner-dropdown]')) {
+      const isInsideDropdown = target.closest('[data-partner-dropdown]');
+      if (!isInsideDropdown) {
         setShowDropdown(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [showDropdown]);
 
   const selectedPartnerData = partners.find(p => p.id === selectedPartner);
   const isDisabled = disabled || loading || partners.length === 0;
@@ -81,7 +108,12 @@ export const SearchablePartnerDropdown: React.FC<SearchablePartnerDropdownProps>
         <div className="relative" data-partner-dropdown>
           <button
             type="button"
-            onClick={() => !isDisabled && setShowDropdown(!showDropdown)}
+            onClick={() => {
+              console.log('🔍 Dropdown Button Clicked:', { isDisabled, showDropdown });
+              if (!isDisabled) {
+                setShowDropdown(!showDropdown);
+              }
+            }}
             disabled={isDisabled}
             className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 text-left focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
@@ -112,13 +144,15 @@ export const SearchablePartnerDropdown: React.FC<SearchablePartnerDropdownProps>
           {showDropdown && !isDisabled && (
             <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
               {/* Search Input Inside Dropdown */}
-              <div className="p-2 border-b border-gray-200">
+              <div className="p-2 border-b border-gray-200" onClick={(e) => e.stopPropagation()}>
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Search partners..."
+                    placeholder="Search by name, service, city, or mobile..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
                     className="w-full text-xs border border-gray-300 rounded px-2 py-1 pl-6 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     autoFocus
                   />
@@ -126,8 +160,15 @@ export const SearchablePartnerDropdown: React.FC<SearchablePartnerDropdownProps>
                 </div>
               </div>
               
+              {/* Search Results Counter */}
+              {searchTerm && (
+                <div className="px-3 py-1 text-xs text-gray-500 border-b border-gray-100">
+                  {filteredPartners.length} partner{filteredPartners.length !== 1 ? 's' : ''} found
+                </div>
+              )}
+
               {/* Partners List */}
-              <div className="max-h-48 overflow-y-auto">
+              <div className="max-h-48 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 {filteredPartners.length > 0 ? (
                   filteredPartners.map((partner) => (
                     <button
@@ -143,11 +184,14 @@ export const SearchablePartnerDropdown: React.FC<SearchablePartnerDropdownProps>
                     >
                       <div className="font-medium">{partner.name}</div>
                       <div className="text-gray-500">
-                        {partner.service_type} - {partner.city}
+                        <div className="flex items-center justify-between">
+                          <span>{partner.service_type} - {partner.city}</span>
+                          <span className="text-xs text-gray-400">{partner.mobile}</span>
+                        </div>
                         {partner.wallet_balance !== undefined && (
-                          <span className="font-medium text-green-600 ml-2">
-                            • Wallet: ₹{partner.wallet_balance}
-                          </span>
+                          <div className="font-medium text-green-600 text-xs mt-1">
+                            Wallet: ₹{partner.wallet_balance}
+                          </div>
                         )}
                       </div>
                     </button>

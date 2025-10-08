@@ -80,6 +80,12 @@ export async function GET(request: Request) {
       query = query.eq('verification_status', filters.verification_status);
     }
 
+    // Add status filter if provided
+    const status = searchParams.get('status');
+    if (status) {
+      query = query.eq('status', status);
+    }
+
     if (filters.min_balance !== undefined) {
       query = query.gte('wallet_balance', filters.min_balance);
     }
@@ -97,9 +103,13 @@ export async function GET(request: Request) {
       throw new Error(`Count error: ${countError.message}`);
     }
 
-    // Apply pagination
-    const offset = ((filters.page || 1) - 1) * (filters.limit || 20);
-    query = query.range(offset, offset + (filters.limit || 20) - 1);
+    // Apply pagination only for smaller limits (for admin wallet management)
+    // For partner assignment dropdown, we fetch all partners
+    const limit = filters.limit || 20;
+    if (limit < 500) {
+      const offset = ((filters.page || 1) - 1) * limit;
+      query = query.range(offset, offset + limit - 1);
+    }
 
     // Order by wallet balance descending
     query = query.order('wallet_balance', { ascending: false });
@@ -110,17 +120,17 @@ export async function GET(request: Request) {
       throw new Error(`Database error: ${error.message}`);
     }
 
-    // Calculate pagination info
-    const totalPages = Math.ceil((count || 0) / (filters.limit || 20));
+    // Calculate pagination info (only for paginated requests)
+    const totalPages = limit < 500 ? Math.ceil((count || 0) / limit) : 1;
 
     return NextResponse.json({
       success: true,
       data: partners || [],
       pagination: {
-        currentPage: filters.page || 1,
+        currentPage: limit < 500 ? (filters.page || 1) : 1,
         totalPages,
         totalItems: count || 0,
-        itemsPerPage: filters.limit || 20
+        itemsPerPage: limit < 500 ? limit : (count || 0)
       },
       filters
     });
