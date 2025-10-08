@@ -32,7 +32,8 @@ const initialFormData: PartnerFormData = {
   last_active: null,
   verification_status: 'Pending',
   documents_verified: false,
-  notes: ''
+  notes: '',
+  vendor_id: ''
 };
 
 export default function PartnerForm({ partner, isOpen, onClose, onSubmit, mode }: PartnerFormProps) {
@@ -70,7 +71,8 @@ export default function PartnerForm({ partner, isOpen, onClose, onSubmit, mode }
         last_active: partner.last_active || null,
         verification_status: partner.verification_status || 'Pending',
         documents_verified: partner.documents_verified || false,
-        notes: partner.notes || ''
+        notes: partner.notes || '',
+        vendor_id: partner.vendor_id || ''
       });
     } else {
       setFormData(initialFormData);
@@ -171,6 +173,19 @@ export default function PartnerForm({ partner, isOpen, onClose, onSubmit, mode }
                 placeholder="Enter partner name"
               />
               {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Vendor ID
+              </label>
+              <input
+                type="text"
+                value={formData.vendor_id || ''}
+                onChange={(e) => handleInputChange('vendor_id', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter vendor ID (e.g., BOM-DC-001)"
+              />
             </div>
 
             <div>

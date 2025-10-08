@@ -7,12 +7,14 @@ import {
   PencilIcon,
   TrashIcon,
   UserGroupIcon,
-  PlusIcon
+  PlusIcon,
+  DocumentArrowUpIcon
 } from "@heroicons/react/24/outline";
 import { usePartners } from "@/hooks/usePartners";
 import { useServices } from "@/hooks/useServices";
 import { Partner, PartnerFormData, PARTNER_STATUSES, VERIFICATION_STATUSES } from "@/types/partners";
 import { PartnerForm } from "@/components/partners";
+import { BulkUpdatePartnersModal } from "@/components/admin/BulkUpdatePartnersModal";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { getUserRole, canAccessPartners, UserRole } from "@/utils/roleUtils";
@@ -59,6 +61,7 @@ const PermissionDenied = () => (
 export default function PartnersPage() {
   const [isClient, setIsClient] = useState(false);
   const [showAddPartner, setShowAddPartner] = useState(false);
+  const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
@@ -218,6 +221,12 @@ export default function PartnersPage() {
     }
   }, [updatePartner, selectedPartner]);
 
+  // Handle bulk update success
+  const handleBulkUpdateSuccess = useCallback(() => {
+    fetchPartners();
+    toast.success("Partners updated successfully!");
+  }, [fetchPartners]);
+
   // Bulk operations functions
   const handleSelectPartner = useCallback((partnerId: number, checked: boolean) => {
     setSelectedPartners(prev => {
@@ -368,6 +377,15 @@ export default function PartnersPage() {
               <PlusIcon className="h-4 w-4 mr-2" />
               Add Partner
             </button>
+            
+            <button
+              type="button"
+              onClick={() => setShowBulkUpdateModal(true)}
+              className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              <DocumentArrowUpIcon className="h-4 w-4 mr-2" />
+              Update Partner
+            </button>
           </div>
         </div>
 
@@ -379,7 +397,7 @@ export default function PartnersPage() {
             </div>
             <input
               type="text"
-              placeholder="Search partners..."
+              placeholder="Search by name, vendor_id, location, or service type..."
               value={filters.search || ""}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
@@ -571,6 +589,9 @@ export default function PartnersPage() {
                           Partner
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Vendor ID
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Service
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -593,7 +614,7 @@ export default function PartnersPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {partners.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                          <td colSpan={9} className="px-6 py-4 text-center text-gray-500">
                             {loading ? "Loading partners..." : "No partners found"}
                           </td>
                         </tr>
@@ -621,6 +642,11 @@ export default function PartnersPage() {
                                     {partner.location || `${partner.city || ''} ${partner.state || ''}`.trim() || 'Location not specified'}
                                   </div>
                                 </div>
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4">
+                              <div className="text-sm text-gray-900">
+                                {partner.vendor_id || 'Not assigned'}
                               </div>
                             </td>
                             <td className="whitespace-nowrap px-6 py-4">
@@ -775,6 +801,13 @@ export default function PartnersPage() {
           onClose={() => setSelectedPartner(null)}
           onSubmit={handleUpdatePartner}
           mode="edit"
+        />
+
+        {/* Bulk Update Partners Modal */}
+        <BulkUpdatePartnersModal
+          isOpen={showBulkUpdateModal}
+          onClose={() => setShowBulkUpdateModal(false)}
+          onSuccess={handleBulkUpdateSuccess}
         />
 
         {/* Bulk Delete Confirmation Modal */}

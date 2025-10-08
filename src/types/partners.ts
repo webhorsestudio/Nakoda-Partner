@@ -19,6 +19,7 @@ export interface Partner {
   verification_status: 'Pending' | 'Verified' | 'Rejected';
   documents_verified: boolean;
   notes: string | null;
+  vendor_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -66,6 +67,7 @@ export interface PartnerFormData {
   verification_status: 'Pending' | 'Verified' | 'Rejected';
   documents_verified: boolean;
   notes: string | null;
+  vendor_id: string | null;
 }
 
 export interface PartnerCreateRequest {

@@ -14,7 +14,7 @@ export class PartnerService {
 
       // Apply filters
       if (filters.search) {
-        query = query.or(`name.ilike.%${filters.search}%,service_type.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
+        query = query.or(`name.ilike.%${filters.search}%,service_type.ilike.%${filters.search}%,location.ilike.%${filters.search}%,vendor_id.ilike.%${filters.search}%`);
       }
 
       if (filters.status && filters.status !== "all") {
