@@ -54,9 +54,20 @@ export async function POST(request: NextRequest) {
     
     // Determine call type first
     const formattedCallerNumber = formatPhoneNumber(caller_id_number || '');
+    console.log('🔍 DEBUG: Original caller number:', caller_id_number);
+    console.log('🔍 DEBUG: Formatted caller number:', formattedCallerNumber);
+    console.log('🔍 DEBUG: Called number:', call_to_number);
+    console.log('🔍 DEBUG: DID number:', ACEFONE_CONFIG.DID_NUMBER);
+    
     const isPartnerCall = await findPartnerByPhone(formattedCallerNumber);
+    console.log('🔍 DEBUG: Partner found:', isPartnerCall ? 'YES' : 'NO');
+    if (isPartnerCall) {
+      console.log('🔍 DEBUG: Partner details:', isPartnerCall);
+    }
+    
     // Since we only handle partner-to-customer calls, set call type accordingly
     const callType = isPartnerCall ? CALL_TYPES.PARTNER_TO_CUSTOMER : CALL_TYPES.CUSTOMER_TO_PARTNER;
+    console.log('🔍 DEBUG: Call type determined as:', callType);
     
     // Log the incoming call
     await logIncomingCall({
@@ -68,13 +79,14 @@ export async function POST(request: NextRequest) {
       status: CALL_STATUS.INITIATED,
       call_type: callType,
       partner_phone: '', // Will be updated when we find the destination
-      customer_phone: caller_id_number || '',
+      customer_phone: '', // Will be updated when we find the destination
       partner_id: undefined, // Will be updated when we find the destination
       order_id: undefined // Will be updated when we find the destination
     });
     
     // Determine the destination based on the called number
     const destinationInfo = await determineCallDestination(call_to_number, caller_id_number);
+    console.log('🔍 DEBUG: Destination info:', destinationInfo);
     
     if (!destinationInfo) {
       console.log('❌ No destination found, using failover');
@@ -211,30 +223,39 @@ function formatPhoneNumber(phone: string): string {
   
   console.log('📞 Formatting phone:', phone, '→ cleaned:', cleaned);
   
-  // If it's 10 digits, add 91 (without +)
+  // For partner lookup, we want to use 10-digit format (as stored in database)
+  // Convert any format to 10-digit format for consistent database lookup
   if (cleaned.length === 10) {
-    const formatted = `91${cleaned}`;
-    console.log('📞 10 digits → adding 91:', formatted);
-    return formatted;
-  }
-  
-  // If it already has country code, return as is
-  if (cleaned.startsWith('91') && cleaned.length === 12) {
-    console.log('📞 Already has 91, returning:', cleaned);
+    console.log('📞 10 digits → keeping as is:', cleaned);
     return cleaned;
   }
   
-  // If it already has +91, remove the +
-  if (phone.startsWith('+91')) {
-    const formatted = phone.substring(1);
-    console.log('📞 Removing + from +91:', formatted);
-    return formatted;
+  // If it has country code (91), remove it to get 10-digit format
+  if (cleaned.startsWith('91') && cleaned.length === 12) {
+    const tenDigit = cleaned.substring(2);
+    console.log('📞 12 digits with 91 → removing 91:', tenDigit);
+    return tenDigit;
   }
   
-  // Default: add 91 (without +)
-  const formatted = `91${cleaned}`;
-  console.log('📞 Default formatting:', formatted);
-  return formatted;
+  // If it has +91, remove the + and 91 to get 10-digit format
+  if (phone.startsWith('+91')) {
+    const tenDigit = phone.substring(3);
+    console.log('📞 +91 format → removing +91:', tenDigit);
+    return tenDigit;
+  }
+  
+  // For any other format, try to extract 10 digits
+  if (cleaned.length > 10) {
+    // Take last 10 digits
+    const tenDigit = cleaned.slice(-10);
+    console.log('📞 Long number → taking last 10 digits:', tenDigit);
+    return tenDigit;
+  }
+  
+  // If less than 10 digits, pad with zeros (shouldn't happen in normal cases)
+  const padded = cleaned.padStart(10, '0');
+  console.log('📞 Short number → padding:', padded);
+  return padded;
 }
 
 /**
@@ -262,9 +283,20 @@ function generatePhoneFormats(phone: string): string[] {
     formats.add(`91${cleaned}`);
   }
   
-  // Add without country code (10 digits)
-  if (cleaned.length === 12 && cleaned.startsWith('91')) {
-    formats.add(cleaned.substring(2));
+  // Add 10-digit format (as stored in database) - prioritize this format
+  let tenDigitFormat = '';
+  if (cleaned.length === 10) {
+    tenDigitFormat = cleaned;
+  } else if (cleaned.length === 12 && cleaned.startsWith('91')) {
+    tenDigitFormat = cleaned.substring(2);
+  } else if (phone.startsWith('+91')) {
+    tenDigitFormat = phone.substring(3);
+  } else if (cleaned.length > 10) {
+    tenDigitFormat = cleaned.slice(-10);
+  }
+  
+  if (tenDigitFormat) {
+    formats.add(tenDigitFormat);
   }
   
   // Add without +91 prefix
@@ -296,8 +328,45 @@ async function determineCallDestination(
       return null;
     }
     
-    // Check if this is a call to your DID number
-    if (calledNumber === ACEFONE_CONFIG.DID_NUMBER) {
+    // Check if this is a call to your DID number (handle different formats)
+    const normalizedCalledNumber = calledNumber.replace(/\D/g, '');
+    const normalizedDidNumber = ACEFONE_CONFIG.DID_NUMBER.replace(/\D/g, '');
+    
+    console.log('🔍 DEBUG: Called number:', calledNumber, 'Normalized:', normalizedCalledNumber);
+    console.log('🔍 DEBUG: DID number:', ACEFONE_CONFIG.DID_NUMBER, 'Normalized:', normalizedDidNumber);
+    
+    // Check if the call is to our DID number (handle various formats)
+    // Acefone sends the DID number with 91 prefix, so we need to handle both formats
+    let isCallToDid = false;
+    
+    // Direct match
+    if (normalizedCalledNumber === normalizedDidNumber) {
+      isCallToDid = true;
+    }
+    // Match with 91 prefix
+    else if (normalizedCalledNumber === `91${normalizedDidNumber}`) {
+      isCallToDid = true;
+    }
+    // Match with +91 prefix
+    else if (normalizedCalledNumber === `+91${normalizedDidNumber}`) {
+      isCallToDid = true;
+    }
+    // Match if called number ends with DID number
+    else if (normalizedCalledNumber.endsWith(normalizedDidNumber)) {
+      isCallToDid = true;
+    }
+    // Special case: if called number is "918065343250" and DID is "8065343250" (without leading 0)
+    else if (normalizedCalledNumber === '918065343250' && normalizedDidNumber === '8065343250') {
+      isCallToDid = true;
+    }
+    // Handle legacy case: if called number is "918065343250" and DID is "08065343250" (with leading 0)
+    else if (normalizedCalledNumber === '918065343250' && normalizedDidNumber === '08065343250') {
+      isCallToDid = true;
+    }
+    
+    console.log('🔍 DEBUG: Is call to DID?', isCallToDid);
+    
+    if (isCallToDid) {
       console.log('📞 Call to DID number detected');
       
       // Format the caller number for consistent comparison
@@ -367,6 +436,8 @@ async function findPartnerByPhone(phoneNumber: string) {
         continue;
       }
       
+      console.log(`📞 Format ${format} returned ${partners?.length || 0} partners:`, partners);
+      
       if (partners && partners.length > 0) {
         // Select the best partner (Active > Pending > Suspended)
         let selectedPartner = null;
@@ -387,6 +458,34 @@ async function findPartnerByPhone(phoneNumber: string) {
           console.log('✅ Found partner:', selectedPartner.name, 'with phone:', selectedPartner.mobile, 'status:', selectedPartner.status);
           return selectedPartner;
         }
+      }
+    }
+    
+    // If no exact match found, try a broader search
+    console.log('🔍 No exact match found, trying broader search...');
+    const cleanedPhone = phoneNumber.replace(/\D/g, '');
+    console.log('🔍 Cleaned phone for broader search:', cleanedPhone);
+    
+    // Try to find partners with similar phone numbers
+    const { data: similarPartners, error: similarError } = await supabaseAdmin
+      .from('partners')
+      .select('id, mobile, name, status')
+      .like('mobile', `%${cleanedPhone.slice(-10)}%`); // Search for last 10 digits
+    
+    if (!similarError && similarPartners && similarPartners.length > 0) {
+      console.log('🔍 Found similar partners:', similarPartners);
+      
+      // Find exact match in similar partners
+      const exactMatch = similarPartners.find(p => {
+        const partnerPhone = p.mobile.replace(/\D/g, '');
+        return partnerPhone === cleanedPhone || 
+               partnerPhone === cleanedPhone.slice(-10) ||
+               cleanedPhone === partnerPhone.slice(-10);
+      });
+      
+      if (exactMatch) {
+        console.log('✅ Found exact match in similar partners:', exactMatch);
+        return exactMatch;
       }
     }
     

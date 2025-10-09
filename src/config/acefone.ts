@@ -3,7 +3,7 @@
 
 export const ACEFONE_CONFIG = {
   // Your DID Number for India (this is what customers will call)
-  DID_NUMBER: '08065343250',
+  DID_NUMBER: '8065343250',
   
   // API Dialplan Configuration
   API_DIALPLAN: {
