@@ -59,14 +59,17 @@ export async function POST(request: NextRequest) {
       caller_number: caller_id_number || '',
       called_number: call_to_number || '',
       start_time: start_stamp || new Date().toISOString(),
-      status: CALL_STATUS.INITIATED
+      status: CALL_STATUS.INITIATED,
+      partner_phone: '', // Will be updated when we find the destination
+      customer_phone: caller_id_number || '',
+      partner_id: undefined, // Will be updated when we find the destination
+      order_id: undefined // Will be updated when we find the destination
     });
     
     // Determine the destination based on the called number
-    // For now, we'll use a simple approach - you can enhance this later
-    const destinationNumber = await determineCallDestination(call_to_number, caller_id_number);
+    const destinationInfo = await determineCallDestination(call_to_number, caller_id_number);
     
-    if (!destinationNumber) {
+    if (!destinationInfo) {
       console.log('❌ No destination found, using failover');
       return NextResponse.json([
         {
@@ -77,13 +80,16 @@ export async function POST(request: NextRequest) {
       ]);
     }
     
-    console.log('📞 Routing call to:', destinationNumber);
+    console.log('📞 Routing call to:', destinationInfo.partner_phone);
+    
+    // Update the call log with partner and order information
+    await updateCallLogWithDestination(call_id || '', destinationInfo);
     
     // Create transfer response based on Acefone documentation
     const transferResponse: TransferResponse = {
       transfer: {
         type: ACEFONE_CONFIG.TRANSFER_TYPES.NUMBER,
-        data: [destinationNumber],
+        data: [destinationInfo.partner_phone],
         ring_type: ACEFONE_CONFIG.CALL_SETTINGS.RING_TYPE,
         skip_active: ACEFONE_CONFIG.CALL_SETTINGS.SKIP_ACTIVE,
         disable_call_recording: ACEFONE_CONFIG.CALL_SETTINGS.DISABLE_CALL_RECORDING
@@ -221,7 +227,12 @@ function formatPhoneNumber(phone: string): string {
 async function determineCallDestination(
   calledNumber?: string, 
   callerNumber?: string
-): Promise<string | null> {
+): Promise<{
+  partner_phone: string;
+  partner_id: number;
+  order_id: string;
+  customer_phone: string;
+} | null> {
   try {
     console.log('🔍 Determining call destination:', { calledNumber, callerNumber });
     
@@ -242,21 +253,36 @@ async function determineCallDestination(
       const activeOrder = await findActiveOrderByCustomerPhone(formattedCallerNumber);
       if (activeOrder) {
         console.log('✅ Found active order for customer:', activeOrder.id);
-        return activeOrder.partner_phone;
+        return {
+          partner_phone: activeOrder.partner_phone,
+          partner_id: activeOrder.partner_id,
+          order_id: activeOrder.id,
+          customer_phone: formattedCallerNumber
+        };
       }
       
       // Strategy 2: Look up partner by customer phone in recent orders
       const recentOrder = await findRecentOrderByCustomerPhone(formattedCallerNumber);
       if (recentOrder) {
         console.log('✅ Found recent order for customer:', recentOrder.id);
-        return recentOrder.partner_phone;
+        return {
+          partner_phone: recentOrder.partner_phone,
+          partner_id: recentOrder.partner_id,
+          order_id: recentOrder.id,
+          customer_phone: formattedCallerNumber
+        };
       }
       
       // Strategy 3: Look up partner by customer phone in any order
       const anyOrder = await findAnyOrderByCustomerPhone(formattedCallerNumber);
       if (anyOrder) {
         console.log('✅ Found any order for customer:', anyOrder.id);
-        return anyOrder.partner_phone;
+        return {
+          partner_phone: anyOrder.partner_phone,
+          partner_id: anyOrder.partner_id,
+          order_id: anyOrder.id,
+          customer_phone: formattedCallerNumber
+        };
       }
       
       console.log('❌ No orders found for caller:', formattedCallerNumber);
@@ -308,9 +334,9 @@ async function findActiveOrderByCustomerPhone(customerPhone: string) {
     // Then get the partner details
     const { data: partner, error: partnerError } = await supabaseAdmin
       .from('partners')
-      .select('id, phone, name, status')
+      .select('id, mobile, name, status')
       .eq('id', order.partner_id)
-      .eq('status', 'active')
+      .eq('status', 'Active')
       .single();
 
     if (partnerError || !partner) {
@@ -321,7 +347,7 @@ async function findActiveOrderByCustomerPhone(customerPhone: string) {
     return {
       id: order.id,
       partner_id: order.partner_id,
-      partner_phone: partner.phone,
+      partner_phone: partner.mobile,
       partner_name: partner.name,
       customer_name: order.customer_name,
       status: order.status
@@ -370,9 +396,9 @@ async function findRecentOrderByCustomerPhone(customerPhone: string) {
     // Then get the partner details
     const { data: partner, error: partnerError } = await supabaseAdmin
       .from('partners')
-      .select('id, phone, name, status')
+      .select('id, mobile, name, status')
       .eq('id', order.partner_id)
-      .eq('status', 'active')
+      .eq('status', 'Active')
       .single();
 
     if (partnerError || !partner) {
@@ -383,7 +409,7 @@ async function findRecentOrderByCustomerPhone(customerPhone: string) {
     return {
       id: order.id,
       partner_id: order.partner_id,
-      partner_phone: partner.phone,
+      partner_phone: partner.mobile,
       partner_name: partner.name,
       customer_name: order.customer_name,
       status: order.status,
@@ -429,9 +455,9 @@ async function findAnyOrderByCustomerPhone(customerPhone: string) {
     // Then get the partner details
     const { data: partner, error: partnerError } = await supabaseAdmin
       .from('partners')
-      .select('id, phone, name, status')
+      .select('id, mobile, name, status')
       .eq('id', order.partner_id)
-      .eq('status', 'active')
+      .eq('status', 'Active')
       .single();
 
     if (partnerError || !partner) {
@@ -442,7 +468,7 @@ async function findAnyOrderByCustomerPhone(customerPhone: string) {
     return {
       id: order.id,
       partner_id: order.partner_id,
-      partner_phone: partner.phone,
+      partner_phone: partner.mobile,
       partner_name: partner.name,
       customer_name: order.customer_name,
       status: order.status,
@@ -451,6 +477,39 @@ async function findAnyOrderByCustomerPhone(customerPhone: string) {
   } catch (error) {
     console.error('Error finding any order:', error);
     return null;
+  }
+}
+
+/**
+ * Update call log with destination information
+ */
+async function updateCallLogWithDestination(callId: string, destinationInfo: {
+  partner_phone: string;
+  partner_id: number;
+  order_id: string;
+  customer_phone: string;
+}) {
+  try {
+    const { error } = await supabaseAdmin
+      .from('call_logs')
+      .update({
+        partner_phone: destinationInfo.partner_phone,
+        customer_phone: destinationInfo.customer_phone,
+        partner_id: destinationInfo.partner_id,
+        order_id: destinationInfo.order_id,
+        transfer_destination: destinationInfo.partner_phone,
+        transfer_type: 'number',
+        updated_at: new Date().toISOString()
+      })
+      .eq('call_id', callId);
+    
+    if (error) {
+      console.error('❌ Error updating call log:', error);
+    } else {
+      console.log('✅ Call log updated with destination:', callId);
+    }
+  } catch (error) {
+    console.error('❌ Error in updateCallLogWithDestination:', error);
   }
 }
 
@@ -464,6 +523,10 @@ async function logIncomingCall(callData: {
   called_number: string;
   start_time: string;
   status: string;
+  partner_id?: number;
+  order_id?: string;
+  customer_phone?: string;
+  partner_phone?: string;
 }) {
   try {
     const { error } = await supabaseAdmin
@@ -473,9 +536,14 @@ async function logIncomingCall(callData: {
         uuid: callData.uuid,
         caller_number: callData.caller_number,
         called_number: callData.called_number,
+        partner_phone: callData.partner_phone || '',
+        customer_phone: callData.customer_phone || '',
+        virtual_number: ACEFONE_CONFIG.DID_NUMBER,
         call_type: CALL_TYPES.CUSTOMER_TO_PARTNER,
         status: callData.status,
         start_time: callData.start_time,
+        partner_id: callData.partner_id || undefined,
+        order_id: callData.order_id || undefined,
         created_at: new Date().toISOString()
       });
     
