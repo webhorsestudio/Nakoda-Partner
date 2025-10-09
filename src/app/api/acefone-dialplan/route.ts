@@ -54,10 +54,6 @@ export async function POST(request: NextRequest) {
     
     // Determine call type first
     const formattedCallerNumber = formatPhoneNumber(caller_id_number || '');
-    console.log('🔍 DEBUG: Original caller number:', caller_id_number);
-    console.log('🔍 DEBUG: Formatted caller number:', formattedCallerNumber);
-    console.log('🔍 DEBUG: Called number:', call_to_number);
-    console.log('🔍 DEBUG: DID number:', ACEFONE_CONFIG.DID_NUMBER);
     
     const isPartnerCall = await findPartnerByPhone(formattedCallerNumber);
     console.log('🔍 DEBUG: Partner found:', isPartnerCall ? 'YES' : 'NO');
@@ -73,13 +69,11 @@ export async function POST(request: NextRequest) {
     await logIncomingCall({
       uuid: uuid || '',
       call_id: call_id || '',
-      caller_number: caller_id_number || '',
-      called_number: call_to_number || '',
+      caller_number: caller_id_number || '', // Partner's phone
+      called_number: call_to_number || '', // Initially the DID, will be updated to customer's phone
       start_time: start_stamp || new Date().toISOString(),
       status: CALL_STATUS.INITIATED,
       call_type: callType,
-      partner_phone: '', // Will be updated when we find the destination
-      customer_phone: '', // Will be updated when we find the destination
       partner_id: undefined, // Will be updated when we find the destination
       order_id: undefined // Will be updated when we find the destination
     });
@@ -380,7 +374,7 @@ async function determineCallDestination(
         console.log('📞 Partner calling DID - looking for their active orders');
         // Partner is calling DID - find their active order and route to customer
         const activeOrder = await findActiveOrderByPartnerId(partnerCall.id);
-        if (activeOrder) {
+      if (activeOrder) {
           console.log('✅ Found active order for partner:', activeOrder.id);
           
           // Format customer phone number for transfer (Acefone expects +91 format)
@@ -1001,8 +995,7 @@ async function updateCallLogWithDestination(callId: string, destinationInfo: {
     const { error } = await supabaseAdmin
       .from('call_logs')
       .update({
-        partner_phone: destinationInfo.partner_phone, // Partner's phone (caller)
-        customer_phone: destinationInfo.customer_phone, // Customer's phone (destination)
+        called_number: destinationInfo.customer_phone, // Update called_number to customer's phone
         partner_id: destinationInfo.partner_id,
         order_id: destinationInfo.order_id,
         transfer_destination: destinationInfo.customer_phone, // Transfer to customer
@@ -1032,8 +1025,6 @@ async function logIncomingCall(callData: {
   start_time: string;
   status: string;
   call_type: string;
-  partner_phone: string;
-  customer_phone: string;
   partner_id?: number;
   order_id?: string;
 }) {
@@ -1045,9 +1036,6 @@ async function logIncomingCall(callData: {
         uuid: callData.uuid,
         caller_number: callData.caller_number,
         called_number: callData.called_number,
-        partner_phone: callData.partner_phone || '',
-        customer_phone: callData.customer_phone || '',
-        virtual_number: ACEFONE_CONFIG.DID_NUMBER,
         call_type: callData.call_type,
         status: callData.status,
         start_time: callData.start_time,
