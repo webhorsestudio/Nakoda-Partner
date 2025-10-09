@@ -52,6 +52,11 @@ export async function POST(request: NextRequest) {
       start_stamp
     });
     
+    // Determine call type first
+    const formattedCallerNumber = formatPhoneNumber(caller_id_number || '');
+    const isPartnerCall = await findPartnerByPhone(formattedCallerNumber);
+    const callType = isPartnerCall ? CALL_TYPES.PARTNER_TO_CUSTOMER : CALL_TYPES.CUSTOMER_TO_PARTNER;
+    
     // Log the incoming call
     await logIncomingCall({
       uuid: uuid || '',
@@ -60,6 +65,7 @@ export async function POST(request: NextRequest) {
       called_number: call_to_number || '',
       start_time: start_stamp || new Date().toISOString(),
       status: CALL_STATUS.INITIATED,
+      call_type: callType,
       partner_phone: '', // Will be updated when we find the destination
       customer_phone: caller_id_number || '',
       partner_id: undefined, // Will be updated when we find the destination
@@ -249,6 +255,27 @@ async function determineCallDestination(
       const formattedCallerNumber = formatPhoneNumber(callerNumber);
       console.log('📞 Formatted caller number:', formattedCallerNumber);
       
+      // First, check if the caller is a partner (reverse lookup)
+      const partnerCall = await findPartnerByPhone(formattedCallerNumber);
+      if (partnerCall) {
+        console.log('📞 Partner calling DID - looking for their active orders');
+        // Partner is calling DID - find their active order and route to customer
+        const activeOrder = await findActiveOrderByPartnerId(partnerCall.id);
+        if (activeOrder) {
+          console.log('✅ Found active order for partner:', activeOrder.id);
+          // Route the call to the customer (not back to partner)
+          return {
+            partner_phone: activeOrder.mobile_number || '', // Customer's phone
+            partner_id: partnerCall.id,
+            order_id: activeOrder.id,
+            customer_phone: formattedCallerNumber // Partner's phone (caller)
+          };
+        }
+      }
+      
+      // If not a partner, treat as customer calling
+      console.log('📞 Customer calling DID - looking for their orders');
+      
       // Strategy 1: Look up active order by customer phone number
       const activeOrder = await findActiveOrderByCustomerPhone(formattedCallerNumber);
       if (activeOrder) {
@@ -294,6 +321,92 @@ async function determineCallDestination(
     
   } catch (error) {
     console.error('❌ Error determining call destination:', error);
+    return null;
+  }
+}
+
+/**
+ * Find partner by phone number
+ */
+async function findPartnerByPhone(phoneNumber: string) {
+  try {
+    console.log('🔍 Searching for partner with phone:', phoneNumber);
+    
+    // Try multiple phone number formats
+    const phoneFormats = [
+      phoneNumber,
+      phoneNumber.replace(/^91/, ''),
+      `91${phoneNumber}`,
+      `+91${phoneNumber}`,
+      phoneNumber.replace(/^\+91/, ''),
+      phoneNumber.replace(/^91/, '+91')
+    ];
+    
+    console.log('📞 Trying phone formats:', phoneFormats);
+    
+    const { data: partner, error } = await supabaseAdmin
+      .from('partners')
+      .select('id, mobile, name, status')
+      .in('mobile', phoneFormats)
+      .eq('status', 'Active')
+      .single();
+    
+    if (error) {
+      console.log('❌ Error finding partner:', error.message);
+      return null;
+    }
+    
+    if (partner) {
+      console.log('✅ Found partner:', partner.name, 'with phone:', partner.mobile);
+    } else {
+      console.log('❌ No partner found with phone:', phoneNumber);
+    }
+    
+    return partner;
+  } catch (error) {
+    console.error('❌ Error in findPartnerByPhone:', error);
+    return null;
+  }
+}
+
+/**
+ * Find active order by partner ID
+ */
+async function findActiveOrderByPartnerId(partnerId: number) {
+  try {
+    console.log('🔍 Searching for active order for partner ID:', partnerId);
+    
+    const { data: order, error } = await supabaseAdmin
+      .from('orders')
+      .select(`
+        id,
+        partner_id,
+        mobile_number,
+        customer_name,
+        status,
+        partner_completion_status
+      `)
+      .eq('partner_id', partnerId)
+      .in('status', ['assigned', 'in-progress'])
+      .neq('partner_completion_status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (error) {
+      console.log('❌ Error finding active order for partner:', error.message);
+      return null;
+    }
+    
+    if (order) {
+      console.log('✅ Found active order for partner:', order.id, 'customer:', order.mobile_number);
+    } else {
+      console.log('❌ No active order found for partner:', partnerId);
+    }
+    
+    return order;
+  } catch (error) {
+    console.error('❌ Error in findActiveOrderByPartnerId:', error);
     return null;
   }
 }
@@ -523,10 +636,11 @@ async function logIncomingCall(callData: {
   called_number: string;
   start_time: string;
   status: string;
+  call_type: string;
+  partner_phone: string;
+  customer_phone: string;
   partner_id?: number;
   order_id?: string;
-  customer_phone?: string;
-  partner_phone?: string;
 }) {
   try {
     const { error } = await supabaseAdmin
@@ -539,7 +653,7 @@ async function logIncomingCall(callData: {
         partner_phone: callData.partner_phone || '',
         customer_phone: callData.customer_phone || '',
         virtual_number: ACEFONE_CONFIG.DID_NUMBER,
-        call_type: CALL_TYPES.CUSTOMER_TO_PARTNER,
+        call_type: callData.call_type,
         status: callData.status,
         start_time: callData.start_time,
         partner_id: callData.partner_id || undefined,
