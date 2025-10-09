@@ -44,41 +44,32 @@ export default function OngoingTaskActions({
   const isDisabled = isCompleted || isTaskCompletedStatus || isExpired;
   
   const handleCallNow = () => {
-    if (isDisabled) {
+    if (isDisabled || !customerPhone) {
       return;
     }
     
-    // Get the DID number for calling
-    const didNumber = ACEFONE_CONFIG.DID_NUMBER;
-    
     // Show loading toast while initiating call
-    const loadingToast = toast.loading('Initiating call...', {
+    const loadingToast = toast.loading('Initiating masked call...', {
       duration: 2000,
       icon: '📞',
     });
     
     // Log the call initiation attempt
-    console.log('📞 Call Now initiated:', {
+    console.log('📞 Masked Call Now initiated:', {
       taskId,
       customerPhone,
-      didNumber,
+      didNumber: ACEFONE_CONFIG.DID_NUMBER,
       timestamp: new Date().toISOString()
     });
     
-    // Initiate the call using multiple methods for better compatibility
+    // Initiate the call using DID number for masking
     try {
-      // Method 1: Try tel: link (works on mobile devices)
-      const telLink = `tel:${didNumber}`;
+      // Use DID number for call masking
+      const didNumber = ACEFONE_CONFIG.DID_NUMBER;
       
-      // Method 2: Try creating a temporary link element (works on desktop)
-      const createCallLink = () => {
-        const link = document.createElement('a');
-        link.href = telLink;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      };
+      console.log('📞 Using DID number for call masking:', didNumber);
+      
+      const telLink = `tel:${didNumber}`;
       
       // Try different approaches based on device/browser
       if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
@@ -86,13 +77,18 @@ export default function OngoingTaskActions({
         window.location.href = telLink;
       } else {
         // Desktop - try creating a link element
-        createCallLink();
+        const link = document.createElement('a');
+        link.href = telLink;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
       
       // Dismiss loading toast and show success
       setTimeout(() => {
         toast.dismiss(loadingToast);
-        toast.success('Call initiated! Dialing DID number...', {
+        toast.success(`Calling via masked number: ${didNumber}`, {
           duration: 3000,
           icon: '📞',
         });
@@ -101,12 +97,12 @@ export default function OngoingTaskActions({
     } catch (error) {
       // Dismiss loading toast and show error
       toast.dismiss(loadingToast);
-      toast.error('Failed to initiate call. Please try again.', {
+      toast.error('Failed to initiate masked call. Please try again.', {
         duration: 4000,
         icon: '❌',
       });
       
-      console.error('❌ Error initiating call:', error);
+      console.error('❌ Error initiating masked call:', error);
     }
   };
 
@@ -214,7 +210,7 @@ export default function OngoingTaskActions({
               opacity: isDisabled ? 0.5 : 1
             }}
             disabled={isDisabled}
-            title={isDisabled ? (isExpired ? 'Task has expired' : 'Task is completed') : 'Call DID number to connect with customer'}
+            title={isDisabled ? (isExpired ? 'Task has expired' : 'Task is completed') : 'Call customer via masked number'}
             onMouseEnter={(e) => {
               if (!isDisabled) {
                 e.currentTarget.style.backgroundColor = '#E67300';

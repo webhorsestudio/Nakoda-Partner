@@ -1,76 +1,123 @@
-// Acefone API Dialplan Configuration for Masked Calling
-// Based on: https://docs.acefone.in/docs/api-dialplan
+// Acefone API Configuration
+// This file contains configuration for Acefone API Dialplan integration
 
 export const ACEFONE_CONFIG = {
-  // Your DID Number for India (this is what customers will call)
-  DID_NUMBER: '8065343250',
+  // API Credentials
+  API_TOKEN: process.env.ACEFONE_API_TOKEN || '',
+  USERNAME: process.env.ACEFONE_USERNAME || '',
+  PASSWORD: process.env.ACEFONE_PASSWORD || '',
   
-  // API Dialplan Configuration
-  API_DIALPLAN: {
-    // Your endpoint that Acefone will call when someone dials your DID
-    WEBHOOK_URL: (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000') + '/api/acefone-dialplan',
-    
-    // Request method (GET or POST)
-    REQUEST_METHOD: 'POST',
-    
-    // Failover destination (what happens if your API fails)
-    FAILOVER_DESTINATION: 'voicemail', // or 'hangup', 'ivr', etc.
-  },
+  // DID Number Configuration
+  DID_NUMBER: '8065343250', // Your DID number from Acefone
   
-  // Call Settings
-  CALL_SETTINGS: {
-    // Ring strategy for transfers
-    RING_TYPE: 'order_by', // 'order_by' or 'simultaneous'
-    
-    // Skip active agents (don't ring busy agents)
-    SKIP_ACTIVE: true,
-    
-    // Music on hold ID (optional)
-    MUSIC_ON_HOLD: null, // Set to recording ID if you have MOH
-    
-    // Call timeout in seconds
-    CALL_TIMEOUT: 30,
-    
-    // Disable call recording for specific calls (optional)
-    DISABLE_CALL_RECORDING: false,
-  },
+  // API Endpoints
+  BASE_URL: 'https://console.acefone.in',
+  WEBHOOK_URL: process.env.NEXT_PUBLIC_BASE_URL + '/api/acefone-dialplan',
+  
+  // Call Configuration
+  RING_TYPE: 'order_by', // Ring strategy for transfers
+  SKIP_ACTIVE: false, // Whether to skip active agents
+  CALL_TIMEOUT: 30000, // 30 seconds timeout
   
   // Transfer Types
   TRANSFER_TYPES: {
-    NUMBER: 'number',        // Transfer to phone number
-    AGENT: 'agent',          // Transfer to agent ID
-    EXTENSION: 'extension',   // Transfer to agent extension
-    IVR: 'ivr',              // Transfer to IVR
-    AUTO_ATTENDANT: 'auto_attendant', // Transfer to auto-attendant
-    DEPARTMENT: 'department'  // Transfer to department
+    NUMBER: 'number',
+    AGENT: 'agent',
+    IVR: 'ivr',
+    AUTO_ATTENDANT: 'auto_attendant',
+    DEPARTMENT: 'department'
   },
   
-  // Ring Types
-  RING_TYPES: {
-    ORDER_BY: 'order_by',      // Ring agents one by one
-    SIMULTANEOUS: 'simultaneous' // Ring all agents at once
+  // Call Types
+  CALL_TYPES: {
+    PARTNER_TO_CUSTOMER: 'partner_to_customer',
+    CUSTOMER_TO_PARTNER: 'customer_to_partner',
+    SUPPORT_CALL: 'support_call',
+    DELIVERY_CALL: 'delivery_call'
+  },
+  
+  // Call Status
+  CALL_STATUS: {
+    INITIATED: 'initiated',
+    RINGING: 'ringing',
+    CONNECTED: 'connected',
+    FAILED: 'failed',
+    COMPLETED: 'completed',
+    BUSY: 'busy',
+    NO_ANSWER: 'no_answer',
+    CANCELLED: 'cancelled'
+  },
+  
+  // Call Quality
+  CALL_QUALITY: {
+    EXCELLENT: 'excellent',
+    GOOD: 'good',
+    FAIR: 'fair',
+    POOR: 'poor',
+    UNKNOWN: 'unknown'
   }
 } as const;
 
-// Call status tracking
-export const CALL_STATUS = {
-  INITIATED: 'initiated',
-  RINGING: 'ringing', 
-  CONNECTED: 'connected',
-  FAILED: 'failed',
-  COMPLETED: 'completed',
-  BUSY: 'busy',
-  NO_ANSWER: 'no_answer',
-  CANCELLED: 'cancelled'
-} as const;
+// Validation function to check if all required credentials are present
+export const validateAcefoneConfig = (): boolean => {
+  const required = [
+    ACEFONE_CONFIG.API_TOKEN,
+    ACEFONE_CONFIG.USERNAME,
+    ACEFONE_CONFIG.PASSWORD,
+    ACEFONE_CONFIG.DID_NUMBER
+  ];
+  
+  return required.every(value => value && value.trim() !== '');
+};
 
-// Call types for different scenarios
-export const CALL_TYPES = {
-  PARTNER_TO_CUSTOMER: 'partner_to_customer',
-  CUSTOMER_TO_PARTNER: 'customer_to_partner',
-  SUPPORT_CALL: 'support_call',
-  DELIVERY_CALL: 'delivery_call'
-} as const;
+// Helper function to format phone numbers for Acefone API
+export const formatPhoneForAcefone = (phoneNumber: string): string => {
+  // Remove all non-digit characters
+  let cleaned = phoneNumber.replace(/\D/g, '');
+  
+  // Remove country code if present
+  if (cleaned.startsWith('91') && cleaned.length === 12) {
+    cleaned = cleaned.substring(2);
+  }
+  
+  // Ensure exactly 10 digits
+  if (cleaned.length === 10) {
+    return cleaned;
+  }
+  
+  // Take last 10 digits if longer
+  if (cleaned.length > 10) {
+    return cleaned.slice(-10);
+  }
+  
+  throw new Error(`Invalid phone number format: ${phoneNumber}`);
+};
 
-export type CallStatus = typeof CALL_STATUS[keyof typeof CALL_STATUS];
-export type CallType = typeof CALL_TYPES[keyof typeof CALL_TYPES];
+// Helper function to generate phone number formats for database lookup
+export const generatePhoneFormats = (phoneNumber: string): string[] => {
+  const cleaned = phoneNumber.replace(/\D/g, '');
+  const formats: string[] = [];
+  
+  // Add original format
+  formats.push(cleaned);
+  
+  // Add 10-digit format (remove country code)
+  if (cleaned.startsWith('91') && cleaned.length === 12) {
+    formats.push(cleaned.substring(2));
+  }
+  
+  // Add with country code
+  if (cleaned.length === 10) {
+    formats.push(`91${cleaned}`);
+    formats.push(`+91${cleaned}`);
+  }
+  
+  // Add with + prefix
+  if (!cleaned.startsWith('+')) {
+    formats.push(`+${cleaned}`);
+  }
+  
+  return [...new Set(formats)]; // Remove duplicates
+};
+
+export default ACEFONE_CONFIG;
