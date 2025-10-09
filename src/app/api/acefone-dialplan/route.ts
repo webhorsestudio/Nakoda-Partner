@@ -377,13 +377,20 @@ async function determineCallDestination(
       if (activeOrder) {
           console.log('✅ Found active order for partner:', activeOrder.id);
           
-          // Format customer phone number for transfer (Acefone expects +91 format)
+          // Format customer phone number for transfer (Acefone expects 10-digit format)
           const customerPhone = activeOrder.mobile_number || '';
-          const formattedCustomerPhone = customerPhone.startsWith('+91') ? customerPhone : 
-                                        customerPhone.startsWith('91') ? `+${customerPhone}` :
-                                        `+91${customerPhone}`;
+          let formattedCustomerPhone = customerPhone;
           
-          console.log('📞 Customer phone:', customerPhone, '→ Formatted:', formattedCustomerPhone);
+          // Convert to 10-digit format as required by Acefone
+          if (customerPhone.startsWith('+91')) {
+            formattedCustomerPhone = customerPhone.substring(3); // Remove +91
+          } else if (customerPhone.startsWith('91') && customerPhone.length === 12) {
+            formattedCustomerPhone = customerPhone.substring(2); // Remove 91
+          } else if (customerPhone.length > 10) {
+            formattedCustomerPhone = customerPhone.slice(-10); // Take last 10 digits
+          }
+          
+          console.log('📞 Customer phone:', customerPhone, '→ Formatted (10-digit):', formattedCustomerPhone);
           
           // Route the call to the customer (not back to partner)
           return {
