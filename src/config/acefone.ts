@@ -12,7 +12,7 @@ export const ACEFONE_CONFIG = {
   
   // API Endpoints
   BASE_URL: 'https://console.acefone.in',
-  WEBHOOK_URL: process.env.NEXT_PUBLIC_BASE_URL + '/api/acefone-dialplan',
+  WEBHOOK_URL: (process.env.NEXT_PUBLIC_BASE_URL || 'https://nakoda-partner.vercel.app') + '/api/acefone-dialplan',
   
   // Call Configuration
   RING_TYPE: 'order_by', // Ring strategy for transfers
