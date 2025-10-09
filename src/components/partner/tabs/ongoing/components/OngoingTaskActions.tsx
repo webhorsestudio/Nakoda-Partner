@@ -43,7 +43,7 @@ export default function OngoingTaskActions({
   // Disable buttons if task is completed via timer OR database status OR expired
   const isDisabled = isCompleted || isTaskCompletedStatus || isExpired;
   
-  const handleCallNow = () => {
+  const handleCallNow = async () => {
     if (isDisabled || !customerPhone) {
       return;
     }
@@ -76,23 +76,28 @@ export default function OngoingTaskActions({
       timestamp: new Date().toISOString()
     });
     
-    // Initiate the call using DID number for masking
+    // Call via DID number for true call masking (privacy protection)
     try {
-      // Use DID number for call masking
+      // Use DID number for call masking - both parties see only DID number
       const didNumber = ACEFONE_CONFIG.DID_NUMBER;
+      const didTelLink = `tel:${didNumber}`;
       
-      console.log('📞 Using DID number for call masking:', didNumber);
-      
-      const telLink = `tel:${didNumber}`;
+      console.log('📞 Initiating masked call via DID:', {
+        didNumber: didNumber,
+        customerPhone: formattedCustomerPhone, // Hidden from partner
+        originalCustomerPhone: customerPhone,
+        telLink: didTelLink,
+        note: 'True call masking - both parties see only DID number'
+      });
       
       // Try different approaches based on device/browser
       if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
         // Mobile device - use tel: link
-        window.location.href = telLink;
+        window.location.href = didTelLink;
       } else {
         // Desktop - try creating a link element
         const link = document.createElement('a');
-        link.href = telLink;
+        link.href = didTelLink;
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
@@ -111,12 +116,12 @@ export default function OngoingTaskActions({
     } catch (error) {
       // Dismiss loading toast and show error
       toast.dismiss(loadingToast);
-      toast.error('Failed to initiate masked call. Please try again.', {
+        toast.error('Failed to initiate call. Please try again.', {
         duration: 4000,
         icon: '❌',
       });
       
-      console.error('❌ Error initiating masked call:', error);
+      console.error('❌ Error initiating call:', error);
     }
   };
 
@@ -224,7 +229,7 @@ export default function OngoingTaskActions({
               opacity: isDisabled ? 0.5 : 1
             }}
             disabled={isDisabled}
-            title={isDisabled ? (isExpired ? 'Task has expired' : 'Task is completed') : 'Call customer via masked number'}
+            title={isDisabled ? (isExpired ? 'Task has expired' : 'Task is completed') : 'Call via masked number (privacy protected)'}
             onMouseEnter={(e) => {
               if (!isDisabled) {
                 e.currentTarget.style.backgroundColor = '#E67300';
