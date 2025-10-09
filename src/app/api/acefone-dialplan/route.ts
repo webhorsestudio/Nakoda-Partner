@@ -208,23 +208,71 @@ function formatPhoneNumber(phone: string): string {
   // Remove any non-digit characters
   const cleaned = phone.replace(/\D/g, '');
   
+  console.log('📞 Formatting phone:', phone, '→ cleaned:', cleaned);
+  
   // If it's 10 digits, add 91 (without +)
   if (cleaned.length === 10) {
-    return `91${cleaned}`;
+    const formatted = `91${cleaned}`;
+    console.log('📞 10 digits → adding 91:', formatted);
+    return formatted;
   }
   
   // If it already has country code, return as is
   if (cleaned.startsWith('91') && cleaned.length === 12) {
+    console.log('📞 Already has 91, returning:', cleaned);
     return cleaned;
   }
   
   // If it already has +91, remove the +
   if (phone.startsWith('+91')) {
-    return phone.substring(1);
+    const formatted = phone.substring(1);
+    console.log('📞 Removing + from +91:', formatted);
+    return formatted;
   }
   
   // Default: add 91 (without +)
-  return `91${cleaned}`;
+  const formatted = `91${cleaned}`;
+  console.log('📞 Default formatting:', formatted);
+  return formatted;
+}
+
+/**
+ * Generate multiple phone number formats for database matching
+ */
+function generatePhoneFormats(phone: string): string[] {
+  if (!phone) return [];
+  
+  const cleaned = phone.replace(/\D/g, '');
+  const formats = new Set<string>();
+  
+  // Add original phone
+  formats.add(phone);
+  
+  // Add cleaned version
+  formats.add(cleaned);
+  
+  // Add with +91 prefix
+  if (!phone.startsWith('+91')) {
+    formats.add(`+91${cleaned}`);
+  }
+  
+  // Add with 91 prefix (no +)
+  if (!cleaned.startsWith('91')) {
+    formats.add(`91${cleaned}`);
+  }
+  
+  // Add without country code (10 digits)
+  if (cleaned.length === 12 && cleaned.startsWith('91')) {
+    formats.add(cleaned.substring(2));
+  }
+  
+  // Add without +91 prefix
+  if (phone.startsWith('+91')) {
+    formats.add(phone.substring(1));
+  }
+  
+  console.log('📞 Generated phone formats:', Array.from(formats));
+  return Array.from(formats);
 }
 
 /**
@@ -332,15 +380,8 @@ async function findPartnerByPhone(phoneNumber: string) {
   try {
     console.log('🔍 Searching for partner with phone:', phoneNumber);
     
-    // Try multiple phone number formats
-    const phoneFormats = [
-      phoneNumber,
-      phoneNumber.replace(/^91/, ''),
-      `91${phoneNumber}`,
-      `+91${phoneNumber}`,
-      phoneNumber.replace(/^\+91/, ''),
-      phoneNumber.replace(/^91/, '+91')
-    ];
+    // Generate multiple phone number formats
+    const phoneFormats = generatePhoneFormats(phoneNumber);
     
     console.log('📞 Trying phone formats:', phoneFormats);
     
@@ -416,6 +457,13 @@ async function findActiveOrderByPartnerId(partnerId: number) {
  */
 async function findActiveOrderByCustomerPhone(customerPhone: string) {
   try {
+    console.log('🔍 Searching for active order with customer phone:', customerPhone);
+    
+    // Generate multiple phone number formats
+    const phoneFormats = generatePhoneFormats(customerPhone);
+    
+    console.log('📞 Trying customer phone formats:', phoneFormats);
+    
     // First, get the order
     const { data: order, error } = await supabaseAdmin
       .from('orders')
@@ -427,7 +475,7 @@ async function findActiveOrderByCustomerPhone(customerPhone: string) {
         status,
         partner_completion_status
       `)
-      .eq('mobile_number', customerPhone)
+      .in('mobile_number', phoneFormats)
       .in('status', ['assigned', 'in-progress'])
       .neq('partner_completion_status', 'completed')
       .order('created_at', { ascending: false })
@@ -476,6 +524,13 @@ async function findActiveOrderByCustomerPhone(customerPhone: string) {
  */
 async function findRecentOrderByCustomerPhone(customerPhone: string) {
   try {
+    console.log('🔍 Searching for recent order with customer phone:', customerPhone);
+    
+    // Generate multiple phone number formats
+    const phoneFormats = generatePhoneFormats(customerPhone);
+    
+    console.log('📞 Trying customer phone formats:', phoneFormats);
+    
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
@@ -490,7 +545,7 @@ async function findRecentOrderByCustomerPhone(customerPhone: string) {
         status,
         created_at
       `)
-      .eq('mobile_number', customerPhone)
+      .in('mobile_number', phoneFormats)
       .gte('created_at', sevenDaysAgo.toISOString())
       .order('created_at', { ascending: false })
       .limit(1)
@@ -539,6 +594,13 @@ async function findRecentOrderByCustomerPhone(customerPhone: string) {
  */
 async function findAnyOrderByCustomerPhone(customerPhone: string) {
   try {
+    console.log('🔍 Searching for any order with customer phone:', customerPhone);
+    
+    // Generate multiple phone number formats
+    const phoneFormats = generatePhoneFormats(customerPhone);
+    
+    console.log('📞 Trying customer phone formats:', phoneFormats);
+    
     // First, get the order
     const { data: order, error } = await supabaseAdmin
       .from('orders')
@@ -550,7 +612,7 @@ async function findAnyOrderByCustomerPhone(customerPhone: string) {
         status,
         created_at
       `)
-      .eq('mobile_number', customerPhone)
+      .in('mobile_number', phoneFormats)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
