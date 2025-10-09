@@ -48,6 +48,19 @@ export default function OngoingTaskActions({
       return;
     }
     
+    // Format customer phone to 10 digits (remove country code for India)
+    let formattedCustomerPhone = customerPhone;
+    if (customerPhone.startsWith('+91') && customerPhone.length === 13) {
+      // +917506873720 -> 7506873720
+      formattedCustomerPhone = customerPhone.substring(3);
+    } else if (customerPhone.startsWith('91') && customerPhone.length === 12) {
+      // 917506873720 -> 7506873720
+      formattedCustomerPhone = customerPhone.substring(2);
+    } else if (customerPhone.length > 10) {
+      // Take last 10 digits for any other long numbers
+      formattedCustomerPhone = customerPhone.slice(-10);
+    }
+    
     // Show loading toast while initiating call
     const loadingToast = toast.loading('Initiating masked call...', {
       duration: 2000,
@@ -57,7 +70,8 @@ export default function OngoingTaskActions({
     // Log the call initiation attempt
     console.log('📞 Masked Call Now initiated:', {
       taskId,
-      customerPhone,
+      customerPhone: formattedCustomerPhone, // Use formatted phone
+      originalCustomerPhone: customerPhone, // Keep original for reference
       didNumber: ACEFONE_CONFIG.DID_NUMBER,
       timestamp: new Date().toISOString()
     });
