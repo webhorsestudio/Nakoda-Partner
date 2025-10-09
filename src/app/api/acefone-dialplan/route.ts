@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       ]);
     }
     
-    console.log('📞 Routing call to:', destinationInfo.partner_phone);
+    console.log('📞 Routing call to customer:', destinationInfo.customer_phone);
     
     // Update the call log with partner and order information
     await updateCallLogWithDestination(call_id || '', destinationInfo);
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     const transferResponse: TransferResponse = {
       transfer: {
         type: ACEFONE_CONFIG.TRANSFER_TYPES.NUMBER,
-        data: [destinationInfo.partner_phone],
+        data: [destinationInfo.customer_phone], // Transfer to customer's phone
         ring_type: ACEFONE_CONFIG.CALL_SETTINGS.RING_TYPE,
         skip_active: ACEFONE_CONFIG.CALL_SETTINGS.SKIP_ACTIVE,
         disable_call_recording: ACEFONE_CONFIG.CALL_SETTINGS.DISABLE_CALL_RECORDING
@@ -382,12 +382,21 @@ async function determineCallDestination(
         const activeOrder = await findActiveOrderByPartnerId(partnerCall.id);
         if (activeOrder) {
           console.log('✅ Found active order for partner:', activeOrder.id);
+          
+          // Format customer phone number for transfer (Acefone expects +91 format)
+          const customerPhone = activeOrder.mobile_number || '';
+          const formattedCustomerPhone = customerPhone.startsWith('+91') ? customerPhone : 
+                                        customerPhone.startsWith('91') ? `+${customerPhone}` :
+                                        `+91${customerPhone}`;
+          
+          console.log('📞 Customer phone:', customerPhone, '→ Formatted:', formattedCustomerPhone);
+          
           // Route the call to the customer (not back to partner)
           return {
-            partner_phone: activeOrder.mobile_number || '', // Customer's phone
+            partner_phone: formattedCallerNumber, // Partner's phone (the caller)
             partner_id: partnerCall.id,
             order_id: activeOrder.id,
-            customer_phone: formattedCallerNumber // Partner's phone (caller)
+            customer_phone: formattedCustomerPhone // Customer's phone (formatted for transfer)
           };
         } else {
           console.log('❌ No active order found for partner:', partnerCall.id);
@@ -535,7 +544,7 @@ async function findActiveOrderByPartnerId(partnerId: number) {
       console.log('❌ No active orders found for partner:', partnerId);
       return null;
     }
-    
+
     console.log(`📋 Found ${orders.length} active orders for partner ${partnerId}`);
     
     // If only one order, return it
@@ -797,26 +806,26 @@ async function findActiveOrderByCustomerPhone(customerPhone: string) {
         console.log(`✅ Found active order with customer phone format ${format}:`, order.id);
         
         // Get partner details
-        const { data: partner, error: partnerError } = await supabaseAdmin
-          .from('partners')
+    const { data: partner, error: partnerError } = await supabaseAdmin
+      .from('partners')
           .select('id, mobile, name, status')
-          .eq('id', order.partner_id)
+      .eq('id', order.partner_id)
           .eq('status', 'Active')
-          .single();
+      .single();
 
-        if (partnerError || !partner) {
-          console.error('Error finding partner or partner not active:', partnerError);
+    if (partnerError || !partner) {
+      console.error('Error finding partner or partner not active:', partnerError);
           continue; // Try next format
-        }
-        
-        return {
-          id: order.id,
-          partner_id: order.partner_id,
+    }
+    
+    return {
+      id: order.id,
+      partner_id: order.partner_id,
           partner_phone: partner.mobile,
-          partner_name: partner.name,
-          customer_name: order.customer_name,
-          status: order.status
-        };
+      partner_name: partner.name,
+      customer_name: order.customer_name,
+      status: order.status
+    };
       }
     }
     
@@ -849,21 +858,21 @@ async function findRecentOrderByCustomerPhone(customerPhone: string) {
       console.log(`🔍 Trying recent order customer phone format: ${format}`);
       
       const { data: orders, error } = await supabaseAdmin
-        .from('orders')
-        .select(`
-          id,
-          partner_id,
-          mobile_number,
-          customer_name,
-          status,
-          created_at
-        `)
+      .from('orders')
+      .select(`
+        id,
+        partner_id,
+        mobile_number,
+        customer_name,
+        status,
+        created_at
+      `)
         .eq('mobile_number', format)
-        .gte('created_at', sevenDaysAgo.toISOString())
-        .order('created_at', { ascending: false })
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .order('created_at', { ascending: false })
         .limit(1);
-      
-      if (error) {
+    
+    if (error) {
         console.log(`❌ Error with recent order customer phone format ${format}:`, error.message);
         continue;
       }
@@ -873,27 +882,27 @@ async function findRecentOrderByCustomerPhone(customerPhone: string) {
         console.log(`✅ Found recent order with customer phone format ${format}:`, order.id);
         
         // Get partner details
-        const { data: partner, error: partnerError } = await supabaseAdmin
-          .from('partners')
+    const { data: partner, error: partnerError } = await supabaseAdmin
+      .from('partners')
           .select('id, mobile, name, status')
-          .eq('id', order.partner_id)
+      .eq('id', order.partner_id)
           .eq('status', 'Active')
-          .single();
+      .single();
 
-        if (partnerError || !partner) {
-          console.error('Error finding partner or partner not active:', partnerError);
+    if (partnerError || !partner) {
+      console.error('Error finding partner or partner not active:', partnerError);
           continue; // Try next format
-        }
-        
-        return {
-          id: order.id,
-          partner_id: order.partner_id,
+    }
+    
+    return {
+      id: order.id,
+      partner_id: order.partner_id,
           partner_phone: partner.mobile,
-          partner_name: partner.name,
-          customer_name: order.customer_name,
-          status: order.status,
-          created_at: order.created_at
-        };
+      partner_name: partner.name,
+      customer_name: order.customer_name,
+      status: order.status,
+      created_at: order.created_at
+    };
       }
     }
     
@@ -923,20 +932,20 @@ async function findAnyOrderByCustomerPhone(customerPhone: string) {
       console.log(`🔍 Trying any order customer phone format: ${format}`);
       
       const { data: orders, error } = await supabaseAdmin
-        .from('orders')
-        .select(`
-          id,
-          partner_id,
-          mobile_number,
-          customer_name,
-          status,
-          created_at
-        `)
+      .from('orders')
+      .select(`
+        id,
+        partner_id,
+        mobile_number,
+        customer_name,
+        status,
+        created_at
+      `)
         .eq('mobile_number', format)
-        .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false })
         .limit(1);
-      
-      if (error) {
+    
+    if (error) {
         console.log(`❌ Error with any order customer phone format ${format}:`, error.message);
         continue;
       }
@@ -946,27 +955,27 @@ async function findAnyOrderByCustomerPhone(customerPhone: string) {
         console.log(`✅ Found any order with customer phone format ${format}:`, order.id);
         
         // Get partner details
-        const { data: partner, error: partnerError } = await supabaseAdmin
-          .from('partners')
+    const { data: partner, error: partnerError } = await supabaseAdmin
+      .from('partners')
           .select('id, mobile, name, status')
-          .eq('id', order.partner_id)
+      .eq('id', order.partner_id)
           .eq('status', 'Active')
-          .single();
+      .single();
 
-        if (partnerError || !partner) {
-          console.error('Error finding partner or partner not active:', partnerError);
+    if (partnerError || !partner) {
+      console.error('Error finding partner or partner not active:', partnerError);
           continue; // Try next format
-        }
-        
-        return {
-          id: order.id,
-          partner_id: order.partner_id,
+    }
+    
+    return {
+      id: order.id,
+      partner_id: order.partner_id,
           partner_phone: partner.mobile,
-          partner_name: partner.name,
-          customer_name: order.customer_name,
-          status: order.status,
-          created_at: order.created_at
-        };
+      partner_name: partner.name,
+      customer_name: order.customer_name,
+      status: order.status,
+      created_at: order.created_at
+    };
       }
     }
     
@@ -992,11 +1001,11 @@ async function updateCallLogWithDestination(callId: string, destinationInfo: {
     const { error } = await supabaseAdmin
       .from('call_logs')
       .update({
-        partner_phone: destinationInfo.partner_phone,
-        customer_phone: destinationInfo.customer_phone,
+        partner_phone: destinationInfo.partner_phone, // Partner's phone (caller)
+        customer_phone: destinationInfo.customer_phone, // Customer's phone (destination)
         partner_id: destinationInfo.partner_id,
         order_id: destinationInfo.order_id,
-        transfer_destination: destinationInfo.partner_phone,
+        transfer_destination: destinationInfo.customer_phone, // Transfer to customer
         transfer_type: 'number',
         updated_at: new Date().toISOString()
       })
