@@ -78,6 +78,82 @@ async function logIncomingCall(request: AcefoneWebhookRequest): Promise<string> 
   }
 }
 
+// Helper function to find customer by phone number
+async function findCustomerByPhone(phoneNumber: string) {
+  try {
+    const phoneFormats = generatePhoneFormats(phoneNumber);
+    console.log('🔍 Searching for customer with phone formats:', phoneFormats);
+
+    // Try exact matches first
+    for (const format of phoneFormats) {
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('id, order_number, mobile_number, customer_name, partner_id')
+        .eq('mobile_number', format)
+        .in('status', ['assigned', 'in_progress'])
+        .limit(1);
+
+      if (error) {
+        console.error('❌ Error searching orders:', error);
+        continue;
+      }
+
+      if (orders && orders.length > 0) {
+        const order = orders[0];
+        console.log('✅ Found customer order:', order);
+        return {
+          id: order.id,
+          name: order.customer_name,
+          mobile_number: order.mobile_number,
+          order_id: order.id,
+          order_number: order.order_number,
+          partner_id: order.partner_id
+        };
+      }
+    }
+
+    console.log('❌ No customer found for phone:', phoneNumber);
+    return null;
+  } catch (error) {
+    console.error('❌ Error in findCustomerByPhone:', error);
+    return null;
+  }
+}
+
+// Helper function to find partner for customer
+async function findPartnerForCustomer(customerId: string) {
+  try {
+    const { data: order, error } = await supabase
+      .from('orders')
+      .select('partner_id')
+      .eq('id', customerId)
+      .single();
+
+    if (error || !order || !order.partner_id) {
+      console.error('❌ Error finding partner for customer:', error);
+      return null;
+    }
+
+    const { data: partner, error: partnerError } = await supabase
+      .from('partners')
+      .select('id, name, mobile, status')
+      .eq('id', order.partner_id)
+      .eq('status', 'active')
+      .single();
+
+    if (partnerError || !partner) {
+      console.error('❌ Error fetching partner:', partnerError);
+      return null;
+    }
+
+    console.log('✅ Found partner for customer:', partner);
+    return partner;
+  } catch (error) {
+    console.error('❌ Error in findPartnerForCustomer:', error);
+    return null;
+  }
+}
+
 // Helper function to find partner by phone number
 async function findPartnerByPhone(phoneNumber: string) {
   try {
@@ -220,7 +296,11 @@ function selectBestOrderToCall(orders: Array<{
 // Helper function to determine call destination
 async function determineCallDestination(request: AcefoneWebhookRequest) {
   try {
-    console.log('🎯 Determining call destination for:', request.caller_id_number);
+    console.log('🎯 Determining call destination for DID call:', {
+      call_to_number: request.call_to_number,
+      caller_id_number: request.caller_id_number,
+      uuid: request.uuid
+    });
 
     // Check if this is a call to our DID number
     const normalizedCalledNumber = request.call_to_number.replace(/\D/g, '');
@@ -236,7 +316,7 @@ async function determineCallDestination(request: AcefoneWebhookRequest) {
       return null;
     }
 
-    // Find the partner
+    // Find the partner who is calling the DID
     const partner = await findPartnerByPhone(request.caller_id_number);
     if (!partner) {
       console.log('❌ Partner not found for caller:', request.caller_id_number);
@@ -257,20 +337,17 @@ async function determineCallDestination(request: AcefoneWebhookRequest) {
       return null;
     }
 
-    // Format customer phone number for Acefone
-    const customerPhone = formatPhoneForAcefone(selectedOrder.mobile_number);
-
     console.log('✅ Call destination determined:', {
       partner: partner.name,
       customer: selectedOrder.customer_name,
-      customerPhone,
+      customerPhone: selectedOrder.mobile_number,
       orderNumber: selectedOrder.order_number
     });
 
     return {
       partner_id: partner.id,
-      partner_phone: request.caller_id_number,
-      customer_phone: customerPhone,
+      partner_phone: partner.mobile,
+      customer_phone: selectedOrder.mobile_number,
       order_id: selectedOrder.id,
       order_number: selectedOrder.order_number,
       customer_name: selectedOrder.customer_name,
@@ -362,14 +439,14 @@ export async function POST(request: NextRequest) {
     // Update call log with destination info
     await updateCallLogWithDestination(callLogId, destinationInfo);
 
-    // Format customer phone for Acefone transfer
+    // Format customer phone for Acefone transfer (partner calls DID, route to customer)
     const transferPhone = formatPhoneForAcefone(destinationInfo.customer_phone);
 
     // Create Acefone response
     const acefoneResponse: AcefoneResponse[] = [{
       transfer: {
         type: ACEFONE_CONFIG.TRANSFER_TYPES.NUMBER,
-        data: [transferPhone],
+        data: [transferPhone], // Transfer to customer
         ring_type: ACEFONE_CONFIG.RING_TYPE,
         skip_active: ACEFONE_CONFIG.SKIP_ACTIVE
       }
