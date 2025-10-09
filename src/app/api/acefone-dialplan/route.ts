@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
     // Determine call type first
     const formattedCallerNumber = formatPhoneNumber(caller_id_number || '');
     const isPartnerCall = await findPartnerByPhone(formattedCallerNumber);
+    // Since we only handle partner-to-customer calls, set call type accordingly
     const callType = isPartnerCall ? CALL_TYPES.PARTNER_TO_CUSTOMER : CALL_TYPES.CUSTOMER_TO_PARTNER;
     
     // Log the incoming call
@@ -303,7 +304,8 @@ async function determineCallDestination(
       const formattedCallerNumber = formatPhoneNumber(callerNumber);
       console.log('📞 Formatted caller number:', formattedCallerNumber);
       
-      // First, check if the caller is a partner (reverse lookup)
+      // ONLY handle partner-to-customer calls
+      // Partner calls DID → Route to customer
       const partnerCall = await findPartnerByPhone(formattedCallerNumber);
       if (partnerCall) {
         console.log('📞 Partner calling DID - looking for their active orders');
@@ -318,49 +320,14 @@ async function determineCallDestination(
             order_id: activeOrder.id,
             customer_phone: formattedCallerNumber // Partner's phone (caller)
           };
+        } else {
+          console.log('❌ No active order found for partner:', partnerCall.id);
+          return null;
         }
       }
       
-      // If not a partner, treat as customer calling
-      console.log('📞 Customer calling DID - looking for their orders');
-      
-      // Strategy 1: Look up active order by customer phone number
-      const activeOrder = await findActiveOrderByCustomerPhone(formattedCallerNumber);
-      if (activeOrder) {
-        console.log('✅ Found active order for customer:', activeOrder.id);
-        return {
-          partner_phone: activeOrder.partner_phone,
-          partner_id: activeOrder.partner_id,
-          order_id: activeOrder.id,
-          customer_phone: formattedCallerNumber
-        };
-      }
-      
-      // Strategy 2: Look up partner by customer phone in recent orders
-      const recentOrder = await findRecentOrderByCustomerPhone(formattedCallerNumber);
-      if (recentOrder) {
-        console.log('✅ Found recent order for customer:', recentOrder.id);
-        return {
-          partner_phone: recentOrder.partner_phone,
-          partner_id: recentOrder.partner_id,
-          order_id: recentOrder.id,
-          customer_phone: formattedCallerNumber
-        };
-      }
-      
-      // Strategy 3: Look up partner by customer phone in any order
-      const anyOrder = await findAnyOrderByCustomerPhone(formattedCallerNumber);
-      if (anyOrder) {
-        console.log('✅ Found any order for customer:', anyOrder.id);
-        return {
-          partner_phone: anyOrder.partner_phone,
-          partner_id: anyOrder.partner_id,
-          order_id: anyOrder.id,
-          customer_phone: formattedCallerNumber
-        };
-      }
-      
-      console.log('❌ No orders found for caller:', formattedCallerNumber);
+      // If caller is not a partner, reject the call
+      console.log('❌ Caller is not a registered partner, rejecting call');
       return null;
     }
     
@@ -385,25 +352,47 @@ async function findPartnerByPhone(phoneNumber: string) {
     
     console.log('📞 Trying phone formats:', phoneFormats);
     
-    const { data: partner, error } = await supabaseAdmin
-      .from('partners')
-      .select('id, mobile, name, status')
-      .in('mobile', phoneFormats)
-      .eq('status', 'Active')
-      .single();
-    
-    if (error) {
-      console.log('❌ Error finding partner:', error.message);
-      return null;
+    // Try each phone format until we find a partner
+    for (const format of phoneFormats) {
+      console.log(`🔍 Trying format: ${format}`);
+      
+      // Get all partners with this phone format (handle multiple results)
+      const { data: partners, error } = await supabaseAdmin
+        .from('partners')
+        .select('id, mobile, name, status')
+        .eq('mobile', format);
+      
+      if (error) {
+        console.log(`❌ Error with format ${format}:`, error.message);
+        continue;
+      }
+      
+      if (partners && partners.length > 0) {
+        // Select the best partner (Active > Pending > Suspended)
+        let selectedPartner = null;
+        
+        if (partners.length === 1) {
+          selectedPartner = partners[0];
+        } else {
+          console.log(`🔍 Found ${partners.length} partners with same mobile, selecting best one...`);
+          
+          // Prioritize: Active > Pending > Suspended
+          const activePartner = partners.find(p => p.status === 'Active');
+          const pendingPartner = partners.find(p => p.status === 'Pending');
+          
+          selectedPartner = activePartner || pendingPartner || partners[0];
+        }
+        
+        if (selectedPartner) {
+          console.log('✅ Found partner:', selectedPartner.name, 'with phone:', selectedPartner.mobile, 'status:', selectedPartner.status);
+          return selectedPartner;
+        }
+      }
     }
     
-    if (partner) {
-      console.log('✅ Found partner:', partner.name, 'with phone:', partner.mobile);
-    } else {
-      console.log('❌ No partner found with phone:', phoneNumber);
-    }
+    console.log('❌ No partner found with any phone format for:', phoneNumber);
+    return null;
     
-    return partner;
   } catch (error) {
     console.error('❌ Error in findPartnerByPhone:', error);
     return null;
@@ -411,13 +400,15 @@ async function findPartnerByPhone(phoneNumber: string) {
 }
 
 /**
- * Find active order by partner ID
+ * Find the most appropriate active order for a partner to call
+ * Handles cases where partner has multiple active orders
  */
 async function findActiveOrderByPartnerId(partnerId: number) {
   try {
-    console.log('🔍 Searching for active order for partner ID:', partnerId);
+    console.log('🔍 Searching for active orders for partner ID:', partnerId);
     
-    const { data: order, error } = await supabaseAdmin
+    // Get ALL active orders for the partner
+    const { data: orders, error } = await supabaseAdmin
       .from('orders')
       .select(`
         id,
@@ -425,31 +416,244 @@ async function findActiveOrderByPartnerId(partnerId: number) {
         mobile_number,
         customer_name,
         status,
-        partner_completion_status
+        partner_completion_status,
+        created_at,
+        service_date,
+        time_slot,
+        order_number
       `)
       .eq('partner_id', partnerId)
       .in('status', ['assigned', 'in-progress'])
       .neq('partner_completion_status', 'completed')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      .order('created_at', { ascending: false });
     
     if (error) {
-      console.log('❌ Error finding active order for partner:', error.message);
+      console.log('❌ Error finding active orders for partner:', error.message);
       return null;
     }
     
-    if (order) {
-      console.log('✅ Found active order for partner:', order.id, 'customer:', order.mobile_number);
-    } else {
-      console.log('❌ No active order found for partner:', partnerId);
+    if (!orders || orders.length === 0) {
+      console.log('❌ No active orders found for partner:', partnerId);
+      return null;
     }
     
-    return order;
+    console.log(`📋 Found ${orders.length} active orders for partner ${partnerId}`);
+    
+    // If only one order, return it
+    if (orders.length === 1) {
+      const order = orders[0];
+      console.log('✅ Single active order found:', order.id, 'customer:', order.mobile_number);
+      return order;
+    }
+    
+    // Multiple orders - need to determine the best one to call
+    console.log('🔍 Multiple active orders found, determining best order to call...');
+    
+    // Strategy: Prioritize orders based on multiple factors
+    const prioritizedOrder = selectBestOrderToCall(orders);
+    
+    if (prioritizedOrder) {
+      console.log('✅ Selected best order to call:', prioritizedOrder.id, 'customer:', prioritizedOrder.mobile_number);
+      return prioritizedOrder;
+    }
+    
+    // Fallback: Return the most recent order
+    const fallbackOrder = orders[0];
+    console.log('⚠️ Using fallback - most recent order:', fallbackOrder.id, 'customer:', fallbackOrder.mobile_number);
+    return fallbackOrder;
+    
   } catch (error) {
     console.error('❌ Error in findActiveOrderByPartnerId:', error);
     return null;
   }
+}
+
+/**
+ * Select the best order to call when partner has multiple active orders
+ * Uses intelligent prioritization based on business logic and order numbers
+ */
+function selectBestOrderToCall(orders: Array<{
+  id: string;
+  order_number?: string;
+  customer_name?: string;
+  status: string;
+  service_date?: string;
+  time_slot?: string;
+  created_at: string;
+  mobile_number?: string;
+}>) {
+  try {
+    console.log('🎯 Selecting best order from', orders.length, 'active orders');
+    
+    // Log all orders for debugging
+    orders.forEach((order, index) => {
+      console.log(`📋 Order ${index + 1}: ${order.order_number || 'No Order Number'} - ${order.customer_name || 'No Customer'} - Status: ${order.status} - Service Date: ${order.service_date || 'No Date'}`);
+    });
+    
+    // Strategy 1: Prioritize orders with service_date today
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    const todayOrders = orders.filter(order => {
+      if (!order.service_date) return false;
+      const serviceDate = new Date(order.service_date).toISOString().split('T')[0];
+      return serviceDate === todayStr;
+    });
+    
+    if (todayOrders.length > 0) {
+      console.log('📅 Found', todayOrders.length, 'orders scheduled for today');
+      
+      // Among today's orders, prioritize by order number (alphabetical/numerical order)
+      const sortedTodayOrders = todayOrders.sort((a, b) => {
+        const orderA = a.order_number || '';
+        const orderB = b.order_number || '';
+        
+        // If both have order numbers, sort alphabetically
+        if (orderA && orderB) {
+          return orderA.localeCompare(orderB);
+        }
+        
+        // If only one has order number, prioritize it
+        if (orderA && !orderB) return -1;
+        if (!orderA && orderB) return 1;
+        
+        // If neither has order number, sort by time slot
+        const timeA = getTimeSlotPriority(a.time_slot || '');
+        const timeB = getTimeSlotPriority(b.time_slot || '');
+        return timeA - timeB;
+      });
+      
+      console.log('📅 Selected order for today:', sortedTodayOrders[0].order_number, sortedTodayOrders[0].id);
+      return sortedTodayOrders[0];
+    }
+    
+    // Strategy 2: Prioritize orders with upcoming service dates
+    const upcomingOrders = orders.filter(order => {
+      if (!order.service_date) return false;
+      const serviceDate = new Date(order.service_date);
+      return serviceDate >= today;
+    });
+    
+    if (upcomingOrders.length > 0) {
+      console.log('📅 Found', upcomingOrders.length, 'orders with upcoming service dates');
+      
+      // Sort by service date first, then by order number
+      const sortedUpcomingOrders = upcomingOrders.sort((a, b) => {
+        const dateA = new Date(a.service_date || '');
+        const dateB = new Date(b.service_date || '');
+        
+        // If same date, sort by order number
+        if (dateA.getTime() === dateB.getTime()) {
+          const orderA = a.order_number || '';
+          const orderB = b.order_number || '';
+          return orderA.localeCompare(orderB);
+        }
+        
+        return dateA.getTime() - dateB.getTime();
+      });
+      
+      console.log('📅 Selected earliest upcoming order:', sortedUpcomingOrders[0].order_number, sortedUpcomingOrders[0].id);
+      return sortedUpcomingOrders[0];
+    }
+    
+    // Strategy 3: Prioritize by status (in-progress > assigned) and order number
+    const inProgressOrders = orders.filter(order => order.status === 'in-progress');
+    if (inProgressOrders.length > 0) {
+      console.log('🔄 Found', inProgressOrders.length, 'in-progress orders');
+      
+      // Sort by order number (alphabetical order)
+      const sortedInProgressOrders = inProgressOrders.sort((a, b) => {
+        const orderA = a.order_number || '';
+        const orderB = b.order_number || '';
+        
+        if (orderA && orderB) {
+          return orderA.localeCompare(orderB);
+        }
+        
+        // If only one has order number, prioritize it
+        if (orderA && !orderB) return -1;
+        if (!orderA && orderB) return 1;
+        
+        // If neither has order number, sort by creation date
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+      
+      console.log('🔄 Selected in-progress order:', sortedInProgressOrders[0].order_number, sortedInProgressOrders[0].id);
+      return sortedInProgressOrders[0];
+    }
+    
+    // Strategy 4: Fallback to assigned orders sorted by order number
+    const assignedOrders = orders.filter(order => order.status === 'assigned');
+    if (assignedOrders.length > 0) {
+      console.log('📋 Found', assignedOrders.length, 'assigned orders');
+      
+      // Sort by order number (alphabetical order)
+      const sortedAssignedOrders = assignedOrders.sort((a, b) => {
+        const orderA = a.order_number || '';
+        const orderB = b.order_number || '';
+        
+        if (orderA && orderB) {
+          return orderA.localeCompare(orderB);
+        }
+        
+        // If only one has order number, prioritize it
+        if (orderA && !orderB) return -1;
+        if (!orderA && orderB) return 1;
+        
+        // If neither has order number, sort by creation date
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+      
+      console.log('📋 Selected assigned order:', sortedAssignedOrders[0].order_number, sortedAssignedOrders[0].id);
+      return sortedAssignedOrders[0];
+    }
+    
+    // Strategy 5: Final fallback - sort all orders by order number
+    const sortedAllOrders = orders.sort((a, b) => {
+      const orderA = a.order_number || '';
+      const orderB = b.order_number || '';
+      
+      if (orderA && orderB) {
+        return orderA.localeCompare(orderB);
+      }
+      
+      // If only one has order number, prioritize it
+      if (orderA && !orderB) return -1;
+      if (!orderA && orderB) return 1;
+      
+      // If neither has order number, sort by creation date
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+    
+    console.log('⚠️ Using final fallback - order number sorted:', sortedAllOrders[0].order_number, sortedAllOrders[0].id);
+    return sortedAllOrders[0];
+    
+  } catch (error) {
+    console.error('❌ Error in selectBestOrderToCall:', error);
+    return orders[0]; // Fallback
+  }
+}
+
+/**
+ * Get time slot priority for sorting (lower number = earlier priority)
+ */
+function getTimeSlotPriority(timeSlot: string): number {
+  if (!timeSlot) return 999; // No time slot = lowest priority
+  
+  const timeSlotMap: { [key: string]: number } = {
+    'morning': 1,
+    'afternoon': 2,
+    'evening': 3,
+    'night': 4,
+    '9am-12pm': 1,
+    '12pm-3pm': 2,
+    '3pm-6pm': 3,
+    '6pm-9pm': 4,
+    '9pm-12am': 5
+  };
+  
+  const lowerTimeSlot = timeSlot.toLowerCase();
+  return timeSlotMap[lowerTimeSlot] || 999;
 }
 
 /**
@@ -464,55 +668,62 @@ async function findActiveOrderByCustomerPhone(customerPhone: string) {
     
     console.log('📞 Trying customer phone formats:', phoneFormats);
     
-    // First, get the order
-    const { data: order, error } = await supabaseAdmin
-      .from('orders')
-      .select(`
-        id,
-        partner_id,
-        mobile_number,
-        customer_name,
-        status,
-        partner_completion_status
-      `)
-      .in('mobile_number', phoneFormats)
-      .in('status', ['assigned', 'in-progress'])
-      .neq('partner_completion_status', 'completed')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    
-    if (error) {
-      console.error('Error finding active order:', error);
-      return null;
-    }
-    
-    if (!order) {
-      console.log('No active order found for customer:', customerPhone);
-      return null;
-    }
+    // Try each phone format until we find an order
+    for (const format of phoneFormats) {
+      console.log(`🔍 Trying customer phone format: ${format}`);
+      
+      const { data: orders, error } = await supabaseAdmin
+        .from('orders')
+        .select(`
+          id,
+          partner_id,
+          mobile_number,
+          customer_name,
+          status,
+          partner_completion_status
+        `)
+        .eq('mobile_number', format)
+        .in('status', ['assigned', 'in-progress'])
+        .neq('partner_completion_status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (error) {
+        console.log(`❌ Error with customer phone format ${format}:`, error.message);
+        continue;
+      }
+      
+      if (orders && orders.length > 0) {
+        const order = orders[0];
+        console.log(`✅ Found active order with customer phone format ${format}:`, order.id);
+        
+        // Get partner details
+        const { data: partner, error: partnerError } = await supabaseAdmin
+          .from('partners')
+          .select('id, mobile, name, status')
+          .eq('id', order.partner_id)
+          .eq('status', 'Active')
+          .single();
 
-    // Then get the partner details
-    const { data: partner, error: partnerError } = await supabaseAdmin
-      .from('partners')
-      .select('id, mobile, name, status')
-      .eq('id', order.partner_id)
-      .eq('status', 'Active')
-      .single();
-
-    if (partnerError || !partner) {
-      console.error('Error finding partner or partner not active:', partnerError);
-      return null;
+        if (partnerError || !partner) {
+          console.error('Error finding partner or partner not active:', partnerError);
+          continue; // Try next format
+        }
+        
+        return {
+          id: order.id,
+          partner_id: order.partner_id,
+          partner_phone: partner.mobile,
+          partner_name: partner.name,
+          customer_name: order.customer_name,
+          status: order.status
+        };
+      }
     }
     
-    return {
-      id: order.id,
-      partner_id: order.partner_id,
-      partner_phone: partner.mobile,
-      partner_name: partner.name,
-      customer_name: order.customer_name,
-      status: order.status
-    };
+    console.log('❌ No active order found for any customer phone format');
+    return null;
+    
   } catch (error) {
     console.error('Error finding active order:', error);
     return null;
@@ -534,55 +745,62 @@ async function findRecentOrderByCustomerPhone(customerPhone: string) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
-    // First, get the order
-    const { data: order, error } = await supabaseAdmin
-      .from('orders')
-      .select(`
-        id,
-        partner_id,
-        mobile_number,
-        customer_name,
-        status,
-        created_at
-      `)
-      .in('mobile_number', phoneFormats)
-      .gte('created_at', sevenDaysAgo.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    
-    if (error) {
-      console.error('Error finding recent order:', error);
-      return null;
-    }
-    
-    if (!order) {
-      console.log('No recent order found for customer:', customerPhone);
-      return null;
-    }
+    // Try each phone format until we find a recent order
+    for (const format of phoneFormats) {
+      console.log(`🔍 Trying recent order customer phone format: ${format}`);
+      
+      const { data: orders, error } = await supabaseAdmin
+        .from('orders')
+        .select(`
+          id,
+          partner_id,
+          mobile_number,
+          customer_name,
+          status,
+          created_at
+        `)
+        .eq('mobile_number', format)
+        .gte('created_at', sevenDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (error) {
+        console.log(`❌ Error with recent order customer phone format ${format}:`, error.message);
+        continue;
+      }
+      
+      if (orders && orders.length > 0) {
+        const order = orders[0];
+        console.log(`✅ Found recent order with customer phone format ${format}:`, order.id);
+        
+        // Get partner details
+        const { data: partner, error: partnerError } = await supabaseAdmin
+          .from('partners')
+          .select('id, mobile, name, status')
+          .eq('id', order.partner_id)
+          .eq('status', 'Active')
+          .single();
 
-    // Then get the partner details
-    const { data: partner, error: partnerError } = await supabaseAdmin
-      .from('partners')
-      .select('id, mobile, name, status')
-      .eq('id', order.partner_id)
-      .eq('status', 'Active')
-      .single();
-
-    if (partnerError || !partner) {
-      console.error('Error finding partner or partner not active:', partnerError);
-      return null;
+        if (partnerError || !partner) {
+          console.error('Error finding partner or partner not active:', partnerError);
+          continue; // Try next format
+        }
+        
+        return {
+          id: order.id,
+          partner_id: order.partner_id,
+          partner_phone: partner.mobile,
+          partner_name: partner.name,
+          customer_name: order.customer_name,
+          status: order.status,
+          created_at: order.created_at
+        };
+      }
     }
     
-    return {
-      id: order.id,
-      partner_id: order.partner_id,
-      partner_phone: partner.mobile,
-      partner_name: partner.name,
-      customer_name: order.customer_name,
-      status: order.status,
-      created_at: order.created_at
-    };
+    console.log('❌ No recent order found for any customer phone format');
+    return null;
+    
   } catch (error) {
     console.error('Error finding recent order:', error);
     return null;
@@ -601,54 +819,61 @@ async function findAnyOrderByCustomerPhone(customerPhone: string) {
     
     console.log('📞 Trying customer phone formats:', phoneFormats);
     
-    // First, get the order
-    const { data: order, error } = await supabaseAdmin
-      .from('orders')
-      .select(`
-        id,
-        partner_id,
-        mobile_number,
-        customer_name,
-        status,
-        created_at
-      `)
-      .in('mobile_number', phoneFormats)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    
-    if (error) {
-      console.error('Error finding any order:', error);
-      return null;
-    }
-    
-    if (!order) {
-      console.log('No order found for customer:', customerPhone);
-      return null;
-    }
+    // Try each phone format until we find any order
+    for (const format of phoneFormats) {
+      console.log(`🔍 Trying any order customer phone format: ${format}`);
+      
+      const { data: orders, error } = await supabaseAdmin
+        .from('orders')
+        .select(`
+          id,
+          partner_id,
+          mobile_number,
+          customer_name,
+          status,
+          created_at
+        `)
+        .eq('mobile_number', format)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (error) {
+        console.log(`❌ Error with any order customer phone format ${format}:`, error.message);
+        continue;
+      }
+      
+      if (orders && orders.length > 0) {
+        const order = orders[0];
+        console.log(`✅ Found any order with customer phone format ${format}:`, order.id);
+        
+        // Get partner details
+        const { data: partner, error: partnerError } = await supabaseAdmin
+          .from('partners')
+          .select('id, mobile, name, status')
+          .eq('id', order.partner_id)
+          .eq('status', 'Active')
+          .single();
 
-    // Then get the partner details
-    const { data: partner, error: partnerError } = await supabaseAdmin
-      .from('partners')
-      .select('id, mobile, name, status')
-      .eq('id', order.partner_id)
-      .eq('status', 'Active')
-      .single();
-
-    if (partnerError || !partner) {
-      console.error('Error finding partner or partner not active:', partnerError);
-      return null;
+        if (partnerError || !partner) {
+          console.error('Error finding partner or partner not active:', partnerError);
+          continue; // Try next format
+        }
+        
+        return {
+          id: order.id,
+          partner_id: order.partner_id,
+          partner_phone: partner.mobile,
+          partner_name: partner.name,
+          customer_name: order.customer_name,
+          status: order.status,
+          created_at: order.created_at
+        };
+      }
     }
     
-    return {
-      id: order.id,
-      partner_id: order.partner_id,
-      partner_phone: partner.mobile,
-      partner_name: partner.name,
-      customer_name: order.customer_name,
-      status: order.status,
-      created_at: order.created_at
-    };
+    console.log('❌ No order found for any customer phone format');
+    return null;
+    
   } catch (error) {
     console.error('Error finding any order:', error);
     return null;
