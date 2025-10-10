@@ -8,16 +8,20 @@ export const ACEFONE_CONFIG = {
   PASSWORD: process.env.ACEFONE_PASSWORD || '',
   
   // DID Number Configuration
-  DID_NUMBER: '8065343250', // Your DID number from Acefone
+  DID_NUMBER: '08065343250', // Your DID number from Acefone
   
   // API Endpoints
   BASE_URL: 'https://console.acefone.in',
+  API_BASE_URL: 'https://api.acefone.in', // Click-to-Call API base URL
   WEBHOOK_URL: (process.env.NEXT_PUBLIC_BASE_URL || 'https://nakoda-partner.vercel.app') + '/api/acefone-dialplan',
+  
+  // Click-to-Call API Configuration
+  CLICK_TO_CALL_ENDPOINT: '/v1/click_to_call',
   
   // Call Configuration
   RING_TYPE: 'order_by', // Ring strategy for transfers
   SKIP_ACTIVE: false, // Whether to skip active agents
-  CALL_TIMEOUT: 30000, // 30 seconds timeout
+  CALL_TIMEOUT: 60, // 60 seconds timeout for Click-to-Call
   
   // Transfer Types
   TRANSFER_TYPES: {

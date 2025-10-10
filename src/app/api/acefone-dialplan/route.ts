@@ -59,7 +59,8 @@ async function logIncomingCall(request: AcefoneWebhookRequest): Promise<string> 
         start_time: request.start_stamp,
         metadata: {
           webhook_request: request,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          call_source: 'api_dialplan'
         }
       })
       .select('id')
@@ -75,82 +76,6 @@ async function logIncomingCall(request: AcefoneWebhookRequest): Promise<string> 
   } catch (error) {
     console.error('❌ Failed to log incoming call:', error);
     throw error;
-  }
-}
-
-// Helper function to find customer by phone number
-async function findCustomerByPhone(phoneNumber: string) {
-  try {
-    const phoneFormats = generatePhoneFormats(phoneNumber);
-    console.log('🔍 Searching for customer with phone formats:', phoneFormats);
-
-    // Try exact matches first
-    for (const format of phoneFormats) {
-      const { data: orders, error } = await supabase
-        .from('orders')
-        .select('id, order_number, mobile_number, customer_name, partner_id')
-        .eq('mobile_number', format)
-        .in('status', ['assigned', 'in_progress'])
-        .limit(1);
-
-      if (error) {
-        console.error('❌ Error searching orders:', error);
-        continue;
-      }
-
-      if (orders && orders.length > 0) {
-        const order = orders[0];
-        console.log('✅ Found customer order:', order);
-        return {
-          id: order.id,
-          name: order.customer_name,
-          mobile_number: order.mobile_number,
-          order_id: order.id,
-          order_number: order.order_number,
-          partner_id: order.partner_id
-        };
-      }
-    }
-
-    console.log('❌ No customer found for phone:', phoneNumber);
-    return null;
-  } catch (error) {
-    console.error('❌ Error in findCustomerByPhone:', error);
-    return null;
-  }
-}
-
-// Helper function to find partner for customer
-async function findPartnerForCustomer(customerId: string) {
-  try {
-    const { data: order, error } = await supabase
-      .from('orders')
-      .select('partner_id')
-      .eq('id', customerId)
-      .single();
-
-    if (error || !order || !order.partner_id) {
-      console.error('❌ Error finding partner for customer:', error);
-      return null;
-    }
-
-    const { data: partner, error: partnerError } = await supabase
-      .from('partners')
-      .select('id, name, mobile, status')
-      .eq('id', order.partner_id)
-      .eq('status', 'active')
-      .single();
-
-    if (partnerError || !partner) {
-      console.error('❌ Error fetching partner:', partnerError);
-      return null;
-    }
-
-    console.log('✅ Found partner for customer:', partner);
-    return partner;
-  } catch (error) {
-    console.error('❌ Error in findPartnerForCustomer:', error);
-    return null;
   }
 }
 

@@ -62,66 +62,90 @@ export default function OngoingTaskActions({
     }
     
     // Show loading toast while initiating call
-    const loadingToast = toast.loading('Initiating masked call...', {
-      duration: 2000,
+    const loadingToast = toast.loading('Setting up masked call...', {
+      duration: 0, // Don't auto-dismiss
       icon: '📞',
     });
     
     // Log the call initiation attempt
-    console.log('📞 Masked Call Now initiated:', {
+    console.log('📞 Masked Call initiated:', {
       taskId,
-      customerPhone: formattedCustomerPhone, // Use formatted phone
-      originalCustomerPhone: customerPhone, // Keep original for reference
+      customerPhone: formattedCustomerPhone,
+      originalCustomerPhone: customerPhone,
       didNumber: ACEFONE_CONFIG.DID_NUMBER,
       timestamp: new Date().toISOString()
     });
     
-    // Call via DID number for true call masking (privacy protection)
     try {
-      // Use DID number for call masking - both parties see only DID number
-      const didNumber = ACEFONE_CONFIG.DID_NUMBER;
-      const didTelLink = `tel:${didNumber}`;
-      
-      console.log('📞 Initiating masked call via DID:', {
-        didNumber: didNumber,
-        customerPhone: formattedCustomerPhone, // Hidden from partner
-        originalCustomerPhone: customerPhone,
-        telLink: didTelLink,
-        note: 'True call masking - both parties see only DID number'
+      // Call our Masked Call API endpoint
+      const response = await fetch('/api/acefone-masked-call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+        body: JSON.stringify({
+          taskId,
+          customerPhone: formattedCustomerPhone
+        })
       });
+
+      const result = await response.json();
       
-      // Try different approaches based on device/browser
-      if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
-        // Mobile device - use tel: link
-        window.location.href = didTelLink;
-      } else {
-        // Desktop - try creating a link element
-        const link = document.createElement('a');
-        link.href = didTelLink;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
       
-      // Dismiss loading toast and show success
-      setTimeout(() => {
-        toast.dismiss(loadingToast);
-        toast.success(`Calling via masked number: ${didNumber}`, {
-          duration: 3000,
-          icon: '📞',
+      if (result.success) {
+        // Copy DID number to clipboard
+        try {
+          await navigator.clipboard.writeText(ACEFONE_CONFIG.DID_NUMBER);
+          
+          // Show success message with instructions
+          toast.success(
+            `Masked call setup complete! DID number copied to clipboard. Call ${ACEFONE_CONFIG.DID_NUMBER} to connect to customer.`,
+            {
+              duration: 8000,
+              icon: '📞',
+            }
+          );
+        } catch (clipboardError) {
+          // Fallback if clipboard fails
+          toast.success(
+            `Masked call setup complete! Please call ${ACEFONE_CONFIG.DID_NUMBER} to connect to customer.`,
+            {
+              duration: 8000,
+              icon: '📞',
+            }
+          );
+        }
+        
+        console.log('✅ Masked Call successful:', {
+          callId: result.callId,
+          didNumber: result.didNumber,
+          message: result.message,
+          taskId,
+          customerPhone: formattedCustomerPhone
         });
-      }, 1000);
+        
+      } else {
+        // Show error message
+        toast.error(`Failed to setup masked call: ${result.error || 'Unknown error'}`, {
+          duration: 5000,
+          icon: '❌',
+        });
+        
+        console.error('❌ Masked Call failed:', result);
+      }
       
     } catch (error) {
       // Dismiss loading toast and show error
       toast.dismiss(loadingToast);
-        toast.error('Failed to initiate call. Please try again.', {
+      toast.error('Failed to setup masked call. Please try again.', {
         duration: 4000,
         icon: '❌',
       });
       
-      console.error('❌ Error initiating call:', error);
+      console.error('❌ Error setting up Masked Call:', error);
     }
   };
 
@@ -229,7 +253,7 @@ export default function OngoingTaskActions({
               opacity: isDisabled ? 0.5 : 1
             }}
             disabled={isDisabled}
-            title={isDisabled ? (isExpired ? 'Task has expired' : 'Task is completed') : 'Call via masked number (privacy protected)'}
+            title={isDisabled ? (isExpired ? 'Task has expired' : 'Task is completed') : 'Setup masked call - Call DID number to connect to customer'}
             onMouseEnter={(e) => {
               if (!isDisabled) {
                 e.currentTarget.style.backgroundColor = '#E67300';
