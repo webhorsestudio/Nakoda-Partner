@@ -102,19 +102,63 @@ export default function OngoingTaskActions({
           
           // Show success message with instructions
           toast.success(
-            `Masked call setup complete! DID number copied to clipboard. Call ${ACEFONE_CONFIG.DID_NUMBER} to connect to customer.`,
+            `Masked call setup complete! Opening dialer...`,
             {
-              duration: 8000,
+              duration: 5000,
               icon: '📞',
             }
           );
         } catch {
           // Fallback if clipboard fails
           toast.success(
-            `Masked call setup complete! Please call ${ACEFONE_CONFIG.DID_NUMBER} to connect to customer.`,
+            `Masked call setup complete! Opening dialer...`,
+            {
+              duration: 5000,
+              icon: '📞',
+            }
+          );
+        }
+
+        // Automatically open the phone dialer with the DID number
+        try {
+          // Create tel: link to open the dialer
+          const telLink = `tel:${ACEFONE_CONFIG.DID_NUMBER}`;
+          
+          // Try multiple methods to open the dialer
+          if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
+            // Mobile devices - use window.location.href
+            window.location.href = telLink;
+          } else {
+            // Desktop/other devices - try window.open first, then fallback
+            const dialerWindow = window.open(telLink, '_self');
+            if (!dialerWindow) {
+              // If popup blocked, try direct navigation
+              window.location.href = telLink;
+            }
+          }
+          
+          console.log('📞 Dialer opened with DID number:', ACEFONE_CONFIG.DID_NUMBER);
+          
+          // Show additional instruction after a short delay
+          setTimeout(() => {
+            toast.success(
+              `If dialer didn't open, please manually dial ${ACEFONE_CONFIG.DID_NUMBER}`,
+              {
+                duration: 6000,
+                icon: '📱',
+              }
+            );
+          }, 2000);
+          
+        } catch (dialerError) {
+          console.error('❌ Failed to open dialer:', dialerError);
+          
+          // Fallback: Show manual instruction
+          toast.success(
+            `Please manually dial ${ACEFONE_CONFIG.DID_NUMBER} to connect to customer.`,
             {
               duration: 8000,
-              icon: '📞',
+              icon: '📱',
             }
           );
         }
@@ -253,7 +297,7 @@ export default function OngoingTaskActions({
               opacity: isDisabled ? 0.5 : 1
             }}
             disabled={isDisabled}
-            title={isDisabled ? (isExpired ? 'Task has expired' : 'Task is completed') : 'Setup masked call - Call DID number to connect to customer'}
+            title={isDisabled ? (isExpired ? 'Task has expired' : 'Task is completed') : 'Setup masked call - Dialer will open automatically'}
             onMouseEnter={(e) => {
               if (!isDisabled) {
                 e.currentTarget.style.backgroundColor = '#E67300';
