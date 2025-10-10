@@ -7,17 +7,17 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Types for Acefone webhook request
-interface AcefoneWebhookRequest {
+// Types for Acefone webhook request (from API Dialplan)
+interface AcefoneDialplanRequest {
   uuid: string;
   call_id: string;
-  call_to_number: string;
-  caller_id_number: string;
+  call_to_number: string; // This will be the DID number
+  caller_id_number: string; // This will be the partner's actual number
   start_stamp: string;
-  last_dtmf?: string;
+  last_dtmf?: string; // If DTMF is used in the dialplan
 }
 
-// Types for Acefone response
+// Types for Acefone response (transfer or recording)
 interface AcefoneTransferResponse {
   transfer: {
     type: string;
@@ -32,7 +32,7 @@ interface AcefoneTransferResponse {
 interface AcefoneRecordingResponse {
   recording: {
     type: string;
-    data: string;
+    data: string; // Recording ID
     dtmf?: {
       timeout: number;
       maxLength: number;
@@ -43,38 +43,96 @@ interface AcefoneRecordingResponse {
 
 type AcefoneResponse = AcefoneTransferResponse | AcefoneRecordingResponse;
 
-// Helper function to log incoming call
-async function logIncomingCall(request: AcefoneWebhookRequest): Promise<string> {
+// Helper function to log or update call details
+async function logOrUpdateCall(request: AcefoneDialplanRequest, destinationInfo?: any) {
   try {
-    const { data, error } = await supabase
+    // Try to find an existing call log entry for this UUID (from masked call setup)
+    const { data: existingCallLog, error: fetchError } = await supabase
       .from('call_logs')
-      .insert({
+      .select('*')
+      .eq('uuid', request.uuid)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 means no rows found
+      console.error('❌ Error fetching existing call log:', fetchError);
+      // Continue to insert if not found or other error
+    }
+
+    if (existingCallLog) {
+      // Update existing log
+      const updatePayload: any = {
+        status: 'connected', // Call is now connected via DID
+        start_time: request.start_stamp,
+        metadata: {
+          ...existingCallLog.metadata,
+          dialplan_request: request,
+          timestamp: new Date().toISOString(),
+          destination_info: destinationInfo
+        }
+      };
+      if (destinationInfo) {
+        updatePayload.partner_id = destinationInfo.partner_id;
+        updatePayload.partner_phone = destinationInfo.partner_phone;
+        updatePayload.customer_phone = destinationInfo.customer_phone;
+        updatePayload.order_id = destinationInfo.order_id;
+        updatePayload.transfer_destination = destinationInfo.customer_phone;
+        updatePayload.call_type = 'partner_to_customer_masked'; // Ensure correct type
+      }
+
+      const { data, error } = await supabase
+        .from('call_logs')
+        .update(updatePayload)
+        .eq('id', existingCallLog.id)
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('❌ Error updating call log:', error);
+        throw error;
+      }
+      console.log('✅ Call log updated successfully:', data.id);
+      return data.id;
+    } else {
+      // Insert new log if no existing UUID found (e.g., direct DID call)
+      const insertPayload: any = {
         call_id: request.call_id,
         uuid: request.uuid,
-        caller_number: request.caller_id_number,
-        called_number: request.call_to_number,
-        call_type: ACEFONE_CONFIG.CALL_TYPES.PARTNER_TO_CUSTOMER,
-        status: ACEFONE_CONFIG.CALL_STATUS.INITIATED,
+        caller_number: request.caller_id_number, // Partner's number
+        called_number: request.call_to_number, // DID number
+        call_type: 'customer_to_partner_masked', // Default for direct DID calls
+        status: 'initiated',
         virtual_number: ACEFONE_CONFIG.DID_NUMBER,
         start_time: request.start_stamp,
         metadata: {
-          webhook_request: request,
+          dialplan_request: request,
           timestamp: new Date().toISOString(),
-          call_source: 'api_dialplan'
+          destination_info: destinationInfo
         }
-      })
-      .select('id')
-      .single();
+      };
+      if (destinationInfo) {
+        insertPayload.partner_id = destinationInfo.partner_id;
+        insertPayload.partner_phone = destinationInfo.partner_phone;
+        insertPayload.customer_phone = destinationInfo.customer_phone;
+        insertPayload.order_id = destinationInfo.order_id;
+        insertPayload.transfer_destination = destinationInfo.customer_phone;
+        insertPayload.call_type = 'partner_to_customer_masked'; // If destination found
+      }
 
-    if (error) {
-      console.error('❌ Error logging incoming call:', error);
-      throw error;
+      const { data, error } = await supabase
+        .from('call_logs')
+        .insert(insertPayload)
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('❌ Error inserting new call log:', error);
+        throw error;
+      }
+      console.log('✅ New call log inserted successfully:', data.id);
+      return data.id;
     }
-
-    console.log('✅ Call logged successfully:', data.id);
-    return data.id;
   } catch (error) {
-    console.error('❌ Failed to log incoming call:', error);
+    console.error('❌ Failed to log or update call:', error);
     throw error;
   }
 }
@@ -85,11 +143,10 @@ async function findPartnerByPhone(phoneNumber: string) {
     const phoneFormats = generatePhoneFormats(phoneNumber);
     console.log('🔍 Searching for partner with phone formats:', phoneFormats);
 
-    // Try exact matches first
     for (const format of phoneFormats) {
       const { data: partners, error } = await supabase
         .from('partners')
-        .select('id, name, mobile, status, service_type, city')
+        .select('id, name, mobile, status')
         .eq('mobile', format)
         .eq('status', 'active')
         .limit(1);
@@ -105,33 +162,7 @@ async function findPartnerByPhone(phoneNumber: string) {
       }
     }
 
-    // If no exact match, try partial matches
-    const last10Digits = phoneNumber.replace(/\D/g, '').slice(-10);
-    const { data: partners, error } = await supabase
-      .from('partners')
-      .select('id, name, mobile, status, service_type, city')
-      .like('mobile', `%${last10Digits}`)
-      .eq('status', 'active')
-      .limit(5);
-
-    if (error) {
-      console.error('❌ Error in partial partner search:', error);
-      return null;
-    }
-
-    if (partners && partners.length > 0) {
-      // Find exact match within partial results
-      const exactMatch = partners.find(p => 
-        p.mobile.replace(/\D/g, '') === last10Digits
-      );
-      
-      if (exactMatch) {
-        console.log('✅ Found partner via partial search:', exactMatch);
-        return exactMatch;
-      }
-    }
-
-    console.log('❌ No partner found for phone:', phoneNumber);
+    console.log('❌ No active partner found for phone:', phoneNumber);
     return null;
   } catch (error) {
     console.error('❌ Error in findPartnerByPhone:', error);
@@ -139,265 +170,193 @@ async function findPartnerByPhone(phoneNumber: string) {
   }
 }
 
-// Helper function to find active orders for a partner
-async function findActiveOrdersByPartnerId(partnerId: number) {
+// Helper function to find the most relevant active order for a partner
+async function findRelevantOrderForPartner(partnerId: number) {
   try {
-    const { data: orders, error } = await supabase
+    // Tier 1: Active orders (assigned or in_progress)
+    const { data: activeOrders, error: activeOrdersError } = await supabase
       .from('orders')
-      .select('id, order_number, mobile_number, customer_name, service_date, time_slot, status, created_at')
+      .select('id, order_number, customer_name, mobile_number, status, service_date, time_slot, created_at')
       .eq('partner_id', partnerId)
-      .in('status', ['assigned', 'in_progress', 'completed'])
+      .in('status', ['assigned', 'in_progress'])
       .order('service_date', { ascending: true })
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('❌ Error fetching active orders:', error);
-      return [];
+    if (activeOrdersError) {
+      console.error('❌ Error fetching active orders:', activeOrdersError);
     }
 
-    console.log('📋 Found active orders:', orders?.length || 0);
-    return orders || [];
-  } catch (error) {
-    console.error('❌ Error in findActiveOrdersByPartnerId:', error);
-    return [];
-  }
-}
+    if (activeOrders && activeOrders.length > 0) {
+      console.log(`✅ Found ${activeOrders.length} active orders for partner ${partnerId}.`);
+      // Prioritize orders for today or upcoming
+      const today = new Date().toISOString().split('T')[0];
+      const relevantActiveOrders = activeOrders.filter(order =>
+        order.service_date >= today || order.status === 'in_progress'
+      );
+      if (relevantActiveOrders.length > 0) {
+        return relevantActiveOrders[0]; // Return the most relevant active order
+      }
+    }
 
-// Helper function to select the best order to call
-function selectBestOrderToCall(orders: Array<{
-  id: string;
-  order_number: string;
-  mobile_number: string;
-  customer_name: string;
-  service_date: string;
-  time_slot: string;
-  status: string;
-  created_at: string;
-}>): {
-  id: string;
-  order_number: string;
-  mobile_number: string;
-  customer_name: string;
-  service_date: string;
-  time_slot: string;
-  status: string;
-  created_at: string;
-} | null {
-  if (!orders || orders.length === 0) {
+    // Tier 2: Recently completed orders (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const { data: recentOrders, error: recentOrdersError } = await supabase
+      .from('orders')
+      .select('id, order_number, customer_name, mobile_number, status, service_date, time_slot, created_at')
+      .eq('partner_id', partnerId)
+      .eq('status', 'completed')
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (recentOrdersError) {
+      console.error('❌ Error fetching recent orders:', recentOrdersError);
+    }
+
+    if (recentOrders && recentOrders.length > 0) {
+      console.log(`✅ Found ${recentOrders.length} recent orders for partner ${partnerId}.`);
+      return recentOrders[0]; // Return the most recent completed order
+    }
+
+    // Tier 3: Any order for the partner (fallback)
+    const { data: anyOrder, error: anyOrderError } = await supabase
+      .from('orders')
+      .select('id, order_number, customer_name, mobile_number, status, service_date, time_slot, created_at')
+      .eq('partner_id', partnerId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (anyOrderError) {
+      console.error('❌ Error fetching any order:', anyOrderError);
+    }
+
+    if (anyOrder && anyOrder.length > 0) {
+      console.log(`✅ Found any order for partner ${partnerId}.`);
+      return anyOrder[0];
+    }
+
+    console.log('❌ No relevant order found for partner:', partnerId);
     return null;
-  }
-
-  if (orders.length === 1) {
-    return orders[0];
-  }
-
-  // Sort by priority: today's orders first, then upcoming, then by order number
-  const sortedOrders = orders.sort((a, b) => {
-    const today = new Date().toDateString();
-    const aIsToday = new Date(a.service_date || '').toDateString() === today;
-    const bIsToday = new Date(b.service_date || '').toDateString() === today;
-
-    // Today's orders first
-    if (aIsToday && !bIsToday) return -1;
-    if (!aIsToday && bIsToday) return 1;
-
-    // Then by status priority
-    const statusPriority = { 'in_progress': 1, 'assigned': 2, 'completed': 3 };
-    const aPriority = statusPriority[a.status as keyof typeof statusPriority] || 4;
-    const bPriority = statusPriority[b.status as keyof typeof statusPriority] || 4;
-
-    if (aPriority !== bPriority) {
-      return aPriority - bPriority;
-    }
-
-    // Then by order number (newest first)
-    return b.order_number.localeCompare(a.order_number);
-  });
-
-  console.log('🎯 Selected best order:', sortedOrders[0]);
-  return sortedOrders[0];
-}
-
-// Helper function to determine call destination
-async function determineCallDestination(request: AcefoneWebhookRequest) {
-  try {
-    console.log('🎯 Determining call destination for DID call:', {
-      call_to_number: request.call_to_number,
-      caller_id_number: request.caller_id_number,
-      uuid: request.uuid
-    });
-
-    // Check if this is a call to our DID number
-    const normalizedCalledNumber = request.call_to_number.replace(/\D/g, '');
-    const normalizedDidNumber = ACEFONE_CONFIG.DID_NUMBER.replace(/\D/g, '');
-    
-    const isCallToDid = normalizedCalledNumber === normalizedDidNumber ||
-                       normalizedCalledNumber === `91${normalizedDidNumber}` ||
-                       normalizedCalledNumber === `+91${normalizedDidNumber}` ||
-                       normalizedCalledNumber.endsWith(normalizedDidNumber);
-
-    if (!isCallToDid) {
-      console.log('❌ Not a call to our DID number');
-      return null;
-    }
-
-    // Find the partner who is calling the DID
-    const partner = await findPartnerByPhone(request.caller_id_number);
-    if (!partner) {
-      console.log('❌ Partner not found for caller:', request.caller_id_number);
-      return null;
-    }
-
-    // Find active orders for the partner
-    const activeOrders = await findActiveOrdersByPartnerId(partner.id);
-    if (activeOrders.length === 0) {
-      console.log('❌ No active orders found for partner:', partner.id);
-      return null;
-    }
-
-    // Select the best order to call
-    const selectedOrder = selectBestOrderToCall(activeOrders);
-    if (!selectedOrder) {
-      console.log('❌ No suitable order selected for calling');
-      return null;
-    }
-
-    console.log('✅ Call destination determined:', {
-      partner: partner.name,
-      customer: selectedOrder.customer_name,
-      customerPhone: selectedOrder.mobile_number,
-      orderNumber: selectedOrder.order_number
-    });
-
-    return {
-      partner_id: partner.id,
-      partner_phone: partner.mobile,
-      customer_phone: selectedOrder.mobile_number,
-      order_id: selectedOrder.id,
-      order_number: selectedOrder.order_number,
-      customer_name: selectedOrder.customer_name,
-      partner_name: partner.name
-    };
   } catch (error) {
-    console.error('❌ Error determining call destination:', error);
+    console.error('❌ Error in findRelevantOrderForPartner:', error);
     return null;
   }
 }
 
-// Helper function to update call log with destination info
-async function updateCallLogWithDestination(
-  callLogId: string, 
-  destinationInfo: {
-    partner_id: number;
-    partner_phone: string;
-    customer_phone: string;
-    order_id: string;
-    order_number: string;
-    customer_name: string;
-    partner_name: string;
-  }
-) {
-  try {
-    const { error } = await supabase
-      .from('call_logs')
-      .update({
-        partner_id: destinationInfo.partner_id,
-        partner_phone: destinationInfo.partner_phone,
-        customer_phone: destinationInfo.customer_phone,
-        order_id: destinationInfo.order_id,
-        transfer_destination: destinationInfo.customer_phone,
-        metadata: {
-          partner_name: destinationInfo.partner_name || 'Unknown Partner',
-          order_number: destinationInfo.order_number,
-          customer_name: destinationInfo.customer_name
-        }
-      })
-      .eq('id', callLogId);
-
-    if (error) {
-      console.error('❌ Error updating call log:', error);
-      throw error;
-    }
-
-    console.log('✅ Call log updated with destination info');
-  } catch (error) {
-    console.error('❌ Failed to update call log:', error);
-    throw error;
-  }
-}
-
-// Main webhook handler
+// Main API Dialplan webhook handler
 export async function POST(request: NextRequest) {
   try {
-    console.log('📞 Acefone Dialplan Webhook Received');
-    
-    // Parse the request body
-    const webhookData: AcefoneWebhookRequest = await request.json();
-    console.log('📋 Webhook Data:', webhookData);
+    console.log('📞 Acefone API Dialplan Webhook Received');
+
+    // Parse the request body from Acefone
+    const dialplanRequest: AcefoneDialplanRequest = await request.json();
+    console.log('📋 Dialplan Webhook Data:', dialplanRequest);
 
     // Validate required fields
-    if (!webhookData.uuid || !webhookData.call_id || !webhookData.caller_id_number) {
-      console.error('❌ Missing required fields in webhook data');
-      return NextResponse.json({
-        error: 'Missing required fields'
-      }, { status: 400 });
-    }
-
-    // Log the incoming call
-    const callLogId = await logIncomingCall(webhookData);
-
-    // Determine call destination
-    const destinationInfo = await determineCallDestination(webhookData);
-    
-    if (!destinationInfo) {
-      console.log('❌ Could not determine call destination');
-      
-      // Return error response to Acefone
+    if (!dialplanRequest.uuid || !dialplanRequest.call_id || !dialplanRequest.caller_id_number || !dialplanRequest.call_to_number) {
+      console.error('❌ Missing required fields in Acefone Dialplan webhook data');
       return NextResponse.json([{
         recording: {
           type: 'system',
-          data: '1234' // Replace with your error message recording ID
+          data: '1234' // Generic error recording ID
+        }
+      }], { status: 400 });
+    }
+
+    // Ensure the call is to our configured DID number
+    const normalizedCalledNumber = formatPhoneForAcefone(dialplanRequest.call_to_number);
+    const normalizedDidNumber = formatPhoneForAcefone(ACEFONE_CONFIG.DID_NUMBER);
+
+    if (normalizedCalledNumber !== normalizedDidNumber) {
+      console.error(`❌ Call to number ${dialplanRequest.call_to_number} does not match configured DID ${ACEFONE_CONFIG.DID_NUMBER}`);
+      return NextResponse.json([{
+        recording: {
+          type: 'system',
+          data: '1234' // Error: Invalid DID
+        }
+      }], { status: 400 });
+    }
+
+    // 1. Identify the partner who is calling the DID
+    const partner = await findPartnerByPhone(dialplanRequest.caller_id_number);
+    if (!partner) {
+      console.log('❌ Partner not found or inactive for caller:', dialplanRequest.caller_id_number);
+      // Log this event
+      await logOrUpdateCall(dialplanRequest, { error: 'Partner not found' });
+      return NextResponse.json([{
+        recording: {
+          type: 'system',
+          data: '1234' // Replace with "Partner not found" recording ID
         }
       }]);
     }
 
-    // Update call log with destination info
-    await updateCallLogWithDestination(callLogId, destinationInfo);
+    // 2. Find the most relevant order for this partner to determine the customer to connect to
+    const relevantOrder = await findRelevantOrderForPartner(partner.id);
+    if (!relevantOrder) {
+      console.log('❌ No relevant order found for partner:', partner.id);
+      // Log this event
+      await logOrUpdateCall(dialplanRequest, { partner_id: partner.id, partner_phone: partner.mobile, error: 'No relevant order found' });
+      return NextResponse.json([{
+        recording: {
+          type: 'system',
+          data: '1234' // Replace with "No active customer" recording ID
+        }
+      }]);
+    }
 
-    // Format customer phone for Acefone transfer (partner calls DID, route to customer)
+    const destinationInfo = {
+      partner_id: partner.id,
+      partner_phone: partner.mobile,
+      customer_phone: relevantOrder.mobile_number,
+      order_id: relevantOrder.id,
+      order_number: relevantOrder.order_number,
+      customer_name: relevantOrder.customer_name,
+      partner_name: partner.name
+    };
+
+    // Log or update the call with destination information
+    await logOrUpdateCall(dialplanRequest, destinationInfo);
+
+    // 3. Instruct Acefone to transfer the call to the customer's actual number
     const transferPhone = formatPhoneForAcefone(destinationInfo.customer_phone);
 
-    // Create Acefone response
     const acefoneResponse: AcefoneResponse[] = [{
       transfer: {
-        type: ACEFONE_CONFIG.TRANSFER_TYPES.NUMBER,
-        data: [transferPhone], // Transfer to customer
-        ring_type: ACEFONE_CONFIG.RING_TYPE,
-        skip_active: ACEFONE_CONFIG.SKIP_ACTIVE
+        type: 'number',
+        data: [transferPhone], // Transfer to customer's actual number
+        ring_type: 'order_by',
+        skip_active: false
       }
     }];
 
-    console.log('✅ Sending Acefone response:', acefoneResponse);
-
+    console.log('✅ Sending Acefone Dialplan response (transfer to customer):', acefoneResponse);
+    console.log('📞 Transfer details:', {
+      transferPhone,
+      customerPhone: destinationInfo.customer_phone,
+      partnerPhone: destinationInfo.partner_phone,
+      orderNumber: destinationInfo.order_number
+    });
+    
     return NextResponse.json(acefoneResponse);
 
   } catch (error) {
     console.error('❌ Error in Acefone Dialplan webhook:', error);
-    
-    // Return error response to Acefone
+    // Return a generic error response to Acefone
     return NextResponse.json([{
       recording: {
         type: 'system',
-        data: '1234' // Replace with your error message recording ID
+        data: '1234' // Generic error recording ID
       }
     }], { status: 500 });
   }
 }
 
-// Handle GET requests for testing
+// Handle GET requests for testing/info
 export async function GET() {
   return NextResponse.json({
-    message: 'Acefone Dialplan Webhook Endpoint',
+    message: 'Acefone API Dialplan Webhook Endpoint',
     status: 'active',
     timestamp: new Date().toISOString(),
     config: {
