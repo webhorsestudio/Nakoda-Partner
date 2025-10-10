@@ -11,8 +11,12 @@ export async function GET(request: NextRequest) {
     const results: {
       timestamp: string;
       testType: string;
-      config: Record<string, string>;
-      tests: Record<string, any>;
+      config: Record<string, string | number>;
+      tests: Record<string, {
+        status: string;
+        details: Record<string, unknown>;
+        message?: string;
+      }>;
       overallStatus?: string;
       summary?: Record<string, number>;
     } = {
@@ -191,7 +195,7 @@ export async function GET(request: NextRequest) {
         }
       };
       
-      const allFormattedCorrectly = results.tests.formatting.details.testCases.every((tc: { valid: boolean }) => tc.valid);
+      const allFormattedCorrectly = (results.tests.formatting.details.testCases as Array<{ valid: boolean }>).every((tc) => tc.valid);
       results.tests.formatting.status = allFormattedCorrectly ? 'PASS' : 'FAIL';
       results.tests.formatting.message = allFormattedCorrectly ? 
         'All phone number formatting tests passed' : 

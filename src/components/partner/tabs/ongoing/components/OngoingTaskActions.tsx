@@ -108,7 +108,7 @@ export default function OngoingTaskActions({
               icon: '📞',
             }
           );
-        } catch (clipboardError) {
+        } catch {
           // Fallback if clipboard fails
           toast.success(
             `Masked call setup complete! Please call ${ACEFONE_CONFIG.DID_NUMBER} to connect to customer.`,
