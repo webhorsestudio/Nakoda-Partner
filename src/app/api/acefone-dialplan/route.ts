@@ -44,7 +44,16 @@ interface AcefoneRecordingResponse {
 type AcefoneResponse = AcefoneTransferResponse | AcefoneRecordingResponse;
 
 // Helper function to log or update call details
-async function logOrUpdateCall(request: AcefoneDialplanRequest, destinationInfo?: any) {
+async function logOrUpdateCall(request: AcefoneDialplanRequest, destinationInfo?: {
+  partner_id?: number;
+  partner_phone?: string;
+  customer_phone?: string;
+  order_id?: string;
+  order_number?: string;
+  customer_name?: string;
+  partner_name?: string;
+  error?: string;
+}) {
   try {
     // Try to find an existing call log entry for this UUID (from masked call setup)
     const { data: existingCallLog, error: fetchError } = await supabase
@@ -60,7 +69,7 @@ async function logOrUpdateCall(request: AcefoneDialplanRequest, destinationInfo?
 
     if (existingCallLog) {
       // Update existing log
-      const updatePayload: any = {
+      const updatePayload: Record<string, unknown> = {
         status: 'connected', // Call is now connected via DID
         start_time: request.start_stamp,
         metadata: {
@@ -94,7 +103,7 @@ async function logOrUpdateCall(request: AcefoneDialplanRequest, destinationInfo?
       return data.id;
     } else {
       // Insert new log if no existing UUID found (e.g., direct DID call)
-      const insertPayload: any = {
+      const insertPayload: Record<string, unknown> = {
         call_id: request.call_id,
         uuid: request.uuid,
         caller_number: request.caller_id_number, // Partner's number
