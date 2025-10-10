@@ -76,6 +76,11 @@ export default function PartnerWalletPage() {
           <WalletStats stats={stats} loading={loading} />
         </div>
 
+        {/* Detailed Stats */}
+        <div className="mb-8">
+          <DetailedStats stats={stats} loading={loading} />
+        </div>
+
         {/* Filters */}
         <div className="mb-8">
           <WalletFilters
@@ -84,11 +89,6 @@ export default function PartnerWalletPage() {
             onClearFilters={handleClearFilters}
             loading={loading}
           />
-        </div>
-
-        {/* Detailed Stats */}
-        <div className="mb-8">
-          <DetailedStats stats={stats} loading={loading} />
         </div>
 
         {/* Table */}
