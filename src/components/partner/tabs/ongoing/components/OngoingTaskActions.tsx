@@ -10,7 +10,6 @@ import {
   isValidPhoneNumber 
 } from '../utils/cardUtils';
 import TaskCompletionModal from './TaskCompletionModal';
-import { toast } from 'react-hot-toast';
 import { ACEFONE_CONFIG } from '@/config/acefone';
 
 interface OngoingTaskActionsProps {
@@ -61,12 +60,6 @@ export default function OngoingTaskActions({
       formattedCustomerPhone = customerPhone.slice(-10);
     }
     
-    // Show loading toast while initiating call
-    const loadingToast = toast.loading('Setting up masked call...', {
-      duration: 0, // Don't auto-dismiss
-      icon: '📞',
-    });
-    
     // Log the call initiation attempt
     console.log('📞 Masked Call initiated:', {
       taskId,
@@ -92,31 +85,12 @@ export default function OngoingTaskActions({
 
       const result = await response.json();
       
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-      
       if (result.success) {
         // Copy DID number to clipboard
         try {
           await navigator.clipboard.writeText(ACEFONE_CONFIG.DID_NUMBER);
-          
-          // Show success message with instructions
-          toast.success(
-            `Masked call setup complete! Opening dialer...`,
-            {
-              duration: 5000,
-              icon: '📞',
-            }
-          );
         } catch {
-          // Fallback if clipboard fails
-          toast.success(
-            `Masked call setup complete! Opening dialer...`,
-            {
-              duration: 5000,
-              icon: '📞',
-            }
-          );
+          // Silent fallback if clipboard fails
         }
 
         // Automatically open the phone dialer with the DID number
@@ -139,28 +113,8 @@ export default function OngoingTaskActions({
           
           console.log('📞 Dialer opened with DID number:', ACEFONE_CONFIG.DID_NUMBER);
           
-          // Show additional instruction after a short delay
-          setTimeout(() => {
-            toast.success(
-              `If dialer didn't open, please manually dial ${ACEFONE_CONFIG.DID_NUMBER}`,
-              {
-                duration: 6000,
-                icon: '📱',
-              }
-            );
-          }, 2000);
-          
         } catch (dialerError) {
           console.error('❌ Failed to open dialer:', dialerError);
-          
-          // Fallback: Show manual instruction
-          toast.success(
-            `Please manually dial ${ACEFONE_CONFIG.DID_NUMBER} to connect to customer.`,
-            {
-              duration: 8000,
-              icon: '📱',
-            }
-          );
         }
         
         console.log('✅ Masked Call successful:', {
@@ -172,23 +126,10 @@ export default function OngoingTaskActions({
         });
         
       } else {
-        // Show error message
-        toast.error(`Failed to setup masked call: ${result.error || 'Unknown error'}`, {
-          duration: 5000,
-          icon: '❌',
-        });
-        
         console.error('❌ Masked Call failed:', result);
       }
       
     } catch (error) {
-      // Dismiss loading toast and show error
-      toast.dismiss(loadingToast);
-      toast.error('Failed to setup masked call. Please try again.', {
-        duration: 4000,
-        icon: '❌',
-      });
-      
       console.error('❌ Error setting up Masked Call:', error);
     }
   };
@@ -199,11 +140,6 @@ export default function OngoingTaskActions({
 
   const handleModalSubmit = async (data: { customerRating: number; image: File | null }) => {
     setIsSubmitting(true);
-    
-    // Show loading toast
-    const loadingToast = toast.loading('Completing task...', {
-      duration: 0, // Don't auto-dismiss
-    });
     
     try {
       // Prepare form data for API call
@@ -225,36 +161,14 @@ export default function OngoingTaskActions({
         throw new Error(result.error || 'Failed to complete task');
       }
       
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-      
       // Call the original callback to update parent state
       onCompleteTask(taskId);
       
       // Close modal
       setShowCompletionModal(false);
       
-      // Show success message with wallet refund info if applicable
-      if (result.data?.walletRefund?.refunded) {
-        const refund = result.data.walletRefund;
-        toast.success(`Task completed successfully! ₹${refund.amount} advance amount refunded to your wallet.`, {
-          duration: 5000,
-          icon: '💰',
-        });
-      } else {
-        toast.success('Task completed successfully!', {
-          duration: 4000,
-          icon: '✅',
-        });
-      }
     } catch (error) {
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-      
-      toast.error(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`, {
-        duration: 5000,
-        icon: '❌',
-      });
+      console.error('Failed to complete task:', error);
     } finally {
       setIsSubmitting(false);
     }

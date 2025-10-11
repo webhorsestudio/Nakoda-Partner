@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { OngoingCustomerInfoSectionProps } from './types';
-import { toast } from 'react-hot-toast';
 import { ACEFONE_CONFIG } from '@/config/acefone';
 
 export default function OngoingCustomerInfoSection({ customer, taskId }: OngoingCustomerInfoSectionProps) {
@@ -25,12 +24,6 @@ export default function OngoingCustomerInfoSection({ customer, taskId }: Ongoing
       // Take last 10 digits for any other long numbers
       formattedCustomerPhone = customer.phone.slice(-10);
     }
-    
-    // Show loading toast while initiating call
-    const loadingToast = toast.loading('Setting up masked call...', {
-      duration: 0, // Don't auto-dismiss
-      icon: '📞',
-    });
     
     // Log the call initiation attempt
     console.log('📞 Masked Call initiated:', {
@@ -57,31 +50,12 @@ export default function OngoingCustomerInfoSection({ customer, taskId }: Ongoing
 
       const result = await response.json();
       
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-      
       if (result.success) {
         // Copy DID number to clipboard
         try {
           await navigator.clipboard.writeText(ACEFONE_CONFIG.DID_NUMBER);
-          
-          // Show success message with instructions
-          toast.success(
-            `Masked call setup complete! Opening dialer...`,
-            {
-              duration: 5000,
-              icon: '📞',
-            }
-          );
         } catch {
-          // Fallback if clipboard fails
-          toast.success(
-            `Masked call setup complete! Opening dialer...`,
-            {
-              duration: 5000,
-              icon: '📞',
-            }
-          );
+          // Silent fallback if clipboard fails
         }
 
         // Automatically open the phone dialer with the DID number
@@ -104,28 +78,8 @@ export default function OngoingCustomerInfoSection({ customer, taskId }: Ongoing
           
           console.log('📞 Dialer opened with DID number:', ACEFONE_CONFIG.DID_NUMBER);
           
-          // Show additional instruction after a short delay
-          setTimeout(() => {
-            toast.success(
-              `If dialer didn't open, please manually dial ${ACEFONE_CONFIG.DID_NUMBER}`,
-              {
-                duration: 6000,
-                icon: '📱',
-              }
-            );
-          }, 2000);
-          
         } catch (dialerError) {
           console.error('❌ Failed to open dialer:', dialerError);
-          
-          // Fallback: Show manual instruction
-          toast.success(
-            `Please manually dial ${ACEFONE_CONFIG.DID_NUMBER} to connect to customer.`,
-            {
-              duration: 8000,
-              icon: '📱',
-            }
-          );
         }
         
         console.log('✅ Masked Call successful:', {
@@ -137,23 +91,10 @@ export default function OngoingCustomerInfoSection({ customer, taskId }: Ongoing
         });
         
       } else {
-        // Show error message
-        toast.error(`Failed to setup masked call: ${result.error || 'Unknown error'}`, {
-          duration: 5000,
-          icon: '❌',
-        });
-        
         console.error('❌ Masked Call failed:', result);
       }
       
     } catch (error) {
-      // Dismiss loading toast and show error
-      toast.dismiss(loadingToast);
-      toast.error('Failed to setup masked call. Please try again.', {
-        duration: 4000,
-        icon: '❌',
-      });
-      
       console.error('❌ Error setting up Masked Call:', error);
     }
   };
