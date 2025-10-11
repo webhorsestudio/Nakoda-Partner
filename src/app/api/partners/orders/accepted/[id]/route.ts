@@ -88,6 +88,7 @@ export async function GET(
         order_number,
         currency,
         mode,
+        vendor_amount,
         created_at,
         updated_at
       `)
@@ -120,7 +121,7 @@ export async function GET(
     const advanceAmount = parseFloat(order.advance_amount?.toString() || '0');
     const commissionPercentage = parseFloat(order.commission_percentage?.toString() || '10');
     const commissionAmount = (totalAmount * commissionPercentage) / 100;
-    const balanceAmount = totalAmount - advanceAmount;
+    const balanceAmount = parseFloat(order.vendor_amount?.toString() || '0');
 
     // Transform the order data to match the OngoingOrderDetails interface
     const transformedOrder = {

@@ -4,8 +4,159 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { OngoingCustomerInfoSectionProps } from './types';
+import { toast } from 'react-hot-toast';
+import { ACEFONE_CONFIG } from '@/config/acefone';
 
-export default function OngoingCustomerInfoSection({ customer }: OngoingCustomerInfoSectionProps) {
+export default function OngoingCustomerInfoSection({ customer, taskId }: OngoingCustomerInfoSectionProps) {
+  const handleCallNow = async () => {
+    if (!customer.phone) {
+      return;
+    }
+    
+    // Format customer phone to 10 digits (remove country code for India)
+    let formattedCustomerPhone = customer.phone;
+    if (customer.phone.startsWith('+91') && customer.phone.length === 13) {
+      // +917506873720 -> 7506873720
+      formattedCustomerPhone = customer.phone.substring(3);
+    } else if (customer.phone.startsWith('91') && customer.phone.length === 12) {
+      // 917506873720 -> 7506873720
+      formattedCustomerPhone = customer.phone.substring(2);
+    } else if (customer.phone.length > 10) {
+      // Take last 10 digits for any other long numbers
+      formattedCustomerPhone = customer.phone.slice(-10);
+    }
+    
+    // Show loading toast while initiating call
+    const loadingToast = toast.loading('Setting up masked call...', {
+      duration: 0, // Don't auto-dismiss
+      icon: '📞',
+    });
+    
+    // Log the call initiation attempt
+    console.log('📞 Masked Call initiated:', {
+      taskId,
+      customerPhone: formattedCustomerPhone,
+      originalCustomerPhone: customer.phone,
+      didNumber: ACEFONE_CONFIG.DID_NUMBER,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      // Call our Masked Call API endpoint
+      const response = await fetch('/api/acefone-masked-call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+        body: JSON.stringify({
+          taskId,
+          customerPhone: formattedCustomerPhone
+        })
+      });
+
+      const result = await response.json();
+      
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+      
+      if (result.success) {
+        // Copy DID number to clipboard
+        try {
+          await navigator.clipboard.writeText(ACEFONE_CONFIG.DID_NUMBER);
+          
+          // Show success message with instructions
+          toast.success(
+            `Masked call setup complete! Opening dialer...`,
+            {
+              duration: 5000,
+              icon: '📞',
+            }
+          );
+        } catch {
+          // Fallback if clipboard fails
+          toast.success(
+            `Masked call setup complete! Opening dialer...`,
+            {
+              duration: 5000,
+              icon: '📞',
+            }
+          );
+        }
+
+        // Automatically open the phone dialer with the DID number
+        try {
+          // Create tel: link to open the dialer
+          const telLink = `tel:${ACEFONE_CONFIG.DID_NUMBER}`;
+          
+          // Try multiple methods to open the dialer
+          if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
+            // Mobile devices - use window.location.href
+            window.location.href = telLink;
+          } else {
+            // Desktop/other devices - try window.open first, then fallback
+            const dialerWindow = window.open(telLink, '_self');
+            if (!dialerWindow) {
+              // If popup blocked, try direct navigation
+              window.location.href = telLink;
+            }
+          }
+          
+          console.log('📞 Dialer opened with DID number:', ACEFONE_CONFIG.DID_NUMBER);
+          
+          // Show additional instruction after a short delay
+          setTimeout(() => {
+            toast.success(
+              `If dialer didn't open, please manually dial ${ACEFONE_CONFIG.DID_NUMBER}`,
+              {
+                duration: 6000,
+                icon: '📱',
+              }
+            );
+          }, 2000);
+          
+        } catch (dialerError) {
+          console.error('❌ Failed to open dialer:', dialerError);
+          
+          // Fallback: Show manual instruction
+          toast.success(
+            `Please manually dial ${ACEFONE_CONFIG.DID_NUMBER} to connect to customer.`,
+            {
+              duration: 8000,
+              icon: '📱',
+            }
+          );
+        }
+        
+        console.log('✅ Masked Call successful:', {
+          callId: result.callId,
+          didNumber: result.didNumber,
+          message: result.message,
+          taskId,
+          customerPhone: formattedCustomerPhone
+        });
+        
+      } else {
+        // Show error message
+        toast.error(`Failed to setup masked call: ${result.error || 'Unknown error'}`, {
+          duration: 5000,
+          icon: '❌',
+        });
+        
+        console.error('❌ Masked Call failed:', result);
+      }
+      
+    } catch (error) {
+      // Dismiss loading toast and show error
+      toast.dismiss(loadingToast);
+      toast.error('Failed to setup masked call. Please try again.', {
+        duration: 4000,
+        icon: '❌',
+      });
+      
+      console.error('❌ Error setting up Masked Call:', error);
+    }
+  };
   return (
     <Card className="w-full">
       <CardHeader>
@@ -36,7 +187,7 @@ export default function OngoingCustomerInfoSection({ customer }: OngoingCustomer
             <Button 
               size="sm" 
               variant="outline" 
-              asChild
+              onClick={handleCallNow}
               style={{ backgroundColor: '#FF8000', borderColor: '#FF8000', color: 'white' }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#E67300';
@@ -47,10 +198,8 @@ export default function OngoingCustomerInfoSection({ customer }: OngoingCustomer
                 e.currentTarget.style.borderColor = '#FF8000';
               }}
             >
-              <a href={`tel:${customer.phone}`}>
-                <PhoneIcon className="w-3 h-3 mr-1" />
-                Call Now
-              </a>
+              <PhoneIcon className="w-3 h-3 mr-1" />
+              Call Now
             </Button>
           </div>
 

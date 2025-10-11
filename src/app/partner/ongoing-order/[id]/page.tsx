@@ -202,6 +202,7 @@ export default function OngoingOrderDetailsPage() {
               city: order.customerCity,
               pinCode: order.customerPinCode
             }}
+            taskId={orderId}
           />
           
           <OngoingServiceLocationMap

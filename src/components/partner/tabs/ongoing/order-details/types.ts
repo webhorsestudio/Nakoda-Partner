@@ -72,6 +72,7 @@ export interface OngoingCustomerInfoSectionProps {
     city: string;
     pinCode: string;
   };
+  taskId: string;
 }
 
 export interface OngoingServiceDetailsSectionProps {
