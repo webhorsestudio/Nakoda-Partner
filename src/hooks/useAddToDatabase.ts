@@ -19,10 +19,18 @@ export const useAddToDatabase = (): UseAddToDatabaseReturn => {
 
   const addOrderToDatabase = useCallback(async (orderDetails: Bitrix24OrderDetails): Promise<boolean> => {
     try {
+      console.log('🚀 Frontend: Starting addOrderToDatabase for order:', orderDetails.orderNumber);
       setAddingToDatabase(true);
       setAddToDatabaseError(null);
 
       // Adding order to database
+      console.log('📤 Frontend: Sending request to /api/admin/orders/add-to-database');
+      console.log('📋 Frontend: Order details being sent:', {
+        orderNumber: orderDetails.orderNumber,
+        bitrix24Id: orderDetails.bitrix24Id,
+        customerName: orderDetails.customerName,
+        amount: orderDetails.amount
+      });
 
       const response = await fetch('/api/admin/orders/add-to-database', {
         method: 'POST',
@@ -32,7 +40,13 @@ export const useAddToDatabase = (): UseAddToDatabaseReturn => {
         body: JSON.stringify({ orderDetails }),
       });
 
+      console.log('📥 Frontend: Received response:', {
+        status: response.status,
+        ok: response.ok
+      });
+
       const data = await response.json();
+      console.log('📄 Frontend: Response data:', data);
 
       if (response.ok && data.success) {
         // Send WATI WhatsApp message after successful database addition
@@ -80,10 +94,16 @@ export const useAddToDatabase = (): UseAddToDatabaseReturn => {
           // Don't fail the entire operation if WATI fails
         }
         
+        console.log('✅ Frontend: Order successfully added to database');
         setAddingToDatabase(false);
         return true;
       } else {
-            if (data.message && data.message.includes('already exists')) {
+        console.error('❌ Frontend: API request failed:', {
+          status: response.status,
+          data: data
+        });
+        
+        if (data.message && data.message.includes('already exists')) {
               setAddToDatabaseError(`✅ Order ${orderDetails.orderNumber} already exists in database. It's ready for partner assignment!`);
             } else {
               setAddToDatabaseError(data.error || data.message || 'Failed to add order to database');
@@ -92,8 +112,8 @@ export const useAddToDatabase = (): UseAddToDatabaseReturn => {
         return false;
       }
     } catch (error) {
-      console.error('Error adding order to database:', error);
-      setAddToDatabaseError('Failed to add order to database');
+      console.error('❌ Frontend: Error in addOrderToDatabase:', error);
+      setAddToDatabaseError(error instanceof Error ? error.message : 'An unexpected error occurred');
       setAddingToDatabase(false);
       return false;
     }

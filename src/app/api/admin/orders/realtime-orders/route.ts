@@ -106,7 +106,6 @@ export async function GET(request: NextRequest) {
     let partnersData: { [key: number]: PartnerJoin } = {};
     
     if (partnerIds.length > 0) {
-      console.log('🔍 Fetching partner data for IDs:', partnerIds);
       const { data: partners, error: partnersError } = await supabaseAdmin
         .from('partners')
         .select('id, name, city, mobile')
@@ -120,21 +119,7 @@ export async function GET(request: NextRequest) {
           acc[partner.id] = partner;
           return acc;
         }, {} as { [key: number]: PartnerJoin }) || {};
-        console.log('🔍 Partners data fetched:', partnersData);
       }
-    }
-    
-    // Debug: Log raw database data
-    if (orders && orders.length > 0) {
-      console.log('🔍 Raw database data sample:', {
-        firstOrder: orders[0],
-        ordersCount: orders.length,
-        sampleFields: {
-          id: orders[0].id,
-          customer_name: orders[0].customer_name,
-          partner_id: orders[0].partner_id
-        }
-      });
     }
     
 
@@ -142,16 +127,6 @@ export async function GET(request: NextRequest) {
     const transformedOrders = orders?.map(order => {
       try {
         const partnerName = order.partner_id ? partnersData[order.partner_id]?.name || undefined : undefined;
-        
-        // Debug partner transformation
-        if (order.partner_id) {
-          console.log('🔍 Partner transformation debug:', {
-            order_id: order.id,
-            partner_id: order.partner_id,
-            partner_data: partnersData[order.partner_id],
-            final_partner_name: partnerName
-          });
-        }
         
         return {
           id: order.id,
@@ -197,8 +172,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil((count || 0) / limit),
       queryTime: queryTime
     };
-
-    console.log(`✅ Admin real-time orders fetched: ${transformedOrders.length} orders (page ${page}/${stats.totalPages})`);
 
     return NextResponse.json({
       success: true,

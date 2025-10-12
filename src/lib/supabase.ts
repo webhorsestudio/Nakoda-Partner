@@ -46,7 +46,6 @@ class DatabaseCircuitBreaker {
     if (this.state === 'OPEN') {
       if (this.shouldAttemptReset()) {
         this.state = 'HALF_OPEN';
-        console.log('🔄 Database Circuit Breaker: Attempting reset (HALF_OPEN)');
       } else {
         throw new Error('Database circuit breaker is OPEN - Service temporarily unavailable');
       }
@@ -66,7 +65,6 @@ class DatabaseCircuitBreaker {
     this.failureCount = 0;
     if (this.state === 'HALF_OPEN') {
       this.state = 'CLOSED';
-      console.log('✅ Database Circuit Breaker: Reset successful (CLOSED)');
     }
   }
 
@@ -76,7 +74,6 @@ class DatabaseCircuitBreaker {
 
     if (this.failureCount >= this.failureThreshold) {
       this.state = 'OPEN';
-      console.log('🚨 Database Circuit Breaker: Opened due to failures');
     }
   }
 

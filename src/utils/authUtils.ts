@@ -48,33 +48,14 @@ export const generateRefreshToken = (payload: TokenPayload): string => {
  */
 export const verifyJWTToken = (token: string): TokenPayload | null => {
   try {
-    console.log('🔍 JWT verification attempt:', {
-      tokenLength: token.length,
-      tokenPreview: token.substring(0, 50) + '...',
-      secretLength: JWT_CONFIG.SECRET.length,
-      issuer: 'nakoda-partner',
-      audience: 'admin-users'
-    });
-    
     const decoded = jwt.verify(token, JWT_CONFIG.SECRET, {
       issuer: 'nakoda-partner',
       audience: 'admin-users'
     }) as TokenPayload;
     
-    console.log('✅ JWT verification successful:', {
-      userId: decoded.userId,
-      role: decoded.role,
-      phone: decoded.phone
-    });
-    
     return decoded;
   } catch (error) {
     console.error('❌ JWT verification failed:', error);
-    console.error('Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack trace'
-    });
     return null;
   }
 };

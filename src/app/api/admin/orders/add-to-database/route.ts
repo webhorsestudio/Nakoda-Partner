@@ -121,16 +121,28 @@ interface AddToDatabaseRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 Add-to-database API called');
+    
     // Verify admin authentication
     const authResult = await verifyAdminToken(request);
     if (!authResult.success) {
+      console.log('❌ Authentication failed:', authResult.error);
       return NextResponse.json(
         { error: 'Unauthorized', message: authResult.error },
         { status: 401 }
       );
     }
 
-    const { orderDetails }: AddToDatabaseRequest = await request.json();
+    console.log('✅ Authentication successful');
+    
+    const requestBody = await request.json();
+    console.log('📥 Request body received:', {
+      hasOrderDetails: !!requestBody.orderDetails,
+      orderNumber: requestBody.orderDetails?.orderNumber,
+      bitrix24Id: requestBody.orderDetails?.bitrix24Id
+    });
+
+    const { orderDetails }: AddToDatabaseRequest = requestBody;
 
     if (!orderDetails || !orderDetails.orderNumber) {
       return NextResponse.json(
@@ -140,19 +152,68 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`📥 Admin adding order ${orderDetails.orderNumber} to database`);
+    console.log(`🔍 Order details:`, {
+      bitrix24Id: orderDetails.bitrix24Id,
+      orderNumber: orderDetails.orderNumber,
+      customerName: orderDetails.customerName,
+      amount: orderDetails.amount
+    });
 
-    // Check if order already exists in database
+    // Check if order already exists in database by bitrix24_id
     const { data: existingOrder, error: checkError } = await supabase
       .from('orders')
       .select('*')
       .eq('bitrix24_id', orderDetails.bitrix24Id)
       .single();
 
-    if (existingOrder) {
-      console.log(`🔄 Order ${orderDetails.orderNumber} already exists in database with ID: ${existingOrder.id}`);
+    // Also check by order_number as fallback
+    const { data: existingOrderByNumber, error: checkByNumberError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('order_number', orderDetails.orderNumber)
+      .single();
+
+    // Handle the case where no record is found (checkError exists but existingOrder is null)
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 is "not found" error, which is expected for new orders
+      console.error('Error checking existing order by bitrix24_id:', checkError);
+      return NextResponse.json(
+        { 
+          error: 'Failed to check existing order', 
+          details: checkError.message 
+        },
+        { status: 500 }
+      );
+    }
+
+    if (checkByNumberError && checkByNumberError.code !== 'PGRST116') {
+      console.error('Error checking existing order by order_number:', checkByNumberError);
+      return NextResponse.json(
+        { 
+          error: 'Failed to check existing order by number', 
+          details: checkByNumberError.message 
+        },
+        { status: 500 }
+      );
+    }
+
+    // Use whichever existing order we found
+    const finalExistingOrder = existingOrder || existingOrderByNumber;
+
+    console.log(`🔍 Existing order check result:`, {
+      existingByBitrixId: existingOrder ? 'Found' : 'Not found',
+      existingByOrderNumber: existingOrderByNumber ? 'Found' : 'Not found',
+      finalExistingOrder: finalExistingOrder ? 'Found' : 'Not found',
+      checkError: checkError ? checkError.code : 'None',
+      bitrix24Id: orderDetails.bitrix24Id,
+      orderNumber: orderDetails.orderNumber
+    });
+
+    if (finalExistingOrder) {
+      console.log(`🔄 Order ${orderDetails.orderNumber} already exists in database with ID: ${finalExistingOrder.id}`);
       
       // Compare existing data with new data from Bitrix24
-      const hasChanges = compareOrderData(existingOrder, orderDetails);
+      const hasChanges = compareOrderData(finalExistingOrder, orderDetails);
       
       if (hasChanges.hasChanges) {
         console.log(`📝 Order ${orderDetails.orderNumber} has updates from Bitrix24:`, hasChanges.changes);
@@ -269,6 +330,15 @@ export async function POST(request: NextRequest) {
     };
 
     // Insert order into database
+    console.log(`💾 Inserting new order ${orderDetails.orderNumber} into database...`);
+    console.log(`📊 Order data to insert:`, {
+      bitrix24_id: orderData.bitrix24_id,
+      order_number: orderData.order_number,
+      customer_name: orderData.customer_name,
+      amount: orderData.amount,
+      status: orderData.status
+    });
+    
     const { data: newOrder, error: insertError } = await supabase
       .from('orders')
       .insert(orderData)
@@ -276,11 +346,37 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error('Error inserting order to database:', insertError);
+      console.error('❌ Error inserting order to database:', insertError);
+      console.error('❌ Insert error details:', {
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        orderNumber: orderDetails.orderNumber,
+        bitrix24Id: orderDetails.bitrix24Id
+      });
+      
+      // Handle specific error cases
+      if (insertError.code === '23505') {
+        // Unique constraint violation
+        console.error('❌ Unique constraint violation - order with this bitrix24_id already exists');
+        return NextResponse.json(
+          { 
+            error: 'Order already exists in database', 
+            details: `An order with Bitrix24 ID ${orderDetails.bitrix24Id} already exists`,
+            code: insertError.code,
+            hint: 'This order may have been added previously'
+          },
+          { status: 409 }
+        );
+      }
+      
       return NextResponse.json(
         { 
-          error: 'Failed to save order to database',
-          details: insertError.message 
+          error: 'Failed to save order to database', 
+          details: insertError.message,
+          code: insertError.code,
+          hint: insertError.hint
         },
         { status: 500 }
       );

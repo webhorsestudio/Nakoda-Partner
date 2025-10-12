@@ -13,20 +13,9 @@ export async function verifyPartnerToken(request: NextRequest): Promise<AuthResu
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');
     
-    console.log('Auth debug:', {
-      hasAuthHeader: !!authHeader,
-      hasToken: !!token,
-      cookies: request.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value }))
-    });
-    
     if (!token) {
       // Try to get token from cookies
       const cookieToken = request.cookies.get('auth-token')?.value;
-      
-      console.log('Cookie token check:', {
-        hasCookieToken: !!cookieToken,
-        cookieValue: cookieToken ? `${cookieToken.substring(0, 50)}...` : 'none'
-      });
       
       if (!cookieToken) {
         return { success: false, error: 'No token provided' };
