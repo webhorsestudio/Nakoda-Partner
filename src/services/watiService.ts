@@ -1,4 +1,4 @@
-import { WATI_CONFIG, WATITemplateMessage, OrderData, PartnerOrderData } from '@/config/wati';
+import { WATI_CONFIG, WATITemplateMessage, OrderData, PartnerOrderData, PartnerReassignmentData } from '@/config/wati';
 
 export interface WATIResponse {
   success: boolean;
@@ -146,13 +146,13 @@ export class WATIService {
       parameters: [
         { name: 'name', value: partnerOrderData.customerName },
         { name: 'order_id', value: partnerOrderData.orderId },
-        { name: 'order_amount', value: partnerOrderData.orderAmount.toString() }, // Remove ₹ symbol
+        { name: 'order_amount', value: partnerOrderData.orderAmount.toString() },
         { name: 'address', value: partnerOrderData.address },
         { name: 'service_details', value: partnerOrderData.serviceDetails },
-        { name: 'fees', value: partnerOrderData.fees }, // Use actual fees value
+        { name: 'fees', value: partnerOrderData.fees },
         { name: 'date', value: formatDateForWATI(partnerOrderData.serviceDate) },
         { name: 'slot', value: partnerOrderData.timeSlot },
-        { name: 'pending_payment', value: partnerOrderData.pendingPayment.toString() }, // Remove ₹ symbol
+        { name: 'pending_payment', value: partnerOrderData.pendingPayment.toString() },
         { name: 'Unique_ID', value: partnerOrderData.otp },
         { name: 'responsible_person', value: partnerOrderData.responsiblePerson }
       ],
@@ -160,6 +160,34 @@ export class WATIService {
     };
 
     return this.sendTemplateMessage(partnerOrderData.partnerPhone, templateMessage);
+  }
+
+  /**
+   * Send partner reassignment message (using same template as regular assignment)
+   */
+  async sendPartnerReassignmentMessage(partnerReassignmentData: PartnerReassignmentData): Promise<WATIResponse> {
+    // Use the same template as regular partner assignment
+    // The template will work for both first-time and reassignment cases
+    const templateMessage: WATITemplateMessage = {
+      template_name: WATI_CONFIG.TEMPLATES.PARTNER_MESSAGE,
+      parameters: [
+        { name: 'name', value: partnerReassignmentData.customerName },
+        { name: 'order_id', value: partnerReassignmentData.orderId },
+        { name: 'order_amount', value: partnerReassignmentData.orderAmount.toString() },
+        { name: 'address', value: partnerReassignmentData.address },
+        { name: 'service_details', value: partnerReassignmentData.serviceDetails },
+        { name: 'fees', value: partnerReassignmentData.fees },
+        { name: 'date', value: formatDateForWATI(partnerReassignmentData.serviceDate) },
+        { name: 'slot', value: partnerReassignmentData.timeSlot },
+        { name: 'pending_payment', value: partnerReassignmentData.pendingPayment.toString() },
+        { name: 'Unique_ID', value: partnerReassignmentData.otp },
+        { name: 'responsible_person', value: partnerReassignmentData.responsiblePerson }
+        // Note: Not including previous_partner since the template doesn't support it
+      ],
+      broadcast_name: WATI_CONFIG.BROADCASTS.FINAL
+    };
+
+    return this.sendTemplateMessage(partnerReassignmentData.partnerPhone, templateMessage);
   }
 
   /**

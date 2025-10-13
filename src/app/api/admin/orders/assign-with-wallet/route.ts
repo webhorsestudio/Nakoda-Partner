@@ -112,10 +112,10 @@ export async function POST(request: NextRequest) {
       advanceAmount
     });
 
-    // Fetch the order data to get time slot
+    // Fetch the order data to get time slot and check if previously assigned
     const { data: orderData, error: orderFetchError } = await supabase
       .from('orders')
-      .select('time_slot, service_date, customer_name, mobile_number, amount, advance_amount, service_type')
+      .select('time_slot, service_date, customer_name, mobile_number, amount, advance_amount, service_type, partner_id')
       .eq('order_number', orderNumber)
       .single();
 
@@ -130,7 +130,20 @@ export async function POST(request: NextRequest) {
     console.log(`🔍 Order data fetched:`, {
       time_slot: orderData.time_slot,
       service_date: orderData.service_date,
-      customer_name: orderData.customer_name
+      customer_name: orderData.customer_name,
+      current_partner_id: orderData.partner_id,
+      new_partner_id: partnerId
+    });
+
+    // Determine if this is a first-time assignment or reassignment
+    const isFirstTimeAssignment = !orderData.partner_id || orderData.partner_id === null;
+    const isReassignment = orderData.partner_id && orderData.partner_id !== partnerId;
+    
+    console.log(`📋 Assignment type:`, {
+      isFirstTimeAssignment,
+      isReassignment,
+      previousPartnerId: orderData.partner_id,
+      newPartnerId: partnerId
     });
     const { data: order, error: orderUpdateError } = await supabase
       .from('orders')
@@ -207,6 +220,12 @@ export async function POST(request: NextRequest) {
         previousBalance: currentBalance,
         newBalance: newBalance,
         deductedAmount: requiredAmount
+      },
+      assignmentType: {
+        isFirstTimeAssignment,
+        isReassignment,
+        previousPartnerId: orderData.partner_id,
+        previousPartnerName: null // Will be fetched separately if needed
       }
     });
 

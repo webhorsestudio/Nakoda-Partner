@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminToken } from '@/lib/auth';
 import { watiService } from '@/services/watiService';
-import { OrderData, PartnerOrderData } from '@/config/wati';
+import { OrderData, PartnerOrderData, PartnerReassignmentData } from '@/config/wati';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     // Validate phone number based on message type
     let phoneNumber: string;
-    if (messageType === 'partner') {
+    if (messageType === 'partner' || messageType === 'partner_reassignment') {
       const partnerOrderData = orderData as PartnerOrderData;
       console.log(`📱 Partner phone number received: ${partnerOrderData.partnerPhone}`);
       
@@ -70,9 +70,12 @@ export async function POST(request: NextRequest) {
       case 'partner':
         result = await watiService.sendPartnerMessage(orderData as PartnerOrderData);
         break;
+      case 'partner_reassignment':
+        result = await watiService.sendPartnerReassignmentMessage(orderData as PartnerReassignmentData);
+        break;
       default:
         return NextResponse.json(
-          { error: 'Invalid message type', message: 'messageType must be "pipeline", "final_confirmation", or "partner"' },
+          { error: 'Invalid message type', message: 'messageType must be "pipeline", "final_confirmation", "partner", or "partner_reassignment"' },
           { status: 400 }
         );
     }

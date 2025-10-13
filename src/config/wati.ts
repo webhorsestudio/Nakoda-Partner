@@ -8,6 +8,7 @@ export const WATI_CONFIG = {
     PIPELINE_MESSAGE: 'pipelinecodnew2',
     FINAL_CONFIRMATION: 'finalconfirmation2025',
     PARTNER_MESSAGE: 'partnermessage'
+    // Removed PARTNER_REASSIGNMENT - using PARTNER_MESSAGE for both cases
   },
   
   // Broadcast Names
@@ -58,4 +59,20 @@ export interface PartnerOrderData {
   pendingPayment: number;
   otp: string;
   responsiblePerson: string;
+}
+
+export interface PartnerReassignmentData {
+  customerName: string;
+  partnerPhone: string;
+  orderId: string;
+  orderAmount: number;
+  address: string;
+  serviceDetails: string;
+  fees: string;
+  serviceDate: string;
+  timeSlot: string;
+  pendingPayment: number;
+  otp: string;
+  responsiblePerson: string;
+  previousPartnerName?: string; // Name of previous partner (if any)
 }

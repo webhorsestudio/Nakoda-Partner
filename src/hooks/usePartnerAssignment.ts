@@ -98,13 +98,18 @@ export const usePartnerAssignment = (): UsePartnerAssignmentReturn => {
         console.log(`✅ Order ${orderDetails.orderNumber} assigned to partner ${data.partner.name} successfully`);
         console.log(`💰 Wallet deduction: ₹${data.walletUpdate.deductedAmount} from ${data.partner.name}'s wallet`);
         
-        // Send WATI WhatsApp messages to both partner and customer after successful assignment
+        // Check assignment type for conditional messaging
+        const assignmentType = data.assignmentType;
+        console.log(`📋 Assignment type received:`, assignmentType);
+        
+        // Send WATI WhatsApp messages based on assignment type
         try {
           console.log(`📱 Sending WATI messages for order ${orderDetails.orderNumber}...`);
           console.log(`📱 Partner: ${data.partner.name} (${data.partner.mobile})`);
           console.log(`📱 Customer: ${orderDetails.customerName} (${orderDetails.customerPhone})`);
+          console.log(`📱 Assignment Type: ${assignmentType?.isFirstTimeAssignment ? 'First Time' : 'Reassignment'}`);
           
-          // 1. Send message to PARTNER
+          // 1. Send message to PARTNER (always send to partner)
           // Convert time slot for partner message
           const partnerTimeSlot = convertTimeSlot(orderDetails.timeSlot);
           
@@ -127,7 +132,8 @@ export const usePartnerAssignment = (): UsePartnerAssignmentReturn => {
             timeSlot: partnerTimeSlot, // Use converted time slot
             pendingPayment: balanceAmount, // Balance amount (what customer needs to pay)
             otp: orderDetails.orderNumber.slice(-4), // Use last 4 digits as OTP
-            responsiblePerson: data.partner.name
+            responsiblePerson: data.partner.name,
+            previousPartnerName: assignmentType?.previousPartnerName || undefined
           };
 
           console.log(`📱 Partner order data for WATI:`, partnerOrderData);
@@ -139,56 +145,64 @@ export const usePartnerAssignment = (): UsePartnerAssignmentReturn => {
             },
             body: JSON.stringify({
               orderData: partnerOrderData,
-              messageType: 'partner'
+              messageType: assignmentType?.isFirstTimeAssignment ? 'partner' : 'partner_reassignment'
             }),
           });
 
           const partnerWatiData = await partnerWatiResponse.json();
           
           if (partnerWatiData.success) {
-            console.log(`✅ WATI message sent successfully to partner ${data.partner.name} for order ${orderDetails.orderNumber}`);
+            const messageType = assignmentType?.isFirstTimeAssignment ? 'assignment' : 'reassignment';
+            console.log(`✅ WATI message sent successfully to partner ${data.partner.name} for order ${orderDetails.orderNumber} (${messageType})`);
           } else {
-            console.warn(`⚠️ WATI message failed for partner ${data.partner.name} for order ${orderDetails.orderNumber}:`, partnerWatiData.error);
+            const messageType = assignmentType?.isFirstTimeAssignment ? 'assignment' : 'reassignment';
+            console.warn(`⚠️ WATI message failed for partner ${data.partner.name} for order ${orderDetails.orderNumber} (${messageType}):`, partnerWatiData.error);
           }
 
-          // 2. Send FINAL CONFIRMATION message to CUSTOMER
-          // Reuse the same variables from partner message calculation
-          // Format time slot properly using converter
-          const formattedTimeSlot = convertTimeSlot(orderDetails.timeSlot);
-          
-          const customerOrderData = {
-            customerName: orderDetails.customerName,
-            customerPhone: orderDetails.customerPhone,
-            orderId: orderDetails.orderNumber,
-            orderAmount: orderDetails.amount,
-            address: orderDetails.address,
-            serviceDetails: orderDetails.package || orderDetails.serviceType,
-            fees: orderDetails.taxesAndFees || '0',
-            serviceDate: orderDetails.serviceDate,
-            timeSlot: formattedTimeSlot, // Use properly formatted time slot
-            pendingPayment: balanceAmount, // Use calculated balance amount
-            otp: orderDetails.orderNumber.slice(-4) // Use last 4 digits as OTP
-          };
+          // 2. Send FINAL CONFIRMATION message to CUSTOMER (only for first-time assignments)
+          if (assignmentType?.isFirstTimeAssignment) {
+            console.log(`📱 Sending customer confirmation message (first-time assignment)`);
+            
+            // Reuse the same variables from partner message calculation
+            // Format time slot properly using converter
+            const formattedTimeSlot = convertTimeSlot(orderDetails.timeSlot);
+            
+            const customerOrderData = {
+              customerName: orderDetails.customerName,
+              customerPhone: orderDetails.customerPhone,
+              orderId: orderDetails.orderNumber,
+              orderAmount: orderDetails.amount,
+              address: orderDetails.address,
+              serviceDetails: orderDetails.package || orderDetails.serviceType,
+              fees: orderDetails.taxesAndFees || '0',
+              serviceDate: orderDetails.serviceDate,
+              timeSlot: formattedTimeSlot, // Use properly formatted time slot
+              pendingPayment: balanceAmount, // Use calculated balance amount
+              otp: orderDetails.orderNumber.slice(-4) // Use last 4 digits as OTP
+            };
 
-          console.log(`📱 Customer order data for WATI:`, customerOrderData);
+            console.log(`📱 Customer order data for WATI:`, customerOrderData);
 
-          const customerWatiResponse = await fetch('/api/wati/send-message', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              orderData: customerOrderData,
-              messageType: 'final_confirmation'
-            }),
-          });
+            const customerWatiResponse = await fetch('/api/wati/send-message', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                orderData: customerOrderData,
+                messageType: 'final_confirmation'
+              }),
+            });
 
-          const customerWatiData = await customerWatiResponse.json();
-          
-          if (customerWatiData.success) {
-            console.log(`✅ WATI final confirmation message sent successfully to customer ${orderDetails.customerName} for order ${orderDetails.orderNumber}`);
+            const customerWatiData = await customerWatiResponse.json();
+            
+            if (customerWatiData.success) {
+              console.log(`✅ WATI final confirmation message sent successfully to customer ${orderDetails.customerName} for order ${orderDetails.orderNumber}`);
+            } else {
+              console.warn(`⚠️ WATI final confirmation message failed for customer ${orderDetails.customerName} for order ${orderDetails.orderNumber}:`, customerWatiData.error);
+            }
           } else {
-            console.warn(`⚠️ WATI final confirmation message failed for customer ${orderDetails.customerName} for order ${orderDetails.orderNumber}:`, customerWatiData.error);
+            console.log(`📱 Skipping customer message (reassignment - only partner notified)`);
           }
 
         } catch (watiError) {
