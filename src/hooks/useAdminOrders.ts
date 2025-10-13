@@ -11,8 +11,12 @@ interface UseAdminOrdersReturn {
   itemsPerPage: number;
   searchTerm: string;
   statusFilter: string;
+  dateFrom: string;
+  dateTo: string;
   setSearchTerm: (term: string) => void;
   setStatusFilter: (filter: string) => void;
+  setDateFrom: (date: string) => void;
+  setDateTo: (date: string) => void;
   setCurrentPage: (page: number) => void;
   refreshOrders: () => void;
 }
@@ -27,6 +31,8 @@ export const useAdminOrders = (): UseAdminOrdersReturn => {
   const [itemsPerPage] = useState(50); // Fixed at 50 items per page
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -40,6 +46,14 @@ export const useAdminOrders = (): UseAdminOrdersReturn => {
         status: statusFilter,
         search: searchTerm
       });
+
+      // Add date filters if provided
+      if (dateFrom) {
+        params.append('dateFrom', dateFrom);
+      }
+      if (dateTo) {
+        params.append('dateTo', dateTo);
+      }
 
       const response = await fetch(`/api/admin/orders/realtime-orders?${params}`);
       
@@ -101,19 +115,19 @@ export const useAdminOrders = (): UseAdminOrdersReturn => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage, searchTerm, statusFilter]);
+  }, [currentPage, itemsPerPage, searchTerm, statusFilter, dateFrom, dateTo]);
 
   // Fetch orders when dependencies change
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-  // Reset to page 1 when search term or status filter changes
+  // Reset to page 1 when search term, status filter, or date filters change
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, dateFrom, dateTo]);
 
   const refreshOrders = useCallback(() => {
     fetchOrders();
@@ -129,8 +143,12 @@ export const useAdminOrders = (): UseAdminOrdersReturn => {
     itemsPerPage,
     searchTerm,
     statusFilter,
+    dateFrom,
+    dateTo,
     setSearchTerm,
     setStatusFilter,
+    setDateFrom,
+    setDateTo,
     setCurrentPage,
     refreshOrders
   };

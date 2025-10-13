@@ -26,6 +26,8 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100); // Max 100 records
     const status = searchParams.get('status') || 'all';
     const search = searchParams.get('search') || '';
+    const dateFrom = searchParams.get('dateFrom') || '';
+    const dateTo = searchParams.get('dateTo') || '';
 
     // Calculate offset for pagination
     const offset = (page - 1) * limit;
@@ -68,6 +70,14 @@ export async function GET(request: NextRequest) {
     if (search.trim()) {
       const searchTerm = `%${search.trim()}%`;
       query = query.or(`customer_name.ilike.${searchTerm},order_number.ilike.${searchTerm},service_type.ilike.${searchTerm}`);
+    }
+
+    // Apply date filters if specified (filter by service_date, not created_at)
+    if (dateFrom) {
+      query = query.gte('service_date', `${dateFrom}T00:00:00.000Z`);
+    }
+    if (dateTo) {
+      query = query.lte('service_date', `${dateTo}T23:59:59.999Z`);
     }
 
     // Execute query with timeout handling and circuit breaker
