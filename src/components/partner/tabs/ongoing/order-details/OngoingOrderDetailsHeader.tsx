@@ -7,7 +7,7 @@ import { getCleanServiceTitle } from '../utils/titleUtils';
 import { formatCurrency, formatDate } from '../utils/currencyUtils';
 
 export default function OngoingOrderDetailsHeader({ order, onClose }: OngoingOrderDetailsHeaderProps) {
-  const cleanTitle = getCleanServiceTitle(order.description || '');
+  const cleanTitle = getCleanServiceTitle(order.description || '', order.package);
   
   const getTimeSlotDisplay = (slotCode: string) => {
     if (!slotCode) return order.duration || 'Time TBD';

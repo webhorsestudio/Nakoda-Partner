@@ -88,6 +88,7 @@ export async function GET(
         order_number,
         currency,
         mode,
+        package,
         vendor_amount,
         created_at,
         updated_at
@@ -128,6 +129,7 @@ export async function GET(
       id: order.id,
       title: order.title || 'Service Request',
       description: order.specification || 'Service description not available',
+      package: order.package || null,
       customerName: order.customer_name || 'Customer',
       location: `${order.city || 'Unknown City'}${order.pin_code ? ` - ${order.pin_code}` : ''}`,
       amount: totalAmount,

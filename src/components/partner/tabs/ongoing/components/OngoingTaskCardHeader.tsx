@@ -5,6 +5,7 @@ import { getCleanServiceTitle } from '../utils/titleUtils';
 interface OngoingTaskCardHeaderProps {
   title: string;
   description: string;
+  package?: string;
   orderNumber: string;
   status: 'in-progress' | 'completed' | 'cancelled' | 'assigned';
   currentPhase: string;
@@ -13,11 +14,12 @@ interface OngoingTaskCardHeaderProps {
 export default function OngoingTaskCardHeader({ 
   title, 
   description,
+  package: packageField,
   orderNumber, 
   status, 
   currentPhase
 }: OngoingTaskCardHeaderProps) {
-  const cleanTitle = getCleanServiceTitle(description);
+  const cleanTitle = getCleanServiceTitle(description, packageField);
   
   return (
     <CardHeader className="pb-3">

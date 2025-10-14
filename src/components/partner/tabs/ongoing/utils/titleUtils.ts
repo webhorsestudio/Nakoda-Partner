@@ -5,9 +5,41 @@
 /**
  * Extract clean service title from package text
  * @param description - Original description text
+ * @param packageField - Package field from database (optional)
  * @returns Cleaned service title
  */
-export const getCleanServiceTitle = (description: string): string => {
+export const getCleanServiceTitle = (description: string, packageField?: string): string => {
+  // First priority: Use the package field from database if available
+  if (packageField && packageField.trim() && packageField !== '1') {
+    let cleanPackage = packageField.trim();
+    
+    // Remove "By :" patterns first
+    cleanPackage = cleanPackage.replace(/By\s*:\s*/i, '').trim();
+    
+    // Use fallback patterns to remove common company names
+    cleanPackage = removeFallbackPatterns(cleanPackage);
+    
+    // Clean up extra spaces
+    cleanPackage = cleanPackage.replace(/\s+/g, ' ').trim();
+    
+    // Filter out "1" specifically - if result is just "1", fall back to description parsing
+    if (cleanPackage === '1') {
+      return parseDescriptionForTitle(description);
+    }
+    
+    return cleanPackage;
+  }
+  
+  // Fallback: Parse description for package information
+  return parseDescriptionForTitle(description);
+};
+
+/**
+ * Parse description field for package information
+ * @param description - Original description text
+ * @returns Cleaned service title from description
+ */
+const parseDescriptionForTitle = (description: string): string => {
   // Look for "Package:" in the description (case insensitive, flexible spacing)
   // Handle various formats: "Package: text", "Package : text", "Package: text,", etc.
   let packageMatch = description.match(/Package\s*:\s*([^,]+)/i);
@@ -33,11 +65,15 @@ export const getCleanServiceTitle = (description: string): string => {
     packageText = packageText.replace(/By\s*:\s*/i, '').trim();
     
     // Use fallback patterns to remove common company names
-    
     packageText = removeFallbackPatterns(packageText);
     
     // Clean up extra spaces
     packageText = packageText.replace(/\s+/g, ' ').trim();
+    
+    // Filter out "1" specifically - if result is just "1", return original description
+    if (packageText === '1') {
+      return description;
+    }
     
     return packageText;
   }

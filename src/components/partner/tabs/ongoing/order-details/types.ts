@@ -2,6 +2,7 @@ export interface OngoingOrderDetails {
   id: string;
   title: string;
   description: string;
+  package?: string; // Package field from database
   customerName: string;
   location: string;
   amount: number;

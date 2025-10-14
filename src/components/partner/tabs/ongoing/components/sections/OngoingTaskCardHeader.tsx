@@ -11,6 +11,7 @@ export default function OngoingTaskCardHeaderSection({ task }: OngoingTaskCardHe
     <OngoingTaskCardHeader 
       title={task.title} 
       description={task.description || ''}
+      package={task.package}
       orderNumber={task.orderNumber}
       status={task.status}
       currentPhase={task.currentPhase}

@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         mobile_number,
         partner_id,
         mode,
+        package,
         partner_completion_status
       `)
       .eq('partner_id', partnerId) // Only orders assigned to this partner
@@ -111,6 +112,7 @@ export async function GET(request: NextRequest) {
         id: order.id,
         title: order.title || 'Service Request',
         description: order.specification || 'Service description not available',
+        package: order.package || null,
         customerName: order.customer_name || 'Customer',
         location: `${order.city || 'Unknown City'}${order.pin_code ? ` - ${order.pin_code}` : ''}`,
         amount: amount,
@@ -122,12 +124,12 @@ export async function GET(request: NextRequest) {
         serviceTime: order.time_slot || 'Not specified',
         status: order.status as 'in-progress' | 'completed' | 'cancelled' | 'assigned',
         startTime: order.status === 'in-progress' ? new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : undefined,
-        estimatedEndTime: order.time_slot ? 
+        estimatedEndTime: order.time_slot ?
           new Date(Date.now() + 3 * 60 * 60 * 1000).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : undefined,
-        actualStartTime: order.status === 'in-progress' ? 
+        actualStartTime: order.status === 'in-progress' ?
           new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : undefined,
-        currentPhase: order.status === 'completed' ? 'Completed' : 
-                     order.status === 'in-progress' ? 'In Progress' : 
+        currentPhase: order.status === 'completed' ? 'Completed' :
+                     order.status === 'in-progress' ? 'In Progress' :
                      order.status === 'assigned' ? 'Assigned' : 'Unknown',
         notes: order.specification || '',
         photos: [],
