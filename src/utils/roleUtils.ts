@@ -172,7 +172,8 @@ export function getNavigationItems(userRole: UserRole | null): NavigationItem[] 
       icon: "CalendarIcon",
       alwaysShow: false,
       children: [
-        { name: "Order Management", href: "/admin/orders/details", icon: "CalendarIcon", alwaysShow: false }
+        { name: "Order Management", href: "/admin/orders/details", icon: "CalendarIcon", alwaysShow: false },
+        { name: "Assigned Orders Details", href: "/admin/orders/assigned-orders", icon: "UserGroupIcon", alwaysShow: false }
       ]
     });
   }
