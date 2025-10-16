@@ -24,9 +24,9 @@ export async function GET(request: NextRequest) {
     // Calculate offset for pagination
     const offset = (page - 1) * limit;
 
-    console.log(`🔍 Fetching partners with assigned orders - Page: ${page}, Limit: ${limit}, Search: ${search}`);
+    console.log(`🔍 Fetching all partners with assigned order counts - Page: ${page}, Limit: ${limit}, Search: ${search}`);
 
-    // Build query to get partners with their assigned order counts
+    // Fetch ALL partners (including those with 0 assigned orders)
     let query = supabaseAdmin
       .from('partners')
       .select(`
@@ -45,9 +45,7 @@ export async function GET(request: NextRequest) {
         last_active,
         documents_verified,
         notes
-      `, { count: 'exact' })
-      .order('total_orders', { ascending: false }) // Order by assigned orders count
-      .range(offset, offset + limit - 1);
+      `, { count: 'exact' });
 
     // Apply search filter if specified
     if (search.trim()) {
@@ -67,13 +65,19 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ Found ${partners?.length || 0} partners (Total: ${count})`);
 
-    // Get assigned order counts for each partner
+    // Get assigned order counts for ALL partners (including those with 0 assigned orders)
     const partnerIds = partners?.map(partner => partner.id) || [];
     const assignedOrderCounts: Record<number, number> = {};
     const assignedOrderDetails: Record<number, Array<{status: string; amount: number; serviceDate: string; createdAt: string}>> = {};
 
+    // Initialize all partners with 0 assigned orders
+    partnerIds.forEach(partnerId => {
+      assignedOrderCounts[partnerId] = 0;
+      assignedOrderDetails[partnerId] = [];
+    });
+
     if (partnerIds.length > 0) {
-      // Build order query with date filters
+      // Build order query with date filters for ALL partners
       let orderQuery = supabaseAdmin
         .from('orders')
         .select('partner_id, status, amount, service_date, created_at')
@@ -92,7 +96,7 @@ export async function GET(request: NextRequest) {
 
       if (ordersError) {
         console.error('Error fetching assigned orders:', ordersError);
-        // Continue without order details
+        // Continue without order details (partners will show 0 assigned orders)
       } else {
         // Count orders per partner
         orders?.forEach(order => {
@@ -154,17 +158,22 @@ export async function GET(request: NextRequest) {
       };
     }) || [];
 
-    // Filter out partners with 0 assigned orders if needed
-    const filteredPartners = transformedPartners.filter(partner => partner.assignedOrdersCount > 0);
+    // Sort partners by assigned order count (descending) - partners with most assigned orders first
+    transformedPartners.sort((a, b) => b.assignedOrdersCount - a.assignedOrdersCount);
 
-    // Calculate pagination info
-    const totalPages = Math.ceil((count || 0) / limit);
+    // Apply pagination to sorted results
+    const startIndex = offset;
+    const endIndex = offset + limit;
+    const paginatedPartners = transformedPartners.slice(startIndex, endIndex);
+
+    // Calculate pagination info based on total partners
+    const totalPages = Math.ceil(transformedPartners.length / limit);
 
     return NextResponse.json({
       success: true,
-      partners: filteredPartners,
+      partners: paginatedPartners,
       stats: {
-        total: count || 0,
+        total: transformedPartners.length,
         totalPages,
         currentPage: page,
         itemsPerPage: limit,

@@ -130,9 +130,9 @@ export default function AssignedOrdersPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Assigned Orders Details</h1>
-              <p className="mt-1 text-sm text-gray-500">
-                {loading ? 'Loading partners...' : `View partners with their assigned orders (${totalItems} partners, ${totalAssignedOrders} total assigned orders)`}
-              </p>
+                     <p className="mt-1 text-sm text-gray-500">
+                       {loading ? 'Loading partners...' : `View all partners with their assigned order counts (${totalItems} partners, ${totalAssignedOrders} total assigned orders)`}
+                     </p>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -199,12 +199,12 @@ export default function AssignedOrdersPage() {
           <div className="text-center py-12">
             <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Partners Found</h3>
-            <p className="text-gray-500">
-              {searchTerm || dateFrom || dateTo 
-                ? 'Try adjusting your search criteria or date filters.'
-                : 'There are currently no partners with assigned orders.'
-              }
-            </p>
+                   <p className="text-gray-500">
+                     {searchTerm || dateFrom || dateTo 
+                       ? 'Try adjusting your search criteria or date filters.'
+                       : 'There are currently no partners in the system.'
+                     }
+                   </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
