@@ -1,8 +1,16 @@
-// Modern Razorpay Hook for React 19 + Next.js 15+
+// Modern Razorpay Hook for React 19 + Next.js 15+ with WebView Support
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
+import { 
+  isWebView, 
+  isFlutterWebView, 
+  sendPaymentResultToFlutter, 
+  PaymentPoller,
+  getWebViewRazorpayConfig,
+  handleWebViewPaymentCompletion
+} from '@/utils/webViewUtils';
 
 interface RazorpayOptions {
   key: string;
@@ -42,11 +50,27 @@ interface UseRazorpayReturn {
   isLoading: boolean;
   error: string | null;
   clearError: () => void;
+  isWebView: boolean;
+  isFlutterWebView: boolean;
 }
 
 export const useRazorpay = (): UseRazorpayReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentPoller, setPaymentPoller] = useState<PaymentPoller | null>(null);
+
+  // Detect WebView environment
+  const webViewDetected = isWebView();
+  const flutterWebViewDetected = isFlutterWebView();
+
+  // Cleanup payment poller on unmount
+  useEffect(() => {
+    return () => {
+      if (paymentPoller) {
+        paymentPoller.stopPolling();
+      }
+    };
+  }, [paymentPoller]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -120,6 +144,9 @@ export const useRazorpay = (): UseRazorpayReturn => {
           // Initialize Razorpay
           const razorpay = (window as unknown as { Razorpay: new (options: RazorpayOptions) => { open: () => void } }).Razorpay;
       
+      // Get WebView-specific configuration if needed
+      const webViewConfig = webViewDetected ? getWebViewRazorpayConfig() : {};
+      
       const options: RazorpayOptions = {
         key: orderData.key_id,
         amount: orderData.amount,
@@ -130,6 +157,56 @@ export const useRazorpay = (): UseRazorpayReturn => {
         handler: async (response: RazorpayResponse) => {
           console.log('✅ Payment successful:', response);
           
+          // Handle WebView scenario
+          if (webViewDetected) {
+            console.log('🔄 WebView payment detected, starting enhanced verification...');
+            
+            // Send payment result to Flutter immediately
+            sendPaymentResultToFlutter({
+              success: true,
+              paymentId: response.razorpay_payment_id,
+              orderId: response.razorpay_order_id,
+              amount: params.amount,
+            });
+
+            // Start payment polling for WebView
+            const poller = new PaymentPoller(
+              response.razorpay_order_id,
+              response.razorpay_payment_id,
+              async (data) => {
+                console.log('✅ Payment verified via polling:', data);
+                toast.success('Payment successful! Your wallet has been updated.', {
+                  duration: 4000,
+                  position: 'top-right',
+                });
+                window.location.reload();
+              },
+              (error) => {
+                console.error('❌ Payment polling failed:', error);
+                toast.error(`Payment verification failed: ${error}`, {
+                  duration: 5000,
+                  position: 'top-right',
+                });
+              },
+              () => {
+                console.log('⏰ Payment polling timeout, trying manual verification...');
+                // Try manual verification as fallback
+                handleWebViewPaymentCompletion(
+                  response.razorpay_payment_id,
+                  response.razorpay_order_id,
+                  params.amount,
+                  params.partnerId
+                );
+              }
+            );
+            
+            setPaymentPoller(poller);
+            poller.startPolling(2000, 120000); // Poll every 2 seconds for 2 minutes
+            
+            return;
+          }
+          
+          // Standard web browser payment handling
           try {
             // Verify payment on server
             const verifyResponse = await fetch('/api/razorpay/verify-payment', {
@@ -232,5 +309,7 @@ export const useRazorpay = (): UseRazorpayReturn => {
     isLoading,
     error,
     clearError,
+    isWebView: webViewDetected,
+    isFlutterWebView: flutterWebViewDetected,
   };
 };
