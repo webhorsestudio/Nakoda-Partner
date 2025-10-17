@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     // Get assigned order counts for ALL partners (including those with 0 assigned orders)
     const partnerIds = partners?.map(partner => partner.id) || [];
     const assignedOrderCounts: Record<number, number> = {};
-    const assignedOrderDetails: Record<number, Array<{status: string; amount: number; serviceDate: string; createdAt: string}>> = {};
+    const assignedOrderDetails: Record<number, Array<{orderNumber: string; status: string; amount: number; serviceDate: string; createdAt: string}>> = {};
 
     // Initialize all partners with 0 assigned orders
     partnerIds.forEach(partnerId => {
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       // Build order query with date filters for ALL partners
       let orderQuery = supabaseAdmin
         .from('orders')
-        .select('partner_id, status, amount, service_date, created_at')
+        .select('order_number, partner_id, status, amount, service_date, created_at')
         .in('partner_id', partnerIds)
         .not('partner_id', 'is', null);
 
@@ -109,6 +109,7 @@ export async function GET(request: NextRequest) {
               assignedOrderDetails[partnerId] = [];
             }
             assignedOrderDetails[partnerId].push({
+              orderNumber: order.order_number || 'N/A',
               status: order.status,
               amount: parseFloat(order.amount?.toString() || '0'),
               serviceDate: order.service_date,

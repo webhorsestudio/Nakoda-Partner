@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export interface AssignedOrderDetail {
+  orderNumber: string;
   status: string;
   amount: number;
   serviceDate: string;
