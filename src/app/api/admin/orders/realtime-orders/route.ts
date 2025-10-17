@@ -63,7 +63,16 @@ export async function GET(request: NextRequest) {
 
     // Apply status filter if specified
     if (status !== 'all') {
-      query = query.eq('status', status);
+      if (status === 'ready') {
+        // "Ready to Assign" = orders with no partner assigned
+        query = query.is('partner_id', null);
+      } else if (status === 'assigned') {
+        // "Partner Assigned" = orders with partner assigned
+        query = query.not('partner_id', 'is', null);
+      } else {
+        // Other status filters (pending, completed, etc.)
+        query = query.eq('status', status);
+      }
     }
 
     // Apply search filter if specified
