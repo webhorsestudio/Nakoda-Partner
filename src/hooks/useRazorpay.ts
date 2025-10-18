@@ -145,12 +145,46 @@ export const useRazorpay = (): UseRazorpayReturn => {
           console.log('✅ UPI detection override injected successfully');
         }
         
+        // Payment gateway URL detection function
+        window._isPaymentGatewayUrl = function(url) {
+          const patterns = [
+            'razorpay.com',
+            'payu.in',
+            'paytm.com',
+            'phonepe.com',
+            'google.com/pay',
+            'amazon.com/pay',
+            'upi://',
+            'intent://',
+            'gpay://',
+            'phonepe://',
+            'paytm://',
+            'cred://',
+            'amazon://',
+            'mobikwik://',
+            'freecharge://',
+            'jiopay://',
+            'bharatpe://',
+            'tez://',
+            'whatsapp://',
+            'netbanking://',
+            'card://',
+            'visa://',
+            'mastercard://',
+            'payments.razorpay.com',
+            'api.razorpay.com',
+            'checkout.razorpay.com'
+          ];
+          
+          return patterns.some(pattern => url.toLowerCase().includes(pattern));
+        };
+        
         // Override window.open to handle payment redirects
         const originalOpen = window.open;
         window.open = function(url, target, features) {
           console.log('🌐 window.open called with:', url);
           
-          if (url && (url.includes('razorpay.com') || url.includes('upi://') || url.includes('intent://'))) {
+          if (url && _isPaymentGatewayUrl(url)) {
             console.log('💳 Payment gateway detected in window.open');
             
             // Send to Flutter for handling
@@ -166,6 +200,92 @@ export const useRazorpay = (): UseRazorpayReturn => {
           
           return originalOpen.call(this, url, target, features);
         };
+        
+        // Override location.href for payment redirects
+        let originalHref = Object.getOwnPropertyDescriptor(Location.prototype, 'href');
+        Object.defineProperty(Location.prototype, 'href', {
+          get: function() {
+            return originalHref.get.call(this);
+          },
+          set: function(url) {
+            console.log('🌐 location.href set to:', url);
+            
+            if (url && _isPaymentGatewayUrl(url)) {
+              console.log('💳 Payment gateway detected in location.href');
+              
+              // Send to Flutter for handling
+              if (window.webViewMessage) {
+                window.webViewMessage.postMessage(JSON.stringify({
+                  type: 'payment_redirect',
+                  url: url
+                }));
+              }
+              
+              return;
+            }
+            
+            originalHref.set.call(this, url);
+          }
+        });
+        
+        // Override document.location for payment redirects
+        const originalDocumentLocation = Object.getOwnPropertyDescriptor(Document.prototype, 'location');
+        Object.defineProperty(Document.prototype, 'location', {
+          get: function() {
+            return originalDocumentLocation.get.call(this);
+          },
+          set: function(url) {
+            console.log('🌐 document.location set to:', url);
+            
+            if (url && _isPaymentGatewayUrl(url)) {
+              console.log('💳 Payment gateway detected in document.location');
+              
+              // Send to Flutter for handling
+              if (window.webViewMessage) {
+                window.webViewMessage.postMessage(JSON.stringify({
+                  type: 'payment_redirect',
+                  url: url
+                }));
+              }
+              
+              return;
+            }
+            
+            originalDocumentLocation.set.call(this, url);
+          }
+        });
+        
+        // Add MutationObserver to catch iframe changes
+        const observer = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList') {
+              mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1 && node.tagName === 'IFRAME') {
+                  const iframe = node;
+                  console.log('🖼️ iframe detected:', iframe.src);
+                  
+                  if (iframe.src && _isPaymentGatewayUrl(iframe.src)) {
+                    console.log('💳 Payment gateway iframe detected:', iframe.src);
+                    
+                    // Send to Flutter for handling
+                    if (window.webViewMessage) {
+                      window.webViewMessage.postMessage(JSON.stringify({
+                        type: 'payment_redirect',
+                        url: iframe.src
+                      }));
+                    }
+                  }
+                }
+              });
+            }
+          });
+        });
+        
+        // Start observing
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
         
         console.log('✅ Payment gateway override injected successfully');
       })();
@@ -225,6 +345,11 @@ export const useRazorpay = (): UseRazorpayReturn => {
             position: 'top-right',
           });
 
+      // Inject UPI detection override BEFORE loading Razorpay
+      if (webViewDetected) {
+        await _injectUPIDetectionOverride();
+      }
+
       // Check if Razorpay script is already loaded
       if (!(window as unknown as { Razorpay?: unknown }).Razorpay) {
         // Load Razorpay script dynamically
@@ -250,11 +375,6 @@ export const useRazorpay = (): UseRazorpayReturn => {
       
       // Get WebView-specific configuration if needed
       const webViewConfig = webViewDetected ? getWebViewRazorpayConfig() : {};
-      
-      // Inject UPI app detection override for WebView
-      if (webViewDetected) {
-        await _injectUPIDetectionOverride();
-      }
       
       const options: RazorpayOptions = {
         key: orderData.key_id,
