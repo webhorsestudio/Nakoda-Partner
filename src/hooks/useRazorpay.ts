@@ -64,12 +64,14 @@ interface UseRazorpayReturn {
   clearError: () => void;
   isWebView: boolean;
   isFlutterWebView: boolean;
+  isPolling: boolean;
 }
 
 export const useRazorpay = (): UseRazorpayReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentPoller, setPaymentPoller] = useState<PaymentPoller | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
 
   // Detect WebView environment
   const webViewDetected = isWebView();
@@ -87,6 +89,99 @@ export const useRazorpay = (): UseRazorpayReturn => {
   const clearError = useCallback(() => {
     setError(null);
   }, []);
+
+  // Payment polling handlers
+  const handlePaymentSuccess = useCallback((data: Record<string, unknown>) => {
+    console.log('🎉 Payment successful via polling:', data);
+    
+    // Stop polling
+    if (paymentPoller) {
+      paymentPoller.stopPolling();
+      setPaymentPoller(null);
+    }
+    
+    // Update UI
+    setIsLoading(false);
+    setIsPolling(false);
+    setError(null);
+    
+    // Show success message
+    toast.success('Payment completed successfully!', {
+      duration: 3000,
+      position: 'top-right',
+    });
+    
+    // Send success to Flutter if in WebView
+    if (webViewDetected) {
+      sendPaymentResultToFlutter({
+        success: true,
+        paymentId: data.payment_id as string,
+        orderId: data.order_id as string,
+        amount: data.amount as number,
+      });
+    }
+    
+  }, [paymentPoller, webViewDetected]);
+
+  const handlePaymentFailure = useCallback((error: string) => {
+    console.log('💥 Payment failed via polling:', error);
+    
+    // Stop polling
+    if (paymentPoller) {
+      paymentPoller.stopPolling();
+      setPaymentPoller(null);
+    }
+    
+    // Update UI
+    setIsLoading(false);
+    setIsPolling(false);
+    setError(error);
+    
+    // Show error message
+    toast.error(`Payment failed: ${error}`, {
+      duration: 5000,
+      position: 'top-right',
+    });
+    
+    // Send failure to Flutter if in WebView
+    if (webViewDetected) {
+      sendPaymentResultToFlutter({
+        success: false,
+        error: error,
+      });
+    }
+    
+  }, [paymentPoller, webViewDetected]);
+
+  const handlePaymentTimeout = useCallback(() => {
+    console.log('⏰ Payment timeout via polling');
+    
+    // Stop polling
+    if (paymentPoller) {
+      paymentPoller.stopPolling();
+      setPaymentPoller(null);
+    }
+    
+    // Update UI
+    setIsLoading(false);
+    setIsPolling(false);
+    setError('Payment timeout. Please try again.');
+    
+    // Show timeout message
+    toast.error('Payment timeout. Please try again.', {
+      duration: 5000,
+      position: 'top-right',
+    });
+    
+    // Send timeout to Flutter if in WebView
+    if (webViewDetected) {
+      sendPaymentResultToFlutter({
+        success: false,
+        error: 'Payment timeout',
+      });
+    }
+    
+  }, [paymentPoller, webViewDetected]);
 
   // Inject UPI app detection override for WebView
   const _injectUPIDetectionOverride = useCallback(async () => {
@@ -536,12 +631,35 @@ export const useRazorpay = (): UseRazorpayReturn => {
       const razorpayInstance = new razorpay(options);
       razorpayInstance.open();
       
-      // Dismiss loading toast and show success message
+      // Dismiss loading toast
       toast.dismiss();
-      toast.success('Payment gateway opened successfully!', {
-        duration: 2000,
-        position: 'top-right',
-      });
+      
+      // Start payment polling for WebView scenarios
+      if (webViewDetected) {
+        console.log('🔄 WebView detected - starting payment polling...');
+        setIsPolling(true);
+        
+        const poller = new PaymentPoller(
+          orderData.order_id,
+          null, // No payment ID yet
+          handlePaymentSuccess,
+          handlePaymentFailure,
+          handlePaymentTimeout
+        );
+        
+        setPaymentPoller(poller);
+        poller.startPolling(3000, 300000); // Poll every 3 seconds for 5 minutes
+        
+        toast.loading('Payment in progress...', {
+          duration: 10000,
+          position: 'top-right',
+        });
+      } else {
+        toast.success('Payment gateway opened successfully!', {
+          duration: 2000,
+          position: 'top-right',
+        });
+      }
 
       return { success: true, message: 'Razorpay checkout opened' };
 
@@ -566,5 +684,6 @@ export const useRazorpay = (): UseRazorpayReturn => {
     clearError,
     isWebView: webViewDetected,
     isFlutterWebView: flutterWebViewDetected,
+    isPolling,
   };
 };

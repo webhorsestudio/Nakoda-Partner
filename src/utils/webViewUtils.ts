@@ -47,10 +47,12 @@ export class PaymentPoller {
   private intervalId: NodeJS.Timeout | null = null;
   private timeoutId: NodeJS.Timeout | null = null;
   private isPolling = false;
+  private pollCount = 0;
+  private maxPollCount = 100; // Maximum number of polls (5 minutes at 3s intervals)
 
   constructor(
     private orderId: string,
-    private paymentId: string,
+    private initialPaymentId: string | null,
     private onSuccess: (data: Record<string, unknown>) => void,
     private onFailure: (error: string) => void,
     private onTimeout: () => void
@@ -60,12 +62,25 @@ export class PaymentPoller {
     if (this.isPolling) return;
 
     this.isPolling = true;
-    console.log(`🔄 Starting payment polling for ${this.paymentId}`);
+    this.pollCount = 0;
+    console.log(`🔄 Starting payment polling for order ${this.orderId}`);
 
     this.intervalId = setInterval(async () => {
+      this.pollCount++;
+      
       try {
+        // Build query parameters
+        const params = new URLSearchParams({
+          order_id: this.orderId
+        });
+        
+        // Add payment_id if available
+        if (this.initialPaymentId) {
+          params.append('payment_id', this.initialPaymentId);
+        }
+
         const response = await fetch(
-          `/api/razorpay/payment-status?payment_id=${this.paymentId}&order_id=${this.orderId}`,
+          `/api/razorpay/payment-status?${params.toString()}`,
           {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('auth-token')}`,
@@ -90,9 +105,36 @@ export class PaymentPoller {
             this.onFailure(data.message || 'Payment failed');
             return;
           }
+
+          // Update payment ID if we received one
+          if (data.payment_id && !this.initialPaymentId) {
+            this.initialPaymentId = data.payment_id;
+            console.log('📝 Updated payment ID:', data.payment_id);
+          }
+
+          // Log polling progress
+          if (this.pollCount % 10 === 0) {
+            console.log(`🔄 Polling in progress... (${this.pollCount}/${this.maxPollCount})`);
+          }
+        } else {
+          console.warn(`⚠️ Payment status check failed: ${response.status}`);
         }
       } catch (error) {
         console.error('Payment polling error:', error);
+        
+        // If we've had too many errors, stop polling
+        if (this.pollCount > 20) {
+          console.error('❌ Too many polling errors, stopping...');
+          this.stopPolling();
+          this.onFailure('Payment status check failed');
+        }
+      }
+
+      // Safety check - stop if we've polled too many times
+      if (this.pollCount >= this.maxPollCount) {
+        console.log('⏰ Maximum poll count reached');
+        this.stopPolling();
+        this.onTimeout();
       }
     }, intervalMs);
 

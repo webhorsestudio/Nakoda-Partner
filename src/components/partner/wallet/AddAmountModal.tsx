@@ -35,7 +35,7 @@ export default function AddAmountModal({
   const [paymentFormHtml, setPaymentFormHtml] = useState<string | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   
-  const { initiatePayment, isLoading, error: paymentError, clearError } = useRazorpay();
+  const { initiatePayment, isLoading, error: paymentError, clearError, isPolling } = useRazorpay();
 
   const handleSubmit = async () => {
     if (!validateAmount(amount)) return;
@@ -63,8 +63,15 @@ export default function AddAmountModal({
 
       if (result.success) {
         console.log('✅ Payment initiated successfully');
-        // Close the modal as payment is being processed
-        onClose();
+        
+        // If polling is active, don't close modal immediately
+        if (isPolling) {
+          console.log('🔄 Payment polling active - keeping modal open');
+          // Modal will close automatically when payment completes or fails
+        } else {
+          // Close the modal as payment is being processed
+          onClose();
+        }
       } else {
         console.error('Payment initiation failed:', result.error);
         
@@ -72,6 +79,7 @@ export default function AddAmountModal({
         const userMessage = result.error || 'Payment initiation failed';
         
         setError(userMessage);
+        setIsProcessing(false);
       }
     } catch (err) {
       console.error('Error initiating payment:', err);
@@ -92,6 +100,18 @@ export default function AddAmountModal({
     setShowPaymentForm(false);
     setPaymentFormHtml(null);
   };
+
+  // Auto-close modal when payment completes
+  useEffect(() => {
+    if (!isPolling && !isLoading && !isProcessing && !error && !paymentError) {
+      // Payment completed successfully, close modal after a short delay
+      const timer = setTimeout(() => {
+        onClose();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isPolling, isLoading, isProcessing, error, paymentError, onClose]);
 
   // Handle escape key
   useEffect(() => {
@@ -237,6 +257,19 @@ export default function AddAmountModal({
                 </div>
               </div>
 
+              {/* Payment Status Display */}
+              {isPolling && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">Payment in Progress</p>
+                      <p className="text-xs text-blue-600">Please complete payment in the external app</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Error Display */}
               {(error || paymentError) && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -253,13 +286,18 @@ export default function AddAmountModal({
             <div className="flex gap-3">
               <button
                 onClick={handleSubmit}
-                disabled={!validateAmount(amount) || isLoading || isProcessing}
+                disabled={!validateAmount(amount) || isLoading || isProcessing || isPolling}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 h-11 rounded-lg font-semibold text-white flex items-center justify-center"
               >
                 {isLoading || isProcessing ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                     <span>Processing...</span>
+                  </>
+                ) : isPolling ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <span>Payment in Progress...</span>
                   </>
                 ) : (
                   <>
