@@ -3,8 +3,8 @@ import jwt from 'jsonwebtoken';
 // JWT configuration
 const JWT_CONFIG = {
   SECRET: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
-  EXPIRES_IN: '24h' as const,
-  REFRESH_EXPIRES_IN: '7d' as const
+  EXPIRES_IN: '7d' as const,  // Extended to 7 days for better session persistence
+  REFRESH_EXPIRES_IN: '30d' as const
 };
 
 
@@ -145,7 +145,7 @@ export const verifyJWTTokenClient = (token: string): TokenPayload | null => {
 export const generateSimpleToken = (payload: TokenPayload): string => {
   const data = {
     ...payload,
-    exp: Date.now() + (24 * 60 * 60 * 1000), // 24 hours from now
+    exp: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days from now
     iat: Date.now()
   };
   
@@ -259,7 +259,7 @@ export const getSecureCookieOptions = (isHttpOnly: boolean = true) => {
     secure: isProduction, // Only use HTTPS in production
     sameSite: 'strict' as const,
     path: '/',
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for better session persistence
     domain: isProduction ? process.env.COOKIE_DOMAIN : undefined
   };
 };
@@ -324,6 +324,32 @@ export const extractTokenFromHeader = (authHeader: string | null): string | null
   }
   
   return authHeader.substring(7); // Remove 'Bearer ' prefix
+};
+
+/**
+ * Set persistent session cookie for better browser session management
+ */
+export const setPersistentSessionCookie = (token: string): void => {
+  if (typeof window === 'undefined') return;
+  
+  const cookieExpiry = 7 * 24 * 60 * 60; // 7 days in seconds
+  const isSecure = window.location.protocol === 'https:';
+  
+  // Set persistent cookie
+  document.cookie = `auth-token=${token}; path=/; max-age=${cookieExpiry}; SameSite=Strict; ${isSecure ? 'Secure' : ''}`;
+  
+  console.log('✅ Persistent session cookie set for 7 days');
+};
+
+/**
+ * Clear persistent session cookie
+ */
+export const clearPersistentSessionCookie = (): void => {
+  if (typeof window === 'undefined') return;
+  
+  document.cookie = 'auth-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+  
+  console.log('✅ Persistent session cookie cleared');
 };
 
 /**

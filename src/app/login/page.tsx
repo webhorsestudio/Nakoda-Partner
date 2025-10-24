@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PhoneIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon, CheckIcon } from "@heroicons/react/24/outline";
+import { setPersistentSessionCookie } from "@/utils/authUtils";
 
 // Utility function to safely handle string operations
 const safeTrim = (value: unknown): string => {
@@ -171,8 +172,8 @@ export default function LoginPage() {
         // Store JWT token securely in both localStorage and cookie
         localStorage.setItem("auth-token", data.token);
         
-        // Also set as cookie for middleware access
-        document.cookie = `auth-token=${data.token}; path=/; max-age=${24 * 60 * 60}; SameSite=Lax`;
+        // Set persistent session cookie for better browser session management
+        setPersistentSessionCookie(data.token);
         
         setSuccess("Login successful! Redirecting...");
         

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { clearPersistentSessionCookie } from '@/utils/authUtils';
 
 // Define the structure of decoded token data
 interface DecodedToken {
@@ -179,7 +180,7 @@ export function usePartnerAuth() {
 
   const logout = useCallback(() => {
     localStorage.removeItem('auth-token');
-    document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+    clearPersistentSessionCookie();
     setPartnerInfo(null);
     router.push('/login');
   }, [router]);

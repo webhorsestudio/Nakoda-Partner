@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { verifyJWTTokenClient, verifySimpleToken } from "@/utils/authUtils";
+import { verifyJWTTokenClient, verifySimpleToken, clearPersistentSessionCookie } from "@/utils/authUtils";
 import { getUserRole } from "@/utils/roleUtils";
 
 export default function HomePage() {
@@ -33,7 +33,7 @@ export default function HomePage() {
         if (!decoded) {
           console.log('❌ Invalid token, redirecting to login');
           localStorage.removeItem('auth-token');
-          document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+          clearPersistentSessionCookie();
           router.push('/login');
           return;
         }
