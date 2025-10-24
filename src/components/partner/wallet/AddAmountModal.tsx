@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { PlusIcon, XIcon, CreditCardIcon, SmartphoneIcon, BuildingIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { WalletBalance } from '@/components/partner/wallet/WalletBalance';
 import { formatCurrency, validateAmount } from '@/utils/walletUtils';
 import { useRazorpay } from '@/hooks/useRazorpay';
 
 interface AddAmountModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddAmount: (amount: string) => void;
+  onAddAmount: () => void;
   balance: number;
   partnerId: string;
   partnerInfo?: {
@@ -21,7 +19,7 @@ interface AddAmountModalProps {
 export default function AddAmountModal({ 
   isOpen, 
   onClose, 
-  onAddAmount, 
+  onAddAmount,
   balance,
   partnerId,
   partnerInfo
@@ -30,9 +28,16 @@ export default function AddAmountModal({
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('CC');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paymentCompleted, setPaymentCompleted] = useState(false);
   
   const { initiatePayment, isLoading, error: paymentError, clearError, isPolling } = useRazorpay();
+
+  // Handle payment completion
+  useEffect(() => {
+    if (!isPolling && !isLoading && !isProcessing && !error && !paymentError) {
+      // Payment completed successfully, call the callback
+      onAddAmount();
+    }
+  }, [isPolling, isLoading, isProcessing, error, paymentError, onAddAmount]);
 
   const handleSubmit = async () => {
     if (!validateAmount(amount)) return;
@@ -69,6 +74,7 @@ export default function AddAmountModal({
           // For non-WebView scenarios, close modal after short delay
           setTimeout(() => {
             onClose();
+            onAddAmount(); // Call the callback to refresh data
           }, 2000);
         }
       } else {
@@ -90,7 +96,6 @@ export default function AddAmountModal({
   const handleClose = useCallback(() => {
     setAmount('');
     setError(null);
-    setPaymentCompleted(false);
     onClose();
   }, [onClose]);
 

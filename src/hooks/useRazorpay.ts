@@ -121,6 +121,8 @@ export const useRazorpay = (): UseRazorpayReturn => {
       });
     }
     
+    // Success callback will be handled by the component
+    
   }, [paymentPoller, webViewDetected]);
 
   const handlePaymentFailure = useCallback((error: string) => {
@@ -183,216 +185,111 @@ export const useRazorpay = (): UseRazorpayReturn => {
     
   }, [paymentPoller, webViewDetected]);
 
-  // Inject UPI app detection override for WebView
+  // Enhanced UPI detection override for WebView (React 19 + Next.js 15+ compatible)
   const _injectUPIDetectionOverride = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+
     const script = `
       (function() {
-        console.log('🔧 Injecting UPI detection override for WebView...');
+        console.log('🔧 Injecting enhanced UPI detection override for WebView...');
         
-        // Override Razorpay's UPI detection
-        if (window.Razorpay) {
-          console.log('✅ Razorpay found, enhancing UPI detection...');
-          
-          // Store original Razorpay
-          const originalRazorpay = window.Razorpay;
-          
-          // Enhanced UPI detection for WebView
-          window.Razorpay = function(options) {
-            console.log('🚀 Enhanced Razorpay initialization for WebView');
-            
-            // Mock UPI apps for WebView context
-            const mockUPIApps = [
-              'com.google.android.apps.nfp.payment', // Google Pay
-              'com.phonepe.app', // PhonePe
-              'net.one97.paytm', // Paytm
-              'com.dreamplug.androidapp', // CRED
-              'com.amazon.mShop.android.shopping', // Amazon Pay
-              'com.mobikwik_new', // MobiKwik
-              'com.freecharge.android', // FreeCharge
-              'com.jio.jiopay', // JioPay
-              'com.bharatpe.app', // BharatPe
-              'com.whatsapp', // WhatsApp Pay
-            ];
-            
-            // Override UPI detection
-            if (options && options.method) {
-              options.method.upi_apps = mockUPIApps;
-            }
-            
-            // Add UPI apps to Razorpay context
-            if (options && options.method && !options.method.upi_apps) {
-              options.method.upi_apps = mockUPIApps;
-            }
-            
-            // Force enable UPI methods
-            if (options && options.method) {
-              options.method.upi = true;
-              options.method.upi_apps = mockUPIApps;
-            }
-            
-            return new originalRazorpay(options);
-          };
-          
-          // Copy all properties from original Razorpay
-          Object.setPrototypeOf(window.Razorpay, originalRazorpay);
-          Object.assign(window.Razorpay, originalRazorpay);
-          
-          console.log('✅ UPI detection override injected successfully');
-        }
-        
-        // Payment gateway URL detection function
-        window._isPaymentGatewayUrl = function(url) {
-          const patterns = [
-            'razorpay.com',
-            'payu.in',
-            'paytm.com',
-            'phonepe.com',
-            'google.com/pay',
-            'amazon.com/pay',
-            'upi://',
-            'intent://',
-            'gpay://',
-            'phonepe://',
-            'paytm://',
-            'cred://',
-            'amazon://',
-            'mobikwik://',
-            'freecharge://',
-            'jiopay://',
-            'bharatpe://',
-            'tez://',
-            'whatsapp://',
-            'netbanking://',
-            'card://',
-            'visa://',
-            'mastercard://',
-            'payments.razorpay.com',
-            'api.razorpay.com',
-            'checkout.razorpay.com'
-          ];
-          
-          return patterns.some(pattern => url.toLowerCase().includes(pattern));
-        };
-        
-        // Override window.open to handle payment redirects
-        const originalOpen = window.open;
-        window.open = function(url, target, features) {
-          console.log('🌐 window.open called with:', url);
-          
-          if (url && _isPaymentGatewayUrl(url)) {
-            console.log('💳 Payment gateway detected in window.open');
-            
-            // Send to Flutter for handling
-            if (window.webViewMessage) {
-              window.webViewMessage.postMessage(JSON.stringify({
-                type: 'payment_redirect',
-                url: url
-              }));
-            }
-            
-            return null;
-          }
-          
-          return originalOpen.call(this, url, target, features);
-        };
-        
-        // Override location.href for payment redirects
-        let originalHref = Object.getOwnPropertyDescriptor(Location.prototype, 'href');
-        Object.defineProperty(Location.prototype, 'href', {
-          get: function() {
-            return originalHref.get.call(this);
-          },
-          set: function(url) {
-            console.log('🌐 location.href set to:', url);
-            
-            if (url && _isPaymentGatewayUrl(url)) {
-              console.log('💳 Payment gateway detected in location.href');
-              
-              // Send to Flutter for handling
-              if (window.webViewMessage) {
-                window.webViewMessage.postMessage(JSON.stringify({
-                  type: 'payment_redirect',
-                  url: url
-                }));
-              }
-              
-              return;
-            }
-            
-            originalHref.set.call(this, url);
-          }
-        });
-        
-        // Override document.location for payment redirects
-        const originalDocumentLocation = Object.getOwnPropertyDescriptor(Document.prototype, 'location');
-        Object.defineProperty(Document.prototype, 'location', {
-          get: function() {
-            return originalDocumentLocation.get.call(this);
-          },
-          set: function(url) {
-            console.log('🌐 document.location set to:', url);
-            
-            if (url && _isPaymentGatewayUrl(url)) {
-              console.log('💳 Payment gateway detected in document.location');
-              
-              // Send to Flutter for handling
-              if (window.webViewMessage) {
-                window.webViewMessage.postMessage(JSON.stringify({
-                  type: 'payment_redirect',
-                  url: url
-                }));
-              }
-              
-              return;
-            }
-            
-            originalDocumentLocation.set.call(this, url);
-          }
-        });
-        
-        // Add MutationObserver to catch iframe changes
-        const observer = new MutationObserver(function(mutations) {
-          mutations.forEach(function(mutation) {
-            if (mutation.type === 'childList') {
-              mutation.addedNodes.forEach(function(node) {
-                if (node.nodeType === 1 && node.tagName === 'IFRAME') {
-                  const iframe = node;
-                  console.log('🖼️ iframe detected:', iframe.src);
-                  
-                  if (iframe.src && _isPaymentGatewayUrl(iframe.src)) {
-                    console.log('💳 Payment gateway iframe detected:', iframe.src);
-                    
-                    // Send to Flutter for handling
-                    if (window.webViewMessage) {
-                      window.webViewMessage.postMessage(JSON.stringify({
-                        type: 'payment_redirect',
-                        url: iframe.src
-                      }));
-                    }
-                  }
+        // Wait for Razorpay to be available
+        const waitForRazorpay = () => {
+          return new Promise((resolve) => {
+            if (window.Razorpay) {
+              resolve(window.Razorpay);
+            } else {
+              const checkInterval = setInterval(() => {
+                if (window.Razorpay) {
+                  clearInterval(checkInterval);
+                  resolve(window.Razorpay);
                 }
-              });
+              }, 100);
             }
           });
-        });
+        };
+
+        // Enhanced UPI apps list for WebView
+        const mockUPIApps = [
+          'com.google.android.apps.nfp.payment', // Google Pay
+          'com.phonepe.app', // PhonePe
+          'net.one97.paytm', // Paytm
+          'com.dreamplug.androidapp', // CRED
+          'com.amazon.mShop.android.shopping', // Amazon Pay
+          'com.mobikwik_new', // MobiKwik
+          'com.freecharge.android', // FreeCharge
+          'com.jio.jiopay', // JioPay
+          'com.bharatpe.app', // BharatPe
+          'com.whatsapp', // WhatsApp Pay
+          'com.truecaller', // Truecaller Pay
+          'com.samsung.android.spay', // Samsung Pay
+          'com.axis.mobile', // Axis Bank
+          'com.hdfcbank.hdfcnetbanking', // HDFC Bank
+          'com.icicibank.pockets', // ICICI Bank
+        ];
+
+        // Override Razorpay initialization
+        const originalRazorpay = window.Razorpay;
         
-        // Start observing
-        observer.observe(document.body, {
-          childList: true,
-          subtree: true
-        });
+        window.Razorpay = function(options) {
+          console.log('🚀 Enhanced Razorpay initialization for WebView');
+          
+          // Force enable UPI methods with mock apps
+          if (options && options.method) {
+            options.method.upi = true;
+            options.method.upi_apps = mockUPIApps;
+            options.method.netbanking = true;
+            options.method.wallet = true;
+            options.method.card = true;
+          } else {
+            options.method = {
+              upi: true,
+              upi_apps: mockUPIApps,
+              netbanking: true,
+              wallet: true,
+              card: true,
+            };
+          }
+
+          // Enhanced modal options for WebView
+          if (options.modal) {
+            options.modal.backdropclose = false;
+            options.modal.escape = false;
+            options.modal.handleback = false;
+          } else {
+            options.modal = {
+              backdropclose: false,
+              escape: false,
+              handleback: false,
+            };
+          }
+
+          // Add WebView-specific theme
+          if (!options.theme) {
+            options.theme = {
+              color: '#3B82F6',
+              backdrop_color: 'rgba(0,0,0,0.8)',
+            };
+          }
+
+          console.log('✅ Enhanced Razorpay options applied:', options);
+          return new originalRazorpay(options);
+        };
+
+        // Copy all properties from original Razorpay
+        Object.setPrototypeOf(window.Razorpay, originalRazorpay);
+        Object.assign(window.Razorpay, originalRazorpay);
         
-        console.log('✅ Payment gateway override injected successfully');
+        console.log('✅ Enhanced UPI detection override injected successfully');
       })();
     `;
 
     // Execute the script
-    if (typeof window !== 'undefined') {
-      const scriptElement = document.createElement('script');
-      scriptElement.textContent = script;
-      document.head.appendChild(scriptElement);
-      console.log('✅ UPI detection override script injected');
-    }
+    const scriptElement = document.createElement('script');
+    scriptElement.textContent = script;
+    document.head.appendChild(scriptElement);
+    
+    console.log('✅ Enhanced UPI detection override script injected');
   }, []);
 
   const initiatePayment = useCallback(async (params: {
@@ -440,9 +337,13 @@ export const useRazorpay = (): UseRazorpayReturn => {
             position: 'top-right',
           });
 
-      // Inject UPI detection override BEFORE loading Razorpay
+      // Inject enhanced UPI detection override BEFORE loading Razorpay
       if (webViewDetected) {
+        console.log('🔧 WebView detected - injecting enhanced UPI override...');
         await _injectUPIDetectionOverride();
+        
+        // Wait a bit for the override to take effect
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       // Check if Razorpay script is already loaded
@@ -468,8 +369,40 @@ export const useRazorpay = (): UseRazorpayReturn => {
           // Initialize Razorpay
           const razorpay = (window as unknown as { Razorpay: new (options: RazorpayOptions) => { open: () => void } }).Razorpay;
       
-      // Get WebView-specific configuration if needed
-      const webViewConfig = webViewDetected ? getWebViewRazorpayConfig() : {};
+      // Enhanced WebView configuration
+      const webViewConfig = webViewDetected ? {
+        ...getWebViewRazorpayConfig(),
+        // Force enable all payment methods for WebView
+        method: {
+          upi: true,
+          netbanking: true,
+          wallet: true,
+          card: true,
+          emi: true,
+        },
+        // Enhanced modal options for WebView
+        modal: {
+          backdropclose: false,
+          escape: false,
+          handleback: false,
+        },
+        // WebView-specific theme
+        theme: {
+          color: '#3B82F6',
+          backdrop_color: 'rgba(0,0,0,0.8)',
+        },
+        // Force show all payment options
+        notes: {
+          source: 'webview_app',
+          platform: 'flutter_webview',
+        },
+        // Prefill customer info
+        prefill: {
+          name: params.customerInfo?.customerName || 'Partner',
+          email: params.customerInfo?.customerEmailId || 'partner@example.com',
+          contact: params.customerInfo?.customerMobileNo || '9999999999',
+        },
+      } : {};
       
       const options: RazorpayOptions = {
         key: orderData.key_id,
@@ -478,6 +411,7 @@ export const useRazorpay = (): UseRazorpayReturn => {
         name: 'Nakoda Partner',
         description: 'Wallet Top-up',
         order_id: orderData.order_id,
+        ...webViewConfig, // Apply WebView-specific config
         handler: async (response: RazorpayResponse) => {
           console.log('✅ Payment successful:', response);
           
@@ -675,7 +609,7 @@ export const useRazorpay = (): UseRazorpayReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [_injectUPIDetectionOverride, handlePaymentFailure, handlePaymentSuccess, handlePaymentTimeout, paymentPoller, webViewDetected]);
 
   return {
     initiatePayment,
