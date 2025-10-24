@@ -28,12 +28,9 @@ export default function AddAmountModal({
 }: AddAmountModalProps) {
   const [amount, setAmount] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState('CC');
-  // const [selectedBank, setSelectedBank] = useState('');
-  // const [selectedWallet, setSelectedWallet] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paymentFormHtml, setPaymentFormHtml] = useState<string | null>(null);
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
   
   const { initiatePayment, isLoading, error: paymentError, clearError, isPolling } = useRazorpay();
 
@@ -64,13 +61,15 @@ export default function AddAmountModal({
       if (result.success) {
         console.log('✅ Payment initiated successfully');
         
-        // If polling is active, don't close modal immediately
+        // For WebView scenarios, keep modal open and show polling status
         if (isPolling) {
           console.log('🔄 Payment polling active - keeping modal open');
-          // Modal will close automatically when payment completes or fails
+          // Modal stays open to show polling status
         } else {
-          // Close the modal as payment is being processed
-          onClose();
+          // For non-WebView scenarios, close modal after short delay
+          setTimeout(() => {
+            onClose();
+          }, 2000);
         }
       } else {
         console.error('Payment initiation failed:', result.error);
@@ -91,27 +90,9 @@ export default function AddAmountModal({
   const handleClose = useCallback(() => {
     setAmount('');
     setError(null);
-    setPaymentFormHtml(null);
-    setShowPaymentForm(false);
+    setPaymentCompleted(false);
     onClose();
   }, [onClose]);
-
-  const handleBackToForm = () => {
-    setShowPaymentForm(false);
-    setPaymentFormHtml(null);
-  };
-
-  // Auto-close modal when payment completes
-  useEffect(() => {
-    if (!isPolling && !isLoading && !isProcessing && !error && !paymentError) {
-      // Payment completed successfully, close modal after a short delay
-      const timer = setTimeout(() => {
-        onClose();
-      }, 2000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isPolling, isLoading, isProcessing, error, paymentError, onClose]);
 
   // Handle escape key
   useEffect(() => {
@@ -148,174 +129,150 @@ export default function AddAmountModal({
 
         {/* Modal Body */}
         <div className="p-4 space-y-5 overflow-y-auto">
-          {showPaymentForm ? (
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Complete Payment</h3>
-                <button
-                  onClick={handleBackToForm}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                >
-                  ← Back to form
-                </button>
+          {/* Current Balance Info */}
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-gray-700">Current Balance</span>
               </div>
-              <div className="border rounded-xl p-4 bg-gray-50 max-h-96 overflow-y-auto">
-                <div 
-                  className="payment-form-container"
-                  dangerouslySetInnerHTML={{ __html: paymentFormHtml || '' }}
-                />
+              <span className="text-xl font-bold text-gray-900">
+                {formatCurrency(balance)}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              Amount to Add
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium text-lg">₹</span>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0"
+                className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-medium"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* Payment Method Selection */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-3">
+              Payment Method
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedPaymentMode('CC')}
+                className={`p-3 border rounded-lg text-left transition-all duration-200 ${
+                  selectedPaymentMode === 'CC'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <CreditCardIcon className="h-5 w-5 mb-1" />
+                <div className="text-xs font-medium">Credit Card</div>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setSelectedPaymentMode('DC')}
+                className={`p-3 border rounded-lg text-left transition-all duration-200 ${
+                  selectedPaymentMode === 'DC'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <CreditCardIcon className="h-5 w-5 mb-1" />
+                <div className="text-xs font-medium">Debit Card</div>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setSelectedPaymentMode('UPI')}
+                className={`p-3 border rounded-lg text-left transition-all duration-200 ${
+                  selectedPaymentMode === 'UPI'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <SmartphoneIcon className="h-5 w-5 mb-1" />
+                <div className="text-xs font-medium">UPI</div>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setSelectedPaymentMode('NB')}
+                className={`p-3 border rounded-lg text-left transition-all duration-200 ${
+                  selectedPaymentMode === 'NB'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <BuildingIcon className="h-5 w-5 mb-1" />
+                <div className="text-xs font-medium">Net Banking</div>
+              </button>
+            </div>
+          </div>
+
+          {/* Payment Status Display */}
+          {isPolling && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center space-x-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <div>
+                  <p className="text-sm font-medium text-blue-800">Payment in Progress</p>
+                  <p className="text-xs text-blue-600">Please complete payment in the external app</p>
+                </div>
               </div>
             </div>
-          ) : (
-            <>
-              {/* Current Balance Info */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Current Balance</span>
-                  </div>
-                  <span className="text-xl font-bold text-gray-900">
-                    {formatCurrency(balance)}
-                  </span>
-                </div>
-              </div>
+          )}
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Amount to Add
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium text-lg">₹</span>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0"
-                    className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-medium"
-                    autoFocus
-                  />
-                </div>
-              </div>
-
-              {/* Payment Method Selection */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-3">
-                  Payment Method
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPaymentMode('CC')}
-                    className={`p-3 border rounded-lg text-left transition-all duration-200 ${
-                      selectedPaymentMode === 'CC'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <CreditCardIcon className="h-5 w-5 mb-1" />
-                    <div className="text-xs font-medium">Credit Card</div>
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPaymentMode('DC')}
-                    className={`p-3 border rounded-lg text-left transition-all duration-200 ${
-                      selectedPaymentMode === 'DC'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <CreditCardIcon className="h-5 w-5 mb-1" />
-                    <div className="text-xs font-medium">Debit Card</div>
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPaymentMode('UPI')}
-                    className={`p-3 border rounded-lg text-left transition-all duration-200 ${
-                      selectedPaymentMode === 'UPI'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <SmartphoneIcon className="h-5 w-5 mb-1" />
-                    <div className="text-xs font-medium">UPI</div>
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPaymentMode('NB')}
-                    className={`p-3 border rounded-lg text-left transition-all duration-200 ${
-                      selectedPaymentMode === 'NB'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <BuildingIcon className="h-5 w-5 mb-1" />
-                    <div className="text-xs font-medium">Net Banking</div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Payment Status Display */}
-              {isPolling && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                    <div>
-                      <p className="text-sm font-medium text-blue-800">Payment in Progress</p>
-                      <p className="text-xs text-blue-600">Please complete payment in the external app</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Error Display */}
-              {(error || paymentError) && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm text-red-800">{error || paymentError}</p>
-                </div>
-              )}
-            </>
+          {/* Error Display */}
+          {(error || paymentError) && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-800">{error || paymentError}</p>
+            </div>
           )}
         </div>
 
         {/* Modal Footer */}
-        {!showPaymentForm && (
-          <div className="sticky bottom-0 bg-white border-t border-gray-100 p-4">
-            <div className="flex gap-3">
-              <button
-                onClick={handleSubmit}
-                disabled={!validateAmount(amount) || isLoading || isProcessing || isPolling}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 h-11 rounded-lg font-semibold text-white flex items-center justify-center"
-              >
-                {isLoading || isProcessing ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    <span>Processing...</span>
-                  </>
-                ) : isPolling ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    <span>Payment in Progress...</span>
-                  </>
-                ) : (
-                  <>
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    <span>Add Money</span>
-                  </>
-                )}
-              </button>
-              <button
-                onClick={handleClose}
-                disabled={isLoading || isProcessing}
-                className="flex-1 h-11 rounded-lg font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                <span>Cancel</span>
-              </button>
-            </div>
+        <div className="sticky bottom-0 bg-white border-t border-gray-100 p-4">
+          <div className="flex gap-3">
+            <button
+              onClick={handleSubmit}
+              disabled={!validateAmount(amount) || isLoading || isProcessing || isPolling}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 h-11 rounded-lg font-semibold text-white flex items-center justify-center"
+            >
+              {isLoading || isProcessing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <span>Processing...</span>
+                </>
+              ) : isPolling ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <span>Payment in Progress...</span>
+                </>
+              ) : (
+                <>
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  <span>Add Money</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleClose}
+              disabled={isLoading || isProcessing || isPolling}
+              className="flex-1 h-11 rounded-lg font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <span>Cancel</span>
+            </button>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
