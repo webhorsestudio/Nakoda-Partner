@@ -18,7 +18,7 @@ export default function HomePage() {
         initializeWebViewSessionRecovery();
         
         // Check if user is authenticated - try localStorage first, then cookies
-        const authToken = getAuthToken();
+        let authToken = getAuthToken();
         
         if (!authToken) {
           console.log('❌ No auth token found in localStorage or cookies');
@@ -26,22 +26,47 @@ export default function HomePage() {
           // If we're in Flutter WebView, request session from Flutter
           if (typeof window !== 'undefined' && (window as unknown as { flutter_inappwebview?: unknown }).flutter_inappwebview) {
             console.log('🔧 Flutter WebView detected, requesting session from Flutter...');
-            requestSessionFromFlutter();
             
-            // Wait a bit for Flutter to respond, then check again
-            setTimeout(() => {
-              const retryToken = getAuthToken();
-              if (!retryToken) {
-                console.log('❌ Still no token after Flutter request, redirecting to login');
+            try {
+              const flutterToken = await requestSessionFromFlutter();
+              if (flutterToken) {
+                console.log('✅ Session received from Flutter, restoring...');
+                
+                // Store the token in all locations
+                localStorage.setItem('auth-token', flutterToken);
+                sessionStorage.setItem('auth-token', flutterToken);
+                
+                // Set cookies with proper domain handling
+                const cookieExpiry = 7 * 24 * 60 * 60;
+                const isSecure = window.location.protocol === 'https:';
+                const domain = window.location.hostname;
+                
+                document.cookie = `auth-token=${flutterToken}; path=/; max-age=${cookieExpiry}; SameSite=Lax; ${isSecure ? 'Secure' : ''}`;
+                document.cookie = `webview-auth-token=${flutterToken}; path=/; max-age=${cookieExpiry}; SameSite=None; ${isSecure ? 'Secure' : ''}`;
+                
+                if (domain.includes('nakodadcs.com')) {
+                  document.cookie = `auth-token=${flutterToken}; path=/; max-age=${cookieExpiry}; SameSite=Lax; ${isSecure ? 'Secure' : ''}; domain=.nakodadcs.com`;
+                }
+                
+                console.log('✅ Session restored from Flutter');
+                
+                // Continue with token verification
+                authToken = flutterToken;
+              } else {
+                console.log('❌ No session found in Flutter, redirecting to login');
                 router.push('/login');
+                return;
               }
-            }, 1000);
+            } catch (error) {
+              console.error('❌ Error requesting session from Flutter:', error);
+              router.push('/login');
+              return;
+            }
+          } else {
+            console.log('❌ Not in WebView, redirecting to login');
+            router.push('/login');
             return;
           }
-          
-          console.log('❌ Redirecting to login');
-          router.push('/login');
-          return;
         }
 
         // Verify token - try JWT first, then simple token

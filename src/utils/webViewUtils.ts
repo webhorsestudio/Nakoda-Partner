@@ -50,19 +50,50 @@ export const initializeFlutterSessionBackup = () => {
 };
 
 // Request session from Flutter
-export const requestSessionFromFlutter = () => {
-  if (!isFlutterWebView()) return;
-  
-  try {
-    console.log('📡 Requesting session from Flutter...');
-    (window as unknown as { flutter_inappwebview: { callHandler: (name: string, data: Record<string, unknown>) => void } }).flutter_inappwebview.callHandler('webViewMessage', {
-      type: 'request_session',
-      timestamp: new Date().toISOString(),
-      source: 'web_app'
-    });
-  } catch (error) {
-    console.warn('⚠️ Failed to request session from Flutter:', error);
-  }
+export const requestSessionFromFlutter = (): Promise<string | null> => {
+  return new Promise((resolve) => {
+    if (!isFlutterWebView()) {
+      console.log('❌ Not in Flutter WebView, cannot request session');
+      resolve(null);
+      return;
+    }
+    
+    try {
+      console.log('📡 Requesting session from Flutter...');
+      
+      // Set up a listener for the response
+      const handleFlutterResponse = (event: CustomEvent) => {
+        console.log('📨 Received Flutter response:', event.detail);
+        if (event.detail.token) {
+          resolve(event.detail.token);
+        } else {
+          resolve(null);
+        }
+        window.removeEventListener('flutter-session-response', handleFlutterResponse as EventListener);
+      };
+      
+      window.addEventListener('flutter-session-response', handleFlutterResponse as EventListener);
+      
+      // Send request to Flutter
+      (window as unknown as { flutter_inappwebview: { callHandler: (name: string, data: Record<string, unknown>) => void } }).flutter_inappwebview.callHandler('webViewMessage', {
+        type: 'request_session',
+        timestamp: new Date().toISOString(),
+        source: 'web_app',
+        domain: window.location.hostname
+      });
+      
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        window.removeEventListener('flutter-session-response', handleFlutterResponse as EventListener);
+        console.log('⏰ Flutter session request timeout');
+        resolve(null);
+      }, 5000);
+      
+    } catch (error) {
+      console.warn('⚠️ Failed to request session from Flutter:', error);
+      resolve(null);
+    }
+  });
 };
 
 // Backup session to Flutter
