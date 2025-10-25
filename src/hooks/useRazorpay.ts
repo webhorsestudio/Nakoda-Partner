@@ -6,7 +6,9 @@ import { toast } from 'react-hot-toast';
 import { 
   isWebView, 
   isFlutterWebView, 
-  sendPaymentResultToFlutter, 
+  sendPaymentResultToFlutter,
+  sendPaymentStartedToFlutter,
+  sendPaymentPollingStartedToFlutter,
   PaymentPoller,
   getWebViewRazorpayConfig,
   handleWebViewPaymentCompletion
@@ -573,6 +575,13 @@ export const useRazorpay = (): UseRazorpayReturn => {
         console.log('🔄 WebView detected - starting payment polling...');
         setIsPolling(true);
         
+        // Notify Flutter that payment has started
+        sendPaymentStartedToFlutter({
+          orderId: orderData.order_id,
+          amount: params.amount,
+          partnerId: params.partnerId
+        });
+        
         const poller = new PaymentPoller(
           orderData.order_id,
           null, // No payment ID yet
@@ -583,6 +592,13 @@ export const useRazorpay = (): UseRazorpayReturn => {
         
         setPaymentPoller(poller);
         poller.startPolling(3000, 300000); // Poll every 3 seconds for 5 minutes
+        
+        // Notify Flutter that polling has started
+        sendPaymentPollingStartedToFlutter({
+          orderId: orderData.order_id,
+          amount: params.amount,
+          partnerId: params.partnerId
+        });
         
         toast.loading('Payment in progress...', {
           duration: 10000,

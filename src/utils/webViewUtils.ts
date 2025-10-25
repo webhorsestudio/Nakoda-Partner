@@ -239,6 +239,32 @@ export const sendPaymentResultToFlutter = (result: {
   });
 };
 
+// Send payment started notification to Flutter
+export const sendPaymentStartedToFlutter = (data: {
+  orderId: string;
+  amount: number;
+  partnerId: string;
+}) => {
+  sendMessageToFlutter({
+    type: 'payment_started',
+    ...data,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Send payment polling started notification to Flutter
+export const sendPaymentPollingStartedToFlutter = (data: {
+  orderId: string;
+  amount: number;
+  partnerId: string;
+}) => {
+  sendMessageToFlutter({
+    type: 'payment_polling_started',
+    ...data,
+    timestamp: new Date().toISOString()
+  });
+};
+
 // Enhanced payment polling for WebView
 export class PaymentPoller {
   private intervalId: NodeJS.Timeout | null = null;
