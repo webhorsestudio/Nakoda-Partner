@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { verifyJWTTokenClient, verifySimpleToken, clearWebViewSession, getAuthToken } from "@/utils/authUtils";
-import { initializeWebViewSession } from "@/utils/webViewUtils";
+import { initializeFlutterSessionBackup, requestSessionFromFlutter, initializeWebViewSessionRecovery } from "@/utils/webViewUtils";
 import { getUserRole } from "@/utils/roleUtils";
 
 export default function HomePage() {
@@ -13,14 +13,33 @@ export default function HomePage() {
   useEffect(() => {
     const checkAuthAndRedirect = async () => {
       try {
-        // Initialize WebView session recovery first
-        initializeWebViewSession();
+        // Initialize both Flutter session backup and recovery systems
+        initializeFlutterSessionBackup();
+        initializeWebViewSessionRecovery();
         
         // Check if user is authenticated - try localStorage first, then cookies
         const authToken = getAuthToken();
         
         if (!authToken) {
-          console.log('❌ No auth token found in localStorage or cookies, redirecting to login');
+          console.log('❌ No auth token found in localStorage or cookies');
+          
+          // If we're in Flutter WebView, request session from Flutter
+          if (typeof window !== 'undefined' && (window as unknown as { flutter_inappwebview?: unknown }).flutter_inappwebview) {
+            console.log('🔧 Flutter WebView detected, requesting session from Flutter...');
+            requestSessionFromFlutter();
+            
+            // Wait a bit for Flutter to respond, then check again
+            setTimeout(() => {
+              const retryToken = getAuthToken();
+              if (!retryToken) {
+                console.log('❌ Still no token after Flutter request, redirecting to login');
+                router.push('/login');
+              }
+            }, 1000);
+            return;
+          }
+          
+          console.log('❌ Redirecting to login');
           router.push('/login');
           return;
         }
