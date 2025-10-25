@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { isWebView } from './webViewUtils';
 
 // JWT configuration
 const JWT_CONFIG = {
@@ -327,65 +328,207 @@ export const extractTokenFromHeader = (authHeader: string | null): string | null
 };
 
 /**
- * Set persistent session cookie for better browser session management
+ * Enhanced WebView session persistence
+ * Handles Flutter WebView specific session management
  */
-export const setPersistentSessionCookie = (token: string): void => {
+export const setWebViewPersistentSession = (token: string): void => {
   if (typeof window === 'undefined') return;
   
+  console.log('🔧 Setting WebView persistent session...');
+  
+  // 1. Set localStorage (primary storage)
+  localStorage.setItem('auth-token', token);
+  
+  // 2. Set sessionStorage (backup for WebView)
+  sessionStorage.setItem('auth-token', token);
+  
+  // 3. Set multiple cookie formats for maximum compatibility
   const cookieExpiry = 7 * 24 * 60 * 60; // 7 days in seconds
   const isSecure = window.location.protocol === 'https:';
   
-  // Set persistent cookie
-  const cookieString = `auth-token=${token}; path=/; max-age=${cookieExpiry}; SameSite=Strict; ${isSecure ? 'Secure' : ''}`;
-  document.cookie = cookieString;
+  // Standard cookie
+  const standardCookie = `auth-token=${token}; path=/; max-age=${cookieExpiry}; SameSite=Lax; ${isSecure ? 'Secure' : ''}`;
+  document.cookie = standardCookie;
   
-  console.log('✅ Persistent session cookie set for 7 days');
-  console.log('🍪 Cookie string:', cookieString);
-  console.log('🍪 Token length:', token.length);
+  // WebView-specific cookie (more permissive)
+  const webViewCookie = `webview-auth-token=${token}; path=/; max-age=${cookieExpiry}; SameSite=None; ${isSecure ? 'Secure' : ''}`;
+  document.cookie = webViewCookie;
   
-  // Verify cookie was set
-  setTimeout(() => {
-    const cookies = document.cookie.split(';');
-    const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('auth-token='));
-    console.log('🍪 Cookie verification:', tokenCookie ? 'SET' : 'NOT SET');
-  }, 100);
-};
-
-/**
- * Clear persistent session cookie
- */
-export const clearPersistentSessionCookie = (): void => {
-  if (typeof window === 'undefined') return;
-  
-  document.cookie = 'auth-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
-  
-  console.log('✅ Persistent session cookie cleared');
-};
-
-/**
- * Get auth token from localStorage or cookies (with fallback)
- * This ensures session persistence across browser restarts
- */
-export const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  
-  // Try localStorage first
-  let token = localStorage.getItem('auth-token');
-  
-  // If no token in localStorage, try to get from cookies
-  if (!token) {
-    console.log('🔍 No token in localStorage, checking cookies...');
-    const cookies = document.cookie.split(';');
-    const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('auth-token='));
-    if (tokenCookie) {
-      token = tokenCookie.split('=')[1];
-      console.log('✅ Found token in cookies, restoring to localStorage');
-      // Restore token to localStorage for consistency
-      localStorage.setItem('auth-token', token);
+  // 4. Store in IndexedDB for maximum persistence (WebView fallback)
+  if ('indexedDB' in window) {
+    try {
+      const request = indexedDB.open('WebViewSession', 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('sessions')) {
+          db.createObjectStore('sessions');
+        }
+      };
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction(['sessions'], 'readwrite');
+        const store = transaction.objectStore('sessions');
+        store.put(token, 'auth-token');
+        console.log('✅ Token stored in IndexedDB');
+      };
+    } catch (error) {
+      console.warn('⚠️ IndexedDB not available:', error);
     }
   }
   
-  return token;
+  // 5. Send session info to Flutter (if available)
+  if (typeof window !== 'undefined' && (window as unknown as { flutter_inappwebview?: unknown }).flutter_inappwebview) {
+    try {
+      (window as unknown as { flutter_inappwebview: { callHandler: (name: string, data: Record<string, unknown>) => void } }).flutter_inappwebview.callHandler('webViewMessage', {
+        type: 'session_created',
+        token: token.substring(0, 20) + '...', // Don't send full token for security
+        timestamp: new Date().toISOString()
+      });
+      console.log('✅ Session info sent to Flutter');
+    } catch (error) {
+      console.warn('⚠️ Failed to send session info to Flutter:', error);
+    }
+  }
+  
+  console.log('✅ WebView persistent session set with multiple fallbacks');
+};
+
+/**
+ * Enhanced WebView session clearing
+ * Clears all storage methods used by WebView
+ */
+export const clearWebViewSession = (): void => {
+  if (typeof window === 'undefined') return;
+  
+  console.log('🧹 Clearing WebView session from all storage methods...');
+  
+  // 1. Clear localStorage
+  localStorage.removeItem('auth-token');
+  
+  // 2. Clear sessionStorage
+  sessionStorage.removeItem('auth-token');
+  
+  // 3. Clear all cookies
+  document.cookie = 'auth-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
+  document.cookie = 'webview-auth-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None';
+  
+  // 4. Clear IndexedDB
+  if ('indexedDB' in window) {
+    try {
+      const request = indexedDB.open('WebViewSession', 1);
+      request.onsuccess = () => {
+        const db = request.result;
+        if (db.objectStoreNames.contains('sessions')) {
+          const transaction = db.transaction(['sessions'], 'readwrite');
+          const store = transaction.objectStore('sessions');
+          store.delete('auth-token');
+          console.log('✅ Token cleared from IndexedDB');
+        }
+      };
+    } catch (error) {
+      console.warn('⚠️ IndexedDB clear failed:', error);
+    }
+  }
+  
+  // 5. Notify Flutter about logout
+  if (typeof window !== 'undefined' && (window as unknown as { flutter_inappwebview?: unknown }).flutter_inappwebview) {
+    try {
+      (window as unknown as { flutter_inappwebview: { callHandler: (name: string, data: Record<string, unknown>) => void } }).flutter_inappwebview.callHandler('webViewMessage', {
+        type: 'session_cleared',
+        timestamp: new Date().toISOString()
+      });
+      console.log('✅ Logout notification sent to Flutter');
+    } catch (error) {
+      console.warn('⚠️ Failed to notify Flutter about logout:', error);
+    }
+  }
+  
+  console.log('✅ WebView session cleared from all storage methods');
+};
+
+/**
+ * Enhanced WebView token retrieval with multiple fallbacks
+ * Handles Flutter WebView specific session persistence
+ */
+export const getWebViewAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  
+  console.log('🔍 Retrieving WebView auth token with multiple fallbacks...');
+  
+  // 1. Try localStorage first (primary)
+  let token = localStorage.getItem('auth-token');
+  if (token) {
+    console.log('✅ Token found in localStorage');
+    return token;
+  }
+  
+  // 2. Try sessionStorage (WebView backup)
+  token = sessionStorage.getItem('auth-token');
+  if (token) {
+    console.log('✅ Token found in sessionStorage, restoring to localStorage');
+    localStorage.setItem('auth-token', token);
+    return token;
+  }
+  
+  // 3. Try standard cookies
+  const cookies = document.cookie.split(';');
+  const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('auth-token='));
+  if (tokenCookie) {
+    token = tokenCookie.split('=')[1];
+    console.log('✅ Token found in standard cookie, restoring to localStorage');
+    localStorage.setItem('auth-token', token);
+    return token;
+  }
+  
+  // 4. Try WebView-specific cookie
+  const webViewCookie = cookies.find(cookie => cookie.trim().startsWith('webview-auth-token='));
+  if (webViewCookie) {
+    token = webViewCookie.split('=')[1];
+    console.log('✅ Token found in WebView cookie, restoring to localStorage');
+    localStorage.setItem('auth-token', token);
+    return token;
+  }
+  
+  // 5. Try IndexedDB (maximum persistence fallback)
+  if ('indexedDB' in window) {
+    try {
+      const request = indexedDB.open('WebViewSession', 1);
+      request.onsuccess = () => {
+        const db = request.result;
+        if (db.objectStoreNames.contains('sessions')) {
+          const transaction = db.transaction(['sessions'], 'readonly');
+          const store = transaction.objectStore('sessions');
+          const getRequest = store.get('auth-token');
+          getRequest.onsuccess = () => {
+            if (getRequest.result) {
+              console.log('✅ Token found in IndexedDB, restoring to localStorage');
+              localStorage.setItem('auth-token', getRequest.result);
+              // Note: This is async, so we can't return the token directly
+              // The calling code will need to handle this case
+            }
+          };
+        }
+      };
+    } catch (error) {
+      console.warn('⚠️ IndexedDB retrieval failed:', error);
+    }
+  }
+  
+  // 6. Request token from Flutter (if available)
+  if (typeof window !== 'undefined' && (window as unknown as { flutter_inappwebview?: unknown }).flutter_inappwebview) {
+    try {
+      (window as unknown as { flutter_inappwebview: { callHandler: (name: string, data: Record<string, unknown>) => void } }).flutter_inappwebview.callHandler('webViewMessage', {
+        type: 'request_session',
+        timestamp: new Date().toISOString()
+      });
+      console.log('📡 Requested session from Flutter');
+    } catch (error) {
+      console.warn('⚠️ Failed to request session from Flutter:', error);
+    }
+  }
+  
+  console.log('❌ No token found in any storage method');
+  return null;
 };
 
 /**
@@ -411,6 +554,43 @@ export const getTokenExpirationTime = (token: string): Date | null => {
   }
   
   return new Date(decoded.exp * 1000);
+};
+
+/**
+ * Get auth token with WebView-aware fallback system
+ * Automatically detects WebView and uses appropriate persistence method
+ */
+export const getAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  
+  // Check if we're in a WebView environment
+  const isWebViewEnv = isWebView();
+  
+  if (isWebViewEnv) {
+    console.log('🔧 WebView detected, using enhanced token retrieval');
+    return getWebViewAuthToken();
+  }
+  
+  // Standard browser token retrieval
+  console.log('🌐 Standard browser detected, using standard token retrieval');
+  
+  // Try localStorage first
+  let token = localStorage.getItem('auth-token');
+  
+  // If no token in localStorage, try to get from cookies
+  if (!token) {
+    console.log('🔍 No token in localStorage, checking cookies...');
+    const cookies = document.cookie.split(';');
+    const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('auth-token='));
+    if (tokenCookie) {
+      token = tokenCookie.split('=')[1];
+      console.log('✅ Found token in cookies, restoring to localStorage');
+      // Restore token to localStorage for consistency
+      localStorage.setItem('auth-token', token);
+    }
+  }
+  
+  return token;
 };
 
 // Role-based access control functions

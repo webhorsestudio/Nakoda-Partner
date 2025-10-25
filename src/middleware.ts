@@ -24,13 +24,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for authentication token
-  const authToken = request.cookies.get('auth-token')?.value;
+  // Check for authentication token (multiple cookie formats for WebView compatibility)
+  const authToken = request.cookies.get('auth-token')?.value || 
+                   request.cookies.get('webview-auth-token')?.value;
   
   // Debug cookie information
   console.log(`🔍 Middleware check for route: ${path}`);
   console.log(`🍪 Cookie exists: ${!!authToken}`);
   console.log(`🍪 Cookie value length: ${authToken?.length || 0}`);
+  console.log(`🍪 WebView cookie exists: ${!!request.cookies.get('webview-auth-token')?.value}`);
   
   if (!authToken) {
     console.log(`🔒 No auth token found for protected route: ${path}`);

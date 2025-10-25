@@ -31,13 +31,8 @@ export default function AddAmountModal({
   
   const { initiatePayment, isLoading, error: paymentError, clearError, isPolling } = useRazorpay();
 
-  // Handle payment completion
-  useEffect(() => {
-    if (!isPolling && !isLoading && !isProcessing && !error && !paymentError) {
-      // Payment completed successfully, call the callback
-      onAddAmount();
-    }
-  }, [isPolling, isLoading, isProcessing, error, paymentError, onAddAmount]);
+  // Note: Removed useEffect that was causing infinite loops
+  // Payment completion is now handled directly in the payment success callback
 
   const handleSubmit = async () => {
     if (!validateAmount(amount)) return;

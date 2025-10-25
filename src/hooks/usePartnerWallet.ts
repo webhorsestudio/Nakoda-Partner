@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { getAuthToken } from '@/utils/authUtils';
 
 interface WalletTransaction {
   id: number;
@@ -26,13 +27,24 @@ export function usePartnerWallet(): UsePartnerWalletReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Use refs to prevent infinite loops
+  const isInitialized = useRef(false);
+  const isFetching = useRef(false);
+
   const fetchBalance = useCallback(async () => {
+    // Prevent multiple simultaneous calls
+    if (isFetching.current) {
+      console.log('🔄 fetchBalance already in progress, skipping');
+      return;
+    }
+
     try {
+      isFetching.current = true;
       setIsLoading(true);
       setError(null);
 
-      // Check if user is authenticated and is a partner
-      const token = localStorage.getItem('auth-token');
+      // Use the new token helper that handles both localStorage and cookies
+      const token = getAuthToken();
       if (!token) {
         throw new Error('No authentication token found');
       }
@@ -63,6 +75,8 @@ export function usePartnerWallet(): UsePartnerWalletReturn {
         throw new Error('Invalid authentication token');
       }
 
+      console.log('🔍 Fetching wallet balance with token length:', token.length);
+
       const response = await fetch('/api/partners/wallet/balance', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -70,33 +84,40 @@ export function usePartnerWallet(): UsePartnerWalletReturn {
         }
       });
       
+      console.log('📡 Wallet balance response status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Wallet balance API error:', errorData);
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
+      console.log('✅ Wallet balance data received:', data);
 
       if (data.success) {
         setBalance(data.data.walletBalance);
+        console.log('✅ Wallet balance set to:', data.data.walletBalance);
       } else {
         throw new Error(data.error || 'Failed to fetch balance');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch balance';
       setError(errorMessage);
-      console.error('Error fetching balance:', err);
+      console.error('❌ Error fetching balance:', err);
     } finally {
       setIsLoading(false);
+      isFetching.current = false;
     }
   }, []);
 
   const fetchTransactions = useCallback(async () => {
     try {
-      // Check if user is authenticated and is a partner
-      const token = localStorage.getItem('auth-token');
+      // Use the new token helper that handles both localStorage and cookies
+      const token = getAuthToken();
       if (!token) {
-        throw new Error('No authentication token found');
+        console.warn('⚠️ No authentication token found for transactions');
+        return;
       }
 
       // Check user role before making API call
@@ -121,6 +142,8 @@ export function usePartnerWallet(): UsePartnerWalletReturn {
         return; // Silently return for transactions to avoid blocking the UI
       }
 
+      console.log('🔍 Fetching wallet transactions with token length:', token.length);
+
       const response = await fetch('/api/partners/wallet/transactions', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -128,20 +151,25 @@ export function usePartnerWallet(): UsePartnerWalletReturn {
         }
       });
       
+      console.log('📡 Wallet transactions response status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Wallet transactions API error:', errorData);
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
+      console.log('✅ Wallet transactions data received:', data);
 
       if (data.success) {
         setTransactions(data.data.transactions || []);
+        console.log('✅ Wallet transactions set, count:', data.data.transactions?.length || 0);
       } else {
         throw new Error(data.error || 'Failed to fetch transactions');
       }
     } catch (err) {
-      console.error('Error fetching transactions:', err);
+      console.error('❌ Error fetching transactions:', err);
       // Don't set error for transactions to avoid blocking the UI
     }
   }, []);
@@ -220,10 +248,16 @@ export function usePartnerWallet(): UsePartnerWalletReturn {
     }
   }, [fetchBalance, fetchTransactions]);
 
-  // Auto-fetch balance on mount
+  // Initialize data only once
   useEffect(() => {
-    fetchBalance();
-  }, [fetchBalance]);
+    if (!isInitialized.current) {
+      isInitialized.current = true;
+      console.log('🔄 Initializing wallet data...');
+      Promise.all([fetchBalance(), fetchTransactions()]).catch((error) => {
+        console.error('❌ Initial wallet fetch error:', error);
+      });
+    }
+  }, []); // Empty dependency array - runs only once
 
   return {
     balance,

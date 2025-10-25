@@ -12,9 +12,45 @@ export const isWebView = (): boolean => {
   );
 };
 
+// WebView Session Recovery Utilities
+export const initializeWebViewSession = () => {
+  if (typeof window === 'undefined') return;
+  
+  console.log('🔧 Initializing WebView session recovery...');
+  
+  // Listen for Flutter messages
+  if (isFlutterWebView()) {
+    try {
+      // Set up message listener for session recovery
+      (window as unknown as { flutter_inappwebview: { addEventListener: (event: string, callback: (data: Record<string, unknown>) => void) => void } }).flutter_inappwebview.addEventListener('message', (data: Record<string, unknown>) => {
+        console.log('📨 Received message from Flutter:', data);
+        
+        if (data.type === 'restore_session' && data.token) {
+          console.log('🔄 Restoring session from Flutter...');
+          localStorage.setItem('auth-token', data.token as string);
+          sessionStorage.setItem('auth-token', data.token as string);
+          
+          // Refresh the page to apply the restored session
+          window.location.reload();
+        }
+      });
+      
+      console.log('✅ WebView session recovery initialized');
+    } catch (error) {
+      console.warn('⚠️ Failed to initialize WebView session recovery:', error);
+    }
+  }
+};
+
+// Enhanced WebView detection with Flutter-specific checks
 export const isFlutterWebView = (): boolean => {
   if (typeof window === 'undefined') return false;
-  return (window as unknown as { flutter_inappwebview?: unknown }).flutter_inappwebview !== undefined;
+  
+  const userAgent = navigator.userAgent.toLowerCase();
+  const hasFlutterWebView = (window as unknown as { flutter_inappwebview?: unknown }).flutter_inappwebview !== undefined;
+  const hasFlutterUserAgent = userAgent.includes('flutter') || userAgent.includes('inappwebview');
+  
+  return hasFlutterWebView || hasFlutterUserAgent;
 };
 
 export const sendMessageToFlutter = (message: Record<string, unknown>) => {

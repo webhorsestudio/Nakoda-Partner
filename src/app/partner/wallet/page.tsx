@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { usePartnerAuth } from '@/hooks/usePartnerAuth';
 import { usePartnerWallet } from '@/hooks/usePartnerWallet';
+import { getAuthToken } from '@/utils/authUtils';
 import AddAmountModal from '@/components/partner/wallet/AddAmountModal';
 import { WalletTransactions } from '@/components/partner/wallet/WalletTransactions';
 import { WalletBalance } from '@/components/partner/wallet/WalletBalance';
@@ -20,8 +21,13 @@ export default function WalletPage() {
   // Fetch partner info for payment
   const fetchPartnerInfo = async () => {
     try {
-      const token = localStorage.getItem('auth-token');
-      if (!token) return;
+      const token = getAuthToken();
+      if (!token) {
+        console.warn('⚠️ No authentication token found for partner info');
+        return;
+      }
+
+      console.log('🔍 Fetching partner info with token length:', token.length);
 
       const response = await fetch('/api/partners/profile', {
         headers: {
@@ -30,43 +36,44 @@ export default function WalletPage() {
         }
       });
 
+      console.log('📡 Partner info response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Partner info data received:', data);
         if (data.success) {
           setPartnerInfo({
             name: data.data.name || 'Partner',
             email: data.data.email || 'partner@example.com',
             phone: data.data.phone || '9999999999'
           });
+          console.log('✅ Partner info set:', data.data);
         }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Partner info API error:', errorData);
       }
     } catch (error) {
-      console.error('Error fetching partner info:', error);
+      console.error('❌ Error fetching partner info:', error);
     }
   };
 
   useEffect(() => {
     if (isClient) {
-      // Check if user has auth token
-      const token = localStorage.getItem('auth-token');
+      // Check if user has auth token using the new helper
+      const token = getAuthToken();
       if (!token) {
+        console.log('❌ No authentication token found, redirecting to login');
         router.push('/login');
         return;
       }
       
-      // Try to fetch wallet data and partner info
-      Promise.all([fetchBalance(), fetchTransactions()]).catch((error) => {
-        console.error('Wallet fetch error:', error);
-        // If it's an auth error, redirect to login
-        if (error.message.includes('authentication') || error.message.includes('token')) {
-          router.push('/login');
-        }
-      });
-
-      // Fetch partner info for payment
+      console.log('🔍 Wallet page initialized with token length:', token.length);
+      
+      // Fetch partner info for payment (wallet data is now auto-fetched by the hook)
       fetchPartnerInfo();
     }
-  }, [isClient, router, fetchBalance, fetchTransactions]);
+  }, [isClient]); // Removed function dependencies to prevent infinite loops
 
   useEffect(() => {
     // Check if user returned from payment
@@ -77,7 +84,7 @@ export default function WalletPage() {
       // Remove the query parameter from URL
       router.replace('/partner/wallet');
     }
-  }, [searchParams, fetchBalance, fetchTransactions, router]);
+  }, [searchParams, router]); // Removed function dependencies to prevent infinite loops
 
   if (walletLoading) {
     return (

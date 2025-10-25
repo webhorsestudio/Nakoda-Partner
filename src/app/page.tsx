@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { verifyJWTTokenClient, verifySimpleToken, clearPersistentSessionCookie, getAuthToken } from "@/utils/authUtils";
+import { verifyJWTTokenClient, verifySimpleToken, clearWebViewSession, getAuthToken } from "@/utils/authUtils";
+import { initializeWebViewSession } from "@/utils/webViewUtils";
 import { getUserRole } from "@/utils/roleUtils";
 
 export default function HomePage() {
@@ -12,6 +13,9 @@ export default function HomePage() {
   useEffect(() => {
     const checkAuthAndRedirect = async () => {
       try {
+        // Initialize WebView session recovery first
+        initializeWebViewSession();
+        
         // Check if user is authenticated - try localStorage first, then cookies
         const authToken = getAuthToken();
         
@@ -33,7 +37,7 @@ export default function HomePage() {
         if (!decoded) {
           console.log('❌ Invalid token, redirecting to login');
           localStorage.removeItem('auth-token');
-          clearPersistentSessionCookie();
+          clearWebViewSession();
           router.push('/login');
           return;
         }
