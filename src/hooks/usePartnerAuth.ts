@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { clearPersistentSessionCookie } from '@/utils/authUtils';
+import { clearPersistentSessionCookie, getAuthToken } from '@/utils/authUtils';
 
 // Define the structure of decoded token data
 interface DecodedToken {
@@ -59,8 +59,11 @@ export function usePartnerAuth() {
       setIsLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('auth-token');
+      // Check if user is authenticated - try localStorage first, then cookies
+      const token = getAuthToken();
+      
       if (!token) {
+        console.log('❌ No auth token found in localStorage or cookies, redirecting to login');
         router.push('/login');
         return;
       }

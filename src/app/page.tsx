@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { verifyJWTTokenClient, verifySimpleToken, clearPersistentSessionCookie } from "@/utils/authUtils";
+import { verifyJWTTokenClient, verifySimpleToken, clearPersistentSessionCookie, getAuthToken } from "@/utils/authUtils";
 import { getUserRole } from "@/utils/roleUtils";
 
 export default function HomePage() {
@@ -12,11 +12,11 @@ export default function HomePage() {
   useEffect(() => {
     const checkAuthAndRedirect = async () => {
       try {
-        // Check if user is authenticated
-        const authToken = localStorage.getItem('auth-token');
+        // Check if user is authenticated - try localStorage first, then cookies
+        const authToken = getAuthToken();
         
         if (!authToken) {
-          console.log('❌ No auth token found, redirecting to login');
+          console.log('❌ No auth token found in localStorage or cookies, redirecting to login');
           router.push('/login');
           return;
         }

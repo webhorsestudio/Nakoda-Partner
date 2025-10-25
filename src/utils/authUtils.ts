@@ -336,9 +336,19 @@ export const setPersistentSessionCookie = (token: string): void => {
   const isSecure = window.location.protocol === 'https:';
   
   // Set persistent cookie
-  document.cookie = `auth-token=${token}; path=/; max-age=${cookieExpiry}; SameSite=Strict; ${isSecure ? 'Secure' : ''}`;
+  const cookieString = `auth-token=${token}; path=/; max-age=${cookieExpiry}; SameSite=Strict; ${isSecure ? 'Secure' : ''}`;
+  document.cookie = cookieString;
   
   console.log('✅ Persistent session cookie set for 7 days');
+  console.log('🍪 Cookie string:', cookieString);
+  console.log('🍪 Token length:', token.length);
+  
+  // Verify cookie was set
+  setTimeout(() => {
+    const cookies = document.cookie.split(';');
+    const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('auth-token='));
+    console.log('🍪 Cookie verification:', tokenCookie ? 'SET' : 'NOT SET');
+  }, 100);
 };
 
 /**
@@ -350,6 +360,32 @@ export const clearPersistentSessionCookie = (): void => {
   document.cookie = 'auth-token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
   
   console.log('✅ Persistent session cookie cleared');
+};
+
+/**
+ * Get auth token from localStorage or cookies (with fallback)
+ * This ensures session persistence across browser restarts
+ */
+export const getAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  
+  // Try localStorage first
+  let token = localStorage.getItem('auth-token');
+  
+  // If no token in localStorage, try to get from cookies
+  if (!token) {
+    console.log('🔍 No token in localStorage, checking cookies...');
+    const cookies = document.cookie.split(';');
+    const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('auth-token='));
+    if (tokenCookie) {
+      token = tokenCookie.split('=')[1];
+      console.log('✅ Found token in cookies, restoring to localStorage');
+      // Restore token to localStorage for consistency
+      localStorage.setItem('auth-token', token);
+    }
+  }
+  
+  return token;
 };
 
 /**

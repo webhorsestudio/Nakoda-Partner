@@ -27,6 +27,11 @@ export async function middleware(request: NextRequest) {
   // Check for authentication token
   const authToken = request.cookies.get('auth-token')?.value;
   
+  // Debug cookie information
+  console.log(`🔍 Middleware check for route: ${path}`);
+  console.log(`🍪 Cookie exists: ${!!authToken}`);
+  console.log(`🍪 Cookie value length: ${authToken?.length || 0}`);
+  
   if (!authToken) {
     console.log(`🔒 No auth token found for protected route: ${path}`);
     return NextResponse.redirect(new URL('/login', request.url));
