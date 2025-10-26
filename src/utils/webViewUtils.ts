@@ -389,6 +389,8 @@ export class PaymentPoller {
 
 // WebView-specific Razorpay configuration
 export const getWebViewRazorpayConfig = () => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  
   return {
     modal: {
       backdropclose: false,
@@ -403,7 +405,7 @@ export const getWebViewRazorpayConfig = () => {
       enabled: true,
       max_count: 3,
     },
-    callback_url: `${window.location.origin}/payment-callback`,
+    callback_url: `${origin}/payment-callback`,
   };
 };
 

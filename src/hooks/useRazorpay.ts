@@ -397,6 +397,8 @@ export const useRazorpay = (): UseRazorpayReturn => {
         notes: {
           source: 'webview_app',
           platform: 'flutter_webview',
+          partner_id: params.partnerId,
+          amount: params.amount.toString(),
         },
         // Prefill customer info
         prefill: {
