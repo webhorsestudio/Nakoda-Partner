@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { SecurityUtils } from '@/utils/securityUtils';
 import { environmentConfig } from '@/config/environment';
+import Razorpay from 'razorpay';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +34,7 @@ interface RazorpayWebhookEvent {
         created_at: number;
       };
     };
-    order: {
+    order?: {
       entity: {
         id: string;
         amount: number;
@@ -134,99 +135,189 @@ export async function POST(request: NextRequest) {
 // Handle successful payment capture
 async function handlePaymentCaptured(event: RazorpayWebhookEvent) {
   const payment = event.payload.payment.entity;
-  const order = event.payload.order.entity;
+  const order = event.payload.order;
   
   console.log('💰 Payment captured:', payment.id);
+  console.log('📦 Webhook payload:', JSON.stringify({
+    event: event.event,
+    payment_id: payment.id,
+    order_id: payment.order_id,
+    amount: payment.amount,
+    order_notes: order?.entity?.notes,
+    payment_notes: payment.notes
+  }, null, 2));
   
   try {
-    // Get partner ID from order notes
-    const partnerId = order.notes.partner_id;
+    // Get partner ID from order notes (preferred) or payment notes (fallback)
+    // Razorpay sometimes sends partner_id in different places
+    const partnerId = order?.entity?.notes?.partner_id || payment.notes?.partner_id;
+    
     if (!partnerId) {
-      throw new Error('Partner ID not found in order notes');
-    }
-
-    // Check if this payment was already processed
-    const { data: existingTransaction } = await supabase
-      .from('wallet_transactions')
-      .select('id')
-      .eq('reference_id', payment.id)
-      .eq('reference_type', 'razorpay_payment')
-      .single();
-
-    if (existingTransaction) {
-      console.log('ℹ️ Payment already processed:', payment.id);
-      return;
-    }
-
-    // Get current wallet balance
-    const { data: partner, error: fetchError } = await supabase
-      .from('partners')
-      .select('wallet_balance')
-      .eq('id', partnerId)
-      .single();
-
-    if (fetchError || !partner) {
-      throw new Error(`Failed to fetch partner wallet: ${fetchError?.message}`);
-    }
-
-    const currentBalance = partner.wallet_balance || 0;
-    const amountInRupees = payment.amount / 100; // Convert from paise
-    const newBalance = currentBalance + amountInRupees;
-
-    // Update wallet balance
-    const { error: updateError } = await supabase
-      .from('partners')
-      .update({ 
-        wallet_balance: newBalance,
-        last_transaction_at: new Date().toISOString(),
-        wallet_updated_at: new Date().toISOString()
-      })
-      .eq('id', partnerId);
-
-    if (updateError) {
-      throw new Error(`Failed to update wallet: ${updateError.message}`);
-    }
-
-    // Log transaction
-    const { error: transactionError } = await supabase
-      .from('wallet_transactions')
-      .insert({
-        partner_id: partnerId,
-        transaction_type: 'credit',
-        amount: amountInRupees,
-        balance_before: currentBalance,
-        balance_after: newBalance,
-        description: 'Wallet top-up via Razorpay (Webhook)',
-        reference_id: payment.id,
-        reference_type: 'razorpay_payment',
-        status: 'completed',
-        metadata: {
-          payment_method: payment.method,
-          order_id: order.id,
-          webhook_event: event.event,
-          processed_at: new Date().toISOString()
-        },
-        created_at: new Date().toISOString()
+      console.error('❌ Partner ID not found in webhook payload:', {
+        order_notes: order?.entity?.notes,
+        payment_notes: payment.notes,
+        payment_id: payment.id,
+        order_id: payment.order_id
       });
-
-    if (transactionError) {
-      console.error('❌ Failed to log transaction:', transactionError.message);
+      
+      // Try to fetch order from Razorpay API as last resort
+      try {
+        const razorpayClient = new Razorpay({
+          key_id: process.env.RAZORPAY_KEY_ID!,
+          key_secret: process.env.RAZORPAY_KEY_SECRET!,
+        });
+        
+        const razorpayOrder = await razorpayClient.orders.fetch(payment.order_id);
+        const fetchedPartnerId = razorpayOrder.notes?.partner_id;
+        
+        if (fetchedPartnerId) {
+          console.log('✅ Found partner_id from Razorpay API:', fetchedPartnerId);
+          // Continue processing with fetched partner_id
+          // Wrap the Razorpay order in the expected structure with proper type conversion
+          const wrappedOrder = { 
+            entity: {
+              id: razorpayOrder.id,
+              amount: razorpayOrder.amount,
+              currency: razorpayOrder.currency,
+              receipt: razorpayOrder.receipt || '',
+              status: razorpayOrder.status,
+              created_at: razorpayOrder.created_at,
+              notes: (razorpayOrder.notes ? Object.fromEntries(Object.entries(razorpayOrder.notes)) : {}) as Record<string, string | number | undefined>
+            }
+          };
+          return await processPaymentWithPartnerId(fetchedPartnerId.toString(), payment, wrappedOrder);
+        }
+      } catch (fetchError) {
+        console.error('❌ Failed to fetch order from Razorpay:', fetchError);
+      }
+      
+      throw new Error(`Partner ID not found in order notes or payment notes. Payment: ${payment.id}, Order: ${payment.order_id}`);
     }
 
-    console.log('✅ Wallet updated via webhook:', {
-      partnerId,
-      amount: amountInRupees,
-      oldBalance: currentBalance,
-      newBalance: newBalance
-    });
-
+    // Process payment with partner ID
+    await processPaymentWithPartnerId(partnerId, payment, order);
+    
   } catch (error) {
     console.error('❌ Error processing payment captured webhook:', error);
     SecurityUtils.logSecurityEvent('WEBHOOK_PAYMENT_CAPTURED_ERROR', {
       paymentId: payment.id,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      orderId: payment.order_id,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
     }, 'high');
+    
+    // Don't throw error - we want webhook to return 200 to Razorpay
+    // so they don't keep retrying
   }
+}
+
+// Helper function to process payment with partner ID
+async function processPaymentWithPartnerId(
+  partnerId: string,
+  payment: RazorpayWebhookEvent['payload']['payment']['entity'],
+  order: RazorpayWebhookEvent['payload']['order'] | { entity: { id: string; amount: number | string; currency: string; receipt?: string; status: string; created_at: number; notes: Record<string, string | number | undefined>; [key: string]: unknown } } | undefined
+) {
+  // Parse partner ID (ensure it's a number if stored as numeric)
+  const parsedPartnerId = parseInt(partnerId, 10);
+  if (isNaN(parsedPartnerId)) {
+    throw new Error(`Invalid partner ID format: ${partnerId}`);
+  }
+
+  console.log(`💳 Processing payment for partner ${parsedPartnerId}, payment ${payment.id}`);
+
+  // Check if this payment was already processed (idempotency check)
+  const { data: existingTransaction } = await supabase
+    .from('wallet_transactions')
+    .select('id, status, amount, balance_after')
+    .eq('reference_id', payment.id)
+    .eq('reference_type', 'razorpay_payment')
+    .single();
+
+  if (existingTransaction) {
+    console.log('ℹ️ Payment already processed:', {
+      payment_id: payment.id,
+      transaction_id: existingTransaction.id,
+      status: existingTransaction.status,
+      amount: existingTransaction.amount
+    });
+    return { success: true, already_processed: true };
+  }
+
+  // Get current wallet balance
+  const { data: partner, error: fetchError } = await supabase
+    .from('partners')
+    .select('wallet_balance, id')
+    .eq('id', parsedPartnerId)
+    .single();
+
+  if (fetchError || !partner) {
+    throw new Error(`Failed to fetch partner wallet: ${fetchError?.message || 'Partner not found'}`);
+  }
+
+  const currentBalance = parseFloat(partner.wallet_balance?.toString() || '0');
+  const amountInRupees = payment.amount / 100; // Convert from paise to rupees
+  const newBalance = currentBalance + amountInRupees;
+
+  console.log(`💰 Updating wallet: Partner ${parsedPartnerId}, Amount: ₹${amountInRupees}, Balance: ₹${currentBalance} → ₹${newBalance}`);
+
+  // Update wallet balance
+  const { error: updateError } = await supabase
+    .from('partners')
+    .update({ 
+      wallet_balance: newBalance,
+      last_transaction_at: new Date().toISOString(),
+      wallet_updated_at: new Date().toISOString()
+    })
+    .eq('id', parsedPartnerId);
+
+  if (updateError) {
+    throw new Error(`Failed to update wallet: ${updateError.message}`);
+  }
+
+  // Log transaction
+  const { error: transactionError } = await supabase
+    .from('wallet_transactions')
+    .insert({
+      partner_id: parsedPartnerId,
+      transaction_type: 'credit',
+      amount: amountInRupees,
+      balance_before: currentBalance,
+      balance_after: newBalance,
+      description: 'Wallet top-up via Razorpay (Webhook)',
+      reference_id: payment.id,
+      reference_type: 'razorpay_payment',
+      status: 'completed',
+        metadata: {
+          payment_method: payment.method,
+          order_id: order?.entity?.id || payment.order_id,
+          webhook_event: 'payment.captured',
+          processed_at: new Date().toISOString(),
+          source: 'webhook'
+        },
+      created_at: new Date().toISOString()
+    });
+
+  if (transactionError) {
+    console.error('❌ Failed to log transaction:', transactionError.message);
+    // Don't throw - wallet was updated, transaction log is secondary
+  }
+
+  console.log('✅ Wallet updated successfully via webhook:', {
+    partnerId: parsedPartnerId,
+    paymentId: payment.id,
+    amount: amountInRupees,
+    oldBalance: currentBalance,
+    newBalance: newBalance,
+    transactionLogged: !transactionError
+  });
+
+  return {
+    success: true,
+    partnerId: parsedPartnerId,
+    amount: amountInRupees,
+    oldBalance: currentBalance,
+    newBalance: newBalance
+  };
 }
 
 // Handle failed payment
@@ -275,7 +366,12 @@ async function handlePaymentFailed(event: RazorpayWebhookEvent) {
 
 // Handle order paid
 async function handleOrderPaid(event: RazorpayWebhookEvent) {
-  const order = event.payload.order.entity;
+  const order = event.payload.order?.entity;
+  
+  if (!order) {
+    console.warn('⚠️ Order not found in order.paid event');
+    return;
+  }
   
   console.log('✅ Order paid:', order.id);
   

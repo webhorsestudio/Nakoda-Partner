@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 import { 
   isWebView, 
   isFlutterWebView, 
-  sendPaymentResultToFlutter,
+  sendPaymentResultToFlutter, 
   sendPaymentStartedToFlutter,
   sendPaymentPollingStartedToFlutter,
   PaymentPoller,
@@ -202,7 +202,7 @@ export const useRazorpay = (): UseRazorpayReturn => {
               resolve(window.Razorpay);
             } else {
               const checkInterval = setInterval(() => {
-                if (window.Razorpay) {
+        if (window.Razorpay) {
                   clearInterval(checkInterval);
                   resolve(window.Razorpay);
                 }
@@ -212,17 +212,17 @@ export const useRazorpay = (): UseRazorpayReturn => {
         };
 
         // Enhanced UPI apps list for WebView
-        const mockUPIApps = [
-          'com.google.android.apps.nfp.payment', // Google Pay
-          'com.phonepe.app', // PhonePe
-          'net.one97.paytm', // Paytm
-          'com.dreamplug.androidapp', // CRED
-          'com.amazon.mShop.android.shopping', // Amazon Pay
-          'com.mobikwik_new', // MobiKwik
-          'com.freecharge.android', // FreeCharge
-          'com.jio.jiopay', // JioPay
-          'com.bharatpe.app', // BharatPe
-          'com.whatsapp', // WhatsApp Pay
+            const mockUPIApps = [
+              'com.google.android.apps.nfp.payment', // Google Pay
+              'com.phonepe.app', // PhonePe
+              'net.one97.paytm', // Paytm
+              'com.dreamplug.androidapp', // CRED
+              'com.amazon.mShop.android.shopping', // Amazon Pay
+              'com.mobikwik_new', // MobiKwik
+              'com.freecharge.android', // FreeCharge
+              'com.jio.jiopay', // JioPay
+              'com.bharatpe.app', // BharatPe
+              'com.whatsapp', // WhatsApp Pay
           'com.truecaller', // Truecaller Pay
           'com.samsung.android.spay', // Samsung Pay
           'com.axis.mobile', // Axis Bank
@@ -237,9 +237,9 @@ export const useRazorpay = (): UseRazorpayReturn => {
           console.log('🚀 Enhanced Razorpay initialization for WebView');
           
           // Force enable UPI methods with mock apps
-          if (options && options.method) {
-            options.method.upi = true;
-            options.method.upi_apps = mockUPIApps;
+            if (options && options.method) {
+              options.method.upi = true;
+              options.method.upi_apps = mockUPIApps;
             options.method.netbanking = true;
             options.method.wallet = true;
             options.method.card = true;
@@ -275,21 +275,21 @@ export const useRazorpay = (): UseRazorpayReturn => {
           }
 
           console.log('✅ Enhanced Razorpay options applied:', options);
-          return new originalRazorpay(options);
-        };
-
-        // Copy all properties from original Razorpay
-        Object.setPrototypeOf(window.Razorpay, originalRazorpay);
-        Object.assign(window.Razorpay, originalRazorpay);
-        
+            return new originalRazorpay(options);
+          };
+          
+          // Copy all properties from original Razorpay
+          Object.setPrototypeOf(window.Razorpay, originalRazorpay);
+          Object.assign(window.Razorpay, originalRazorpay);
+          
         console.log('✅ Enhanced UPI detection override injected successfully');
       })();
     `;
 
     // Execute the script
-    const scriptElement = document.createElement('script');
-    scriptElement.textContent = script;
-    document.head.appendChild(scriptElement);
+      const scriptElement = document.createElement('script');
+      scriptElement.textContent = script;
+      document.head.appendChild(scriptElement);
     
     console.log('✅ Enhanced UPI detection override script injected');
   }, []);
@@ -607,10 +607,10 @@ export const useRazorpay = (): UseRazorpayReturn => {
           position: 'top-right',
         });
       } else {
-        toast.success('Payment gateway opened successfully!', {
-          duration: 2000,
-          position: 'top-right',
-        });
+      toast.success('Payment gateway opened successfully!', {
+        duration: 2000,
+        position: 'top-right',
+      });
       }
 
       return { success: true, message: 'Razorpay checkout opened' };
